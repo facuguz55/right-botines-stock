@@ -15,7 +15,7 @@
 
 .search-wrap {
   position: relative;
-  flex: 0 1 180px;
+  flex: 1;
   min-width: 130px;
 }
 
