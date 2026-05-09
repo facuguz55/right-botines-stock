@@ -139,6 +139,7 @@ export function filterModelos(modelos: Modelo[], filters: ModeloFilters): Modelo
       !m.codigo_base.toLowerCase().includes(filters.search.toLowerCase()) &&
       !m.modelo.toLowerCase().includes(filters.search.toLowerCase())
     ) return false
+    if (filters.talle && !m.modelo_talles.some(t => String(t.talle_arg) === filters.talle)) return false
     return true
   })
 }

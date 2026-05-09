@@ -15,8 +15,8 @@
 
 .search-wrap {
   position: relative;
-  flex: 1;
-  min-width: 200px;
+  flex: 0 1 180px;
+  min-width: 130px;
 }
 
 .search-icon {
@@ -60,7 +60,12 @@
 }
 
 .filter-select {
-  min-width: 140px;
+  min-width: 130px;
+}
+
+.filter-select-talle {
+  min-width: 100px;
+  max-width: 110px;
 }
 
 .filter-input {

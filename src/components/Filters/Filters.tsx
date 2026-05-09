@@ -12,10 +12,13 @@ const GAMAS = ['Económica', 'Media', 'Alta']
 
 export function Filters({ filters, onChange, modelos }: FiltersProps) {
   const marcas = [...new Set(modelos.map(m => m.marca))].sort()
+  const talles = [...new Set(
+    modelos.flatMap(m => m.modelo_talles.map(t => t.talle_arg))
+  )].sort((a, b) => a - b)
   const update = (key: keyof ModeloFilters, value: string) => onChange({ ...filters, [key]: value })
 
   const hasFilters = filters.marca || filters.categoria || filters.gama ||
-    filters.disponibilidad !== 'todos' || filters.search
+    filters.disponibilidad !== 'todos' || filters.search || filters.talle
 
   return (
     <div className="filters">
@@ -25,11 +28,16 @@ export function Filters({ filters, onChange, modelos }: FiltersProps) {
           <input
             type="text"
             className="search-input"
-            placeholder="Buscar por modelo o código..."
+            placeholder="Modelo o código..."
             value={filters.search}
             onChange={e => update('search', e.target.value)}
           />
         </div>
+
+        <select className="filter-select filter-select-talle" value={filters.talle} onChange={e => update('talle', e.target.value)}>
+          <option value="">Talle ARG</option>
+          {talles.map(t => <option key={t} value={String(t)}>{t}</option>)}
+        </select>
 
         <select className="filter-select" value={filters.marca} onChange={e => update('marca', e.target.value)}>
           <option value="">Todas las marcas</option>
@@ -53,7 +61,7 @@ export function Filters({ filters, onChange, modelos }: FiltersProps) {
         </select>
 
         {hasFilters && (
-          <button className="btn btn-secondary btn-sm" onClick={() => onChange({ marca: '', categoria: '', gama: '', disponibilidad: 'todos', search: '' })}>
+          <button className="btn btn-secondary btn-sm" onClick={() => onChange({ marca: '', categoria: '', gama: '', disponibilidad: 'todos', search: '', talle: '' })}>
             Limpiar
           </button>
         )}
