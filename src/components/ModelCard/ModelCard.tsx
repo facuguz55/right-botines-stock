@@ -15,7 +15,6 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
   const totalPares = modelo.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
   const agotado = totalPares === 0
   const ultimoPar = !agotado && totalPares === 1
-  const stockBajo = !agotado && !ultimoPar && modelo.modelo_talles.some(t => t.cantidad > 0 && t.cantidad <= t.stock_minimo)
   const mainFoto = modelo.modelo_fotos[0]?.foto_url ?? null
   const extraFotos = modelo.modelo_fotos.length - 1
 
@@ -29,7 +28,6 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
         )}
         {agotado && <div className="badge badge-agotado">Agotado</div>}
         {ultimoPar && <div className="badge badge-ultimo">¡Último par!</div>}
-        {stockBajo && <div className="badge badge-minimo">Stock mínimo</div>}
         {extraFotos > 0 && <div className="foto-count">+{extraFotos}</div>}
       </div>
 
