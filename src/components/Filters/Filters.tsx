@@ -12,13 +12,16 @@ const GAMAS = ['Económica', 'Media', 'Alta']
 
 export function Filters({ filters, onChange, modelos }: FiltersProps) {
   const marcas = [...new Set(modelos.map(m => m.marca))].sort()
-  const talles = [...new Set(
-    modelos.flatMap(m => m.modelo_talles.map(t => t.talle_arg))
-  )].sort((a, b) => a - b)
-  const update = (key: keyof ModeloFilters, value: string) => onChange({ ...filters, [key]: value })
+  const talles = [
+    ...new Set(modelos.flatMap(m => m.modelo_talles.map(t => t.talle_arg))),
+  ].sort((a, b) => a - b)
 
-  const hasFilters = filters.marca || filters.categoria || filters.gama ||
-    filters.disponibilidad !== 'todos' || filters.search || filters.talle
+  const update = (key: keyof ModeloFilters, value: string) =>
+    onChange({ ...filters, [key]: value })
+
+  const hasFilters =
+    filters.marca || filters.categoria || filters.gama ||
+    filters.talle || filters.disponibilidad !== 'todos' || filters.search
 
   return (
     <div className="filters">
@@ -34,9 +37,9 @@ export function Filters({ filters, onChange, modelos }: FiltersProps) {
           />
         </div>
 
-        <select className="filter-select filter-select-talle" value={filters.talle} onChange={e => update('talle', e.target.value)}>
-          <option value="">Talle ARG</option>
-          {talles.map(t => <option key={t} value={String(t)}>{t}</option>)}
+        <select className="filter-select" value={filters.talle} onChange={e => update('talle', e.target.value)}>
+          <option value="">Todos los talles</option>
+          {talles.map(t => <option key={t} value={String(t)}>{t} arg</option>)}
         </select>
 
         <select className="filter-select" value={filters.marca} onChange={e => update('marca', e.target.value)}>
@@ -61,7 +64,10 @@ export function Filters({ filters, onChange, modelos }: FiltersProps) {
         </select>
 
         {hasFilters && (
-          <button className="btn btn-secondary btn-sm" onClick={() => onChange({ marca: '', categoria: '', gama: '', disponibilidad: 'todos', search: '', talle: '' })}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => onChange({ marca: '', categoria: '', gama: '', talle: '', disponibilidad: 'todos', search: '' })}
+          >
             Limpiar
           </button>
         )}

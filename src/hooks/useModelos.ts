@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { Modelo, ModeloFilters, PhotoSlot, TalleRow, MedioPago } from '../types'
 import {
   fetchModelos, createModelo, updateModelo, deleteModelo,
-  sellTalle, addIngreso, upsertTalle, deleteTalle,
+  sellTalle, addIngreso, addIngresoBatch, upsertTalle, deleteTalle,
   getUniqueCodigoBase, clearAllModelos,
 } from '../services/modelos'
 import { saveFotos, deleteFotosForModelo } from '../services/fotos'
@@ -115,6 +115,16 @@ export function useModelos() {
     await load()
   }
 
+  const ingresarStockBatch = async (
+    modeloId: string,
+    changes: { talleId: string; talleArg: number; talleUs: number; cantidadActual: number; delta: number }[],
+    newTalle: { talleArg: number; talleUs: number; cantidad: number } | null,
+    costoTotal: number
+  ) => {
+    await addIngresoBatch(modeloId, changes, newTalle, costoTotal)
+    await load()
+  }
+
   const clearAll = async () => {
     await clearAllModelos()
     setModelos([])
@@ -122,7 +132,7 @@ export function useModelos() {
 
   return {
     modelos, loading, error, reload: load,
-    addModelo, editModelo, removeModelo, venderModelo, ingresarStock, clearAll,
+    addModelo, editModelo, removeModelo, venderModelo, ingresarStock, ingresarStockBatch, clearAll,
   }
 }
 
@@ -131,6 +141,7 @@ export function filterModelos(modelos: Modelo[], filters: ModeloFilters): Modelo
     if (filters.marca && m.marca.toLowerCase() !== filters.marca.toLowerCase()) return false
     if (filters.categoria && m.categoria !== filters.categoria) return false
     if (filters.gama && m.gama !== filters.gama) return false
+    if (filters.talle && !m.modelo_talles.some(t => String(t.talle_arg) === filters.talle)) return false
     const total = m.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
     if (filters.disponibilidad === 'disponible' && total <= 0) return false
     if (filters.disponibilidad === 'agotado' && total > 0) return false

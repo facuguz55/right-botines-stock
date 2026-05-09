@@ -22,7 +22,7 @@ interface ModelGridProps {
 }
 
 const DEFAULT_FILTERS: ModeloFilters = {
-  marca: '', categoria: '', gama: '', disponibilidad: 'todos', search: '', talle: '',
+  marca: '', categoria: '', gama: '', talle: '', disponibilidad: 'todos', search: '',
 }
 
 export function ModelGrid({

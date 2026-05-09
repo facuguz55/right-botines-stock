@@ -5,7 +5,7 @@ import { Modal } from './components/Modal/Modal'
 import { ModelGrid } from './components/ModelGrid/ModelGrid'
 import { ModelForm } from './components/ModelForm/ModelForm'
 import { SellModal } from './components/SellModal/SellModal'
-import { IngresoModal } from './components/IngresoModal/IngresoModal'
+import { IngresoPage } from './components/IngresoPage/IngresoPage'
 import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
 import { PhotoSearch } from './components/PhotoSearch/PhotoSearch'
@@ -20,7 +20,7 @@ export function App() {
 
   const {
     modelos, loading, reload,
-    addModelo, editModelo, removeModelo, venderModelo, ingresarStock, clearAll,
+    addModelo, editModelo, removeModelo, venderModelo, ingresarStockBatch, clearAll,
   } = useModelos()
 
   const [showForm, setShowForm] = useState(false)
@@ -53,19 +53,30 @@ export function App() {
   return (
     <Layout activePage={activePage} onNavigate={setActivePage}>
       {activePage === 'stock' && (
-        <ModelGrid
-          modelos={modelos}
-          loading={loading}
-          onSell={setSellTarget}
-          onEdit={handleEdit}
-          onDelete={setDeleteTarget}
-          onIngreso={setIngresoTarget}
-          onPriceHistory={setPriceHistoryTarget}
-          onAdd={handleAdd}
-          onPhotoSearch={() => setShowPhotoSearch(true)}
-          onImport={() => setShowImport(true)}
-          onClearAll={() => setShowClearConfirm(true)}
-        />
+        ingresoTarget ? (
+          <IngresoPage
+            modelo={ingresoTarget}
+            onCancel={() => setIngresoTarget(null)}
+            onSave={(changes, newTalle, costoTotal) =>
+              ingresarStockBatch(ingresoTarget.id, changes, newTalle, costoTotal)
+                .then(() => setIngresoTarget(null))
+            }
+          />
+        ) : (
+          <ModelGrid
+            modelos={modelos}
+            loading={loading}
+            onSell={setSellTarget}
+            onEdit={handleEdit}
+            onDelete={setDeleteTarget}
+            onIngreso={setIngresoTarget}
+            onPriceHistory={setPriceHistoryTarget}
+            onAdd={handleAdd}
+            onPhotoSearch={() => setShowPhotoSearch(true)}
+            onImport={() => setShowImport(true)}
+            onClearAll={() => setShowClearConfirm(true)}
+          />
+        )
       )}
 
       {activePage === 'dashboard' && <Dashboard />}
@@ -82,12 +93,6 @@ export function App() {
         modelo={sellTarget}
         onClose={() => setSellTarget(null)}
         onConfirm={(m: Modelo, talleId: string, medioPago: MedioPago) => venderModelo(m, talleId, medioPago)}
-      />
-
-      <IngresoModal
-        modelo={ingresoTarget}
-        onClose={() => setIngresoTarget(null)}
-        onConfirm={ingresarStock}
       />
 
       <DeleteConfirm

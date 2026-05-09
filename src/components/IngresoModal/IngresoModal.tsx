@@ -20,12 +20,18 @@ interface IngresoModalProps {
 export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) {
   const [mode, setMode] = useState<'existing' | 'new'>('existing')
   const [selectedTalleId, setSelectedTalleId] = useState<string>('')
-  const [newTalleArg, setNewTalleArg] = useState('')
-  const [newTalleUs, setNewTalleUs] = useState('')
+  const [newTalleArg, setNewTalleArg] = useState<number | ''>('')
+  const [newTalleUs, setNewTalleUs] = useState<number | ''>('')
   const [cantidad, setCantidad] = useState('1')
   const [costoTotal, setCostoTotal] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const TALLES_ARG = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46]
+  const ARG_TO_US: Record<number, number> = {
+    35: 3, 36: 4, 37: 5, 38: 6, 39: 6.5, 40: 7,
+    41: 8, 42: 8.5, 43: 9.5, 44: 10, 45: 11, 46: 12,
+  }
 
   if (!modelo) return null
 
@@ -38,7 +44,7 @@ export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) 
     if (!cant || cant < 1) return setError('La cantidad debe ser al menos 1')
 
     if (mode === 'existing' && !selectedTalleId) return setError('Elegí un talle')
-    if (mode === 'new' && !newTalleArg) return setError('Ingresá el talle ARG')
+    if (mode === 'new' && newTalleArg === '') return setError('Elegí un talle ARG')
 
     setLoading(true)
     try {
@@ -49,7 +55,7 @@ export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) 
         )
       } else {
         await onConfirm(
-          modelo.id, parseFloat(newTalleArg), parseFloat(newTalleUs) || 0,
+          modelo.id, newTalleArg as number, newTalleUs as number,
           0, cant, parseFloat(costoTotal) || 0
         )
       }
@@ -107,11 +113,27 @@ export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) 
           <div className="form-row">
             <div className="form-group">
               <label>Talle ARG *</label>
-              <input type="number" step="0.5" placeholder="42" value={newTalleArg} onChange={e => setNewTalleArg(e.target.value)} />
+              <div className="talle-arg-grid">
+                {TALLES_ARG.map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`talle-arg-btn${newTalleArg === t ? ' active' : ''}`}
+                    onClick={() => { setNewTalleArg(t); setNewTalleUs(ARG_TO_US[t]) }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="form-group">
+            <div className="form-group form-group--talle-us">
               <label>Talle US</label>
-              <input type="number" step="0.5" placeholder="9" value={newTalleUs} onChange={e => setNewTalleUs(e.target.value)} />
+              <input
+                type="text"
+                readOnly
+                value={newTalleUs !== '' ? `${newTalleUs} US` : '—'}
+                className="talle-us-readonly"
+              />
             </div>
           </div>
         )}

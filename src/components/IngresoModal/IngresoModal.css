@@ -17,6 +17,14 @@
 .talle-sel-btn.active { border-color: var(--accent); background: var(--accent-dim); }
 .talle-sel-btn.active strong { color: var(--accent); }
 
+.talle-arg-grid { display: flex; flex-wrap: wrap; gap: .375rem; }
+.talle-arg-btn { padding: .375rem .625rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-surface-3); color: var(--text-secondary); font-size: .875rem; font-weight: 500; cursor: pointer; transition: border-color .15s, background .15s, color .15s; min-width: 40px; text-align: center; }
+.talle-arg-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.talle-arg-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); font-weight: 700; }
+
+.form-group--talle-us { max-width: 110px; }
+.talle-us-readonly { background: var(--bg-surface-3); color: var(--text-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .5rem .75rem; font-size: .9375rem; font-weight: 600; text-align: center; cursor: default; width: 100%; }
+
 .ingreso-preview { display: flex; align-items: center; justify-content: space-between; background: var(--accent-dim); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: .625rem .875rem; font-size: .875rem; color: var(--accent); }
 .ingreso-preview strong { font-size: 1rem; font-weight: 700; }
 

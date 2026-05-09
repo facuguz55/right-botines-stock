@@ -81,9 +81,9 @@ export interface ModeloFilters {
   marca: string
   categoria: string
   gama: string
+  talle: string
   disponibilidad: 'todos' | 'disponible' | 'agotado'
   search: string
-  talle: string
 }
 
 export interface PhotoSlot {

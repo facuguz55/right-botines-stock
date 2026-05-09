@@ -27,9 +27,13 @@
 .talle-remove:hover { color: var(--danger); }
 
 .talles-add-row { display: grid; grid-template-columns: 1fr 1fr 80px 80px auto; gap: 6px; align-items: center; padding-top: .25rem; border-top: 1px dashed var(--border); }
-.talles-add-row input { background: var(--bg-surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); padding: .375rem .5rem; width: 100%; outline: none; font-size: .875rem; }
-.talles-add-row input:focus { border-color: var(--accent); }
+.talles-add-row input,
+.talles-add-row select { background: var(--bg-surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); padding: .375rem .5rem; width: 100%; outline: none; font-size: .875rem; }
+.talles-add-row input:focus,
+.talles-add-row select:focus { border-color: var(--accent); }
 .talles-add-row input::placeholder { color: var(--text-muted); }
+.talles-add-row select option { background: var(--bg-surface-2); }
+.talle-us-add-readonly { color: var(--text-secondary) !important; cursor: default !important; }
 
 /* Código */
 .codigo-readonly, .codigo-preview { display: flex; align-items: center; gap: .75rem; background: var(--bg-surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .5rem .75rem; }

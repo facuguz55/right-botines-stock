@@ -19,6 +19,10 @@ interface ModelFormProps {
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
 const CATEGORIAS = ['F5', 'F11', 'Futsal', 'Hockey']
 const GAMAS = ['Económica', 'Media', 'Alta']
+const ARG_TO_US: Record<number, number> = {
+  35: 3, 36: 4, 37: 5, 38: 6, 39: 6.5, 40: 7,
+  41: 8, 42: 8.5, 43: 9.5, 44: 10, 45: 11, 46: 12,
+}
 
 const EMPTY_TALLE: TalleRow = { talle_us: '', talle_arg: '', cantidad: '1', stock_minimo: '1', toDelete: false }
 
@@ -232,8 +236,35 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
           )}
 
           <div className="talles-add-row">
-            <input type="number" step="0.5" placeholder="Talle ARG" value={newTalle.talle_arg} onChange={e => setNewTalle(t => ({ ...t, talle_arg: e.target.value }))} />
-            <input type="number" step="0.5" placeholder="Talle US" value={newTalle.talle_us} onChange={e => setNewTalle(t => ({ ...t, talle_us: e.target.value }))} />
+            <select
+              value={newTalle.talle_arg}
+              onChange={e => {
+                const arg = e.target.value
+                const us = arg ? String(ARG_TO_US[parseInt(arg)] ?? '') : ''
+                setNewTalle(t => ({ ...t, talle_arg: arg, talle_us: us }))
+              }}
+            >
+              <option value="">Seleccionar talle</option>
+              <option value="35">35</option>
+              <option value="36">36</option>
+              <option value="37">37</option>
+              <option value="38">38</option>
+              <option value="39">39</option>
+              <option value="40">40</option>
+              <option value="41">41</option>
+              <option value="42">42</option>
+              <option value="43">43</option>
+              <option value="44">44</option>
+              <option value="45">45</option>
+              <option value="46">46</option>
+            </select>
+            <input
+              type="text"
+              readOnly
+              placeholder="US"
+              value={newTalle.talle_us ? `${newTalle.talle_us} US` : ''}
+              className="talle-us-add-readonly"
+            />
             <input type="number" min="0" placeholder="Cant." value={newTalle.cantidad} onChange={e => setNewTalle(t => ({ ...t, cantidad: e.target.value }))} />
             <input type="number" min="0" placeholder="Mín." value={newTalle.stock_minimo} onChange={e => setNewTalle(t => ({ ...t, stock_minimo: e.target.value }))} />
             <button type="button" className="btn btn-secondary btn-sm" onClick={addTalle} disabled={!newTalle.talle_arg}>+ Agregar</button>

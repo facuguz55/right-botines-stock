@@ -129,6 +129,41 @@ export async function addIngreso(
   if (ingErr) throw ingErr
 }
 
+export async function addIngresoBatch(
+  modeloId: string,
+  changes: { talleId: string; talleArg: number; talleUs: number; cantidadActual: number; delta: number }[],
+  newTalle: { talleArg: number; talleUs: number; cantidad: number } | null,
+  costoTotal: number
+): Promise<void> {
+  for (const c of changes) {
+    const { error } = await supabase
+      .from('modelo_talles')
+      .update({ cantidad: c.cantidadActual + c.delta })
+      .eq('id', c.talleId)
+    if (error) throw error
+  }
+
+  if (newTalle) {
+    const { error } = await supabase
+      .from('modelo_talles')
+      .insert([{ modelo_id: modeloId, talle_us: newTalle.talleUs, talle_arg: newTalle.talleArg, cantidad: newTalle.cantidad, stock_minimo: 1 }])
+    if (error) throw error
+  }
+
+  const totalCantidad = changes.reduce((s, c) => s + c.delta, 0) + (newTalle?.cantidad ?? 0)
+  const refTalleArg = changes[0]?.talleArg ?? newTalle?.talleArg ?? 0
+
+  if (totalCantidad > 0) {
+    const { error } = await supabase.from('ingresos').insert([{
+      modelo_id: modeloId,
+      talle_arg: refTalleArg,
+      cantidad: totalCantidad,
+      costo_total: costoTotal,
+    }])
+    if (error) throw error
+  }
+}
+
 export async function getUniqueCodigoBase(base: string): Promise<string> {
   const { data } = await supabase
     .from('modelos')

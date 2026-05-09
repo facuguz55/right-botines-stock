@@ -32,24 +32,23 @@ No introducir librerías fuera de este stack sin consultar primero.
 ## Funcionalidades
 
 ### 1. Gestión de stock
-- Agregar botín con los siguientes campos:
+- Agregar modelo de botín con los siguientes campos:
   - Fotos múltiples (subidas a Supabase Storage, sin etiquetas, mínimo 1 requerida)
   - Marca (Nike, Adidas, Puma, New Balance, Mizuno, Umbro, Under Armour, Joma, Otra)
   - Modelo (ej: Predator, Mercurial, Phantom)
   - Categoría: F5 / F11 / Futsal / Hockey
   - Gama: Económica / Media / Alta
-  - Talle US y talle ARG
-  - Cantidad de pares disponibles
+  - Talles: múltiples pares por modelo, cada uno con talle US, talle ARG y cantidad
   - Precio de costo (ARS)
   - Precio de venta (ARS) — sin recargo de tarjeta
   - Código de referencia (generado automáticamente, fijo e inamovible)
   - Notas (campo libre para aclaraciones internas, ej: "tiene rayón en la puntera")
-- Grilla visual con fotos de todos los productos en stock
-- Filtros: por talle, marca, color, categoría, gama, disponibilidad
-- Búsqueda por código de referencia o modelo
-- Búsqueda por foto: el usuario sube una foto y el sistema busca el producto exacto primero; si no encuentra, muestra productos del mismo modelo en otros colores o talles
-- Editar cualquier campo de un producto existente (excepto el código de referencia)
-- Eliminar producto
+- Grilla visual con fotos de todos los modelos en stock
+- Filtros: por talle, marca, categoría, gama, disponibilidad ✅ (todos implementados)
+- Búsqueda por código de referencia o modelo ✅
+- Búsqueda por foto: el usuario sube una foto y el sistema busca el producto exacto primero; si no encuentra, muestra productos del mismo modelo en otros colores o talles ✅
+- Editar cualquier campo de un modelo existente (excepto el código de referencia) ✅
+- Eliminar modelo ✅
 
 ### 1b. Sistema de códigos de referencia
 - El código se genera automáticamente al crear el producto, combinando:
@@ -62,46 +61,49 @@ No introducir librerías fuera de este stack sin consultar primero.
 - Si hay colisión, se agrega un sufijo numérico (ej: ADI-PRED-42-F5A-2)
 
 ### 2. Marcar como vendido
-- Botón "Vender" en cada producto
+- Botón "Vender" en cada modelo ✅
 - Al vender se registra: precio de venta, medio de pago (Efectivo / Transferencia / Tarjeta)
-- Si el medio de pago es Tarjeta, se aplica automáticamente +10% al precio y se muestra el precio final
-- Descuenta 1 unidad del stock automáticamente
-- Si llega a 0: se marca como agotado visualmente
-- Registra la venta en el historial con fecha, precio y medio de pago
+- Si el medio de pago es Tarjeta, se aplica automáticamente +10% al precio y se muestra el precio final ✅
+- Descuenta 1 unidad del stock del talle seleccionado automáticamente ✅
+- Si llega a 0: se marca como agotado visualmente ✅
+- Registra la venta en el historial con fecha, precio y medio de pago ✅
 
 ### 3. Ingreso de mercadería
-- Agregar stock nuevo (productos nuevos o sumar unidades a existentes)
-- Registrar fecha de ingreso y costo total del lote
+- Agregar stock nuevo (productos nuevos o sumar unidades a existentes) ✅
+- Registrar fecha de ingreso y costo total del lote ✅
 
 ### 4. Alertas
-- Último par disponible → badge visual de alerta en la grilla
-- Sin stock → producto marcado como agotado (visible pero diferenciado)
+- Último par disponible → badge visual de alerta en la grilla ✅
+- Sin stock → producto marcado como agotado (visible pero diferenciado) ✅
 - Stock mínimo configurable por producto — el dueño define el umbral (ej: "avisame cuando queden menos de 2 pares")
 - Los productos que alcanzaron el stock mínimo aparecen destacados en el dashboard con una sección de alertas activas
 
 ### 5. Historial de ventas
-- Lista de todas las ventas registradas
-- Campos: fecha, producto, talle, precio de venta, ganancia (precio venta - costo)
-- Filtro por rango de fechas
+- Lista de todas las ventas registradas ✅
+- Campos: fecha, producto, talle, precio de venta, ganancia (precio venta - costo) ✅
+- Filtro por rango de fechas ✅
 
 ### 5b. Historial de precios
-- Cada vez que se modifica el precio de venta de un producto, se registra el precio anterior con fecha y hora
-- Visible dentro de la ficha del producto como un historial cronológico
+- Cada vez que se modifica el precio de venta de un producto, se registra el precio anterior con fecha y hora ✅
+- Visible dentro de la ficha del producto como un historial cronológico ✅
 
 ### 6. Dashboard
-- Total de pares en stock
-- Ventas del mes actual
-- Ganancia estimada del mes (suma de márgenes)
-- Talles que más rotan (top 5)
-- Gráfico de ventas por semana (Recharts)
+- Total de pares en stock ✅
+- Ventas del mes actual ✅
+- Ganancia estimada del mes (suma de márgenes) ✅
+- Talles que más rotan (top 5) ✅
+- Gráfico de ventas por semana (Recharts) ✅
+
+### 7. Exportación
+- Exportar stock a CSV/Excel ✅
 
 ### 8. Importación masiva desde Excel de TiendaNube
-- Botón "Importar desde TiendaNube" en la sección stock
+- Botón "Importar desde TiendaNube" en la sección stock ✅
 - La app lee directamente el formato de exportación de TiendaNube (.xlsx)
 - Mapea automáticamente los campos: Nombre → marca + modelo, Categorías → categoría + gama, Talle → talle ARG + talle US, Precio → precio venta, Costo → precio costo, Stock, SKU → notas
 - Genera los códigos de referencia automáticamente para cada producto importado
-- Muestra una previsualización de todos los productos antes de confirmar
-- Al confirmar, carga todo al stock
+- Muestra una previsualización de todos los productos antes de confirmar ✅
+- Al confirmar, carga todo al stock ✅
 - Las fotos se agregan después producto por producto
 - Uso: solo para carga inicial de inventario, no para sincronización de ventas
 
@@ -120,7 +122,9 @@ No introducir librerías fuera de este stack sin consultar primero.
 
 ## Estructura de base de datos (Supabase)
 
-### Tabla: `productos`
+> La arquitectura central usa **modelos** (un modelo = una línea de botín) con múltiples talles por modelo. Esto permite gestionar el stock de todos los talles de un mismo par en una sola ficha.
+
+### Tabla: `modelos`
 | campo | tipo |
 |---|---|
 | id | uuid |
@@ -128,21 +132,27 @@ No introducir librerías fuera de este stack sin consultar primero.
 | modelo | text |
 | categoria | text (F5, F11, Futsal, Hockey) |
 | gama | text (Económica, Media, Alta) |
-| talle_us | numeric |
-| talle_arg | numeric |
-| cantidad | integer |
-| stock_minimo | integer (default: 1) |
 | precio_costo | numeric |
 | precio_venta | numeric |
 | codigo_ref | text (unique, generado automáticamente, inmutable) |
 | notas | text (nullable) |
+| stock_minimo | integer (default: 1) |
 | created_at | timestamp |
 
-### Tabla: `producto_fotos`
+### Tabla: `modelo_talles`
 | campo | tipo |
 |---|---|
 | id | uuid |
-| producto_id | uuid (FK) |
+| modelo_id | uuid (FK → modelos) |
+| talle_us | numeric |
+| talle_arg | numeric |
+| cantidad | integer |
+
+### Tabla: `modelo_fotos`
+| campo | tipo |
+|---|---|
+| id | uuid |
+| modelo_id | uuid (FK → modelos) |
 | foto_url | text |
 | orden | integer |
 | created_at | timestamp |
@@ -151,7 +161,8 @@ No introducir librerías fuera de este stack sin consultar primero.
 | campo | tipo |
 |---|---|
 | id | uuid |
-| producto_id | uuid (FK) |
+| modelo_id | uuid (FK → modelos) |
+| talle_arg | numeric |
 | fecha | timestamp |
 | precio_venta | numeric |
 | medio_pago | text (Efectivo, Transferencia, Tarjeta) |
@@ -162,7 +173,7 @@ No introducir librerías fuera de este stack sin consultar primero.
 | campo | tipo |
 |---|---|
 | id | uuid |
-| producto_id | uuid (FK) |
+| modelo_id | uuid (FK → modelos) |
 | fecha | timestamp |
 | cantidad | integer |
 | costo_total | numeric |
@@ -171,28 +182,35 @@ No introducir librerías fuera de este stack sin consultar primero.
 | campo | tipo |
 |---|---|
 | id | uuid |
-| producto_id | uuid (FK) |
+| modelo_id | uuid (FK → modelos) |
 | precio_venta_anterior | numeric |
 | precio_venta_nuevo | numeric |
 | fecha | timestamp |
 
-### Tabla: `ventas`
-| campo | tipo |
-|---|---|
-| id | uuid |
-| producto_id | uuid (FK) |
-| fecha | timestamp |
-| precio_venta | numeric |
-| ganancia | numeric |
+---
 
-### Tabla: `ingresos`
-| campo | tipo |
-|---|---|
-| id | uuid |
-| producto_id | uuid (FK) |
-| fecha | timestamp |
-| cantidad | integer |
-| costo_total | numeric |
+## Estado actual (mayo 2026)
+
+**Construido y funcionando:**
+- Estructura completa de componentes React + TypeScript
+- Conexión a Supabase operativa
+- Migraciones SQL aplicadas en el proyecto `xpzkotmxetyofbrizvny`
+- CRUD completo de modelos con talles múltiples
+- Registro y historial de ventas
+- Registro de ingresos de mercadería
+- Historial de precios
+- Dashboard con métricas y gráfico
+- Filtros: marca, categoría, gama, talle, disponibilidad ✅ (filtro por talle agregado)
+- Búsqueda por texto
+- Búsqueda por foto (PhotoSearch)
+- Importación desde TiendaNube (.xlsx)
+- Exportación a CSV
+- Storage de fotos en Supabase (`fotos-botines`, bucket público)
+- TypeScript sin errores
+
+**Pendiente:**
+- Deploy a Vercel (`.vercel` ya en `.gitignore`)
+- Stock mínimo configurable con alertas en dashboard
 
 ---
 
