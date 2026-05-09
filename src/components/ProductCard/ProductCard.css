@@ -1,0 +1,212 @@
+.product-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.product-card:hover {
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+}
+
+.product-card.agotado {
+  opacity: 0.55;
+}
+
+.card-image-wrap {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--bg-surface-2);
+  overflow: hidden;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  color: var(--text-muted);
+}
+
+.badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge-agotado {
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.badge-ultimo {
+  background: var(--warning-dim);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.badge-minimo {
+  background: rgba(255, 140, 0, 0.08);
+  color: var(--warning);
+  border: 1px solid rgba(255, 140, 0, 0.4);
+}
+
+.foto-count {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.card-body {
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card-marca {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.card-modelo {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.card-details {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.card-talle,
+.card-color,
+.card-cat,
+.card-gama {
+  font-size: 0.75rem;
+  background: var(--bg-surface-3);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.card-cat {
+  background: rgba(0, 212, 106, 0.08);
+  color: var(--accent);
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-precio {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.card-stock {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.card-stock.zero { color: var(--danger); }
+.card-stock.warning { color: var(--warning); font-weight: 600; }
+
+.card-ref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.card-ref {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-price-history {
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 1px 3px;
+  border-radius: 3px;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-price-history:hover {
+  opacity: 1;
+  background: var(--bg-surface-3);
+}
+
+.card-notas {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+
+.icon-btn {
+  padding: 0.35rem 0.6rem;
+}

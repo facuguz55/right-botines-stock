@@ -1,0 +1,137 @@
+.price-history {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.price-history-product {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.ph-marca {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.ph-modelo {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ph-ref {
+  font-family: monospace;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.ph-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--accent);
+}
+
+.ph-current strong {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.ph-loading {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.ph-empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.ph-list-title {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.ph-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ph-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+}
+
+.ph-row:last-child {
+  border-bottom: none;
+}
+
+.ph-row-prices {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ph-old {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.ph-arrow {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.ph-new {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ph-diff {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.ph-diff.up {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.ph-diff.down {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.ph-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}

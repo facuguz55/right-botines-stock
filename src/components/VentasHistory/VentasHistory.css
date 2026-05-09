@@ -1,0 +1,178 @@
+.ventas-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.ventas-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.date-group {
+  min-width: 0;
+  width: 180px;
+}
+
+.ventas-summary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.summary-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.875rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-item span {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.summary-item strong {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.summary-item strong.accent {
+  color: var(--accent);
+}
+
+.ventas-loading,
+.ventas-error,
+.ventas-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  padding: 3rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.ventas-empty span {
+  font-size: 2.5rem;
+}
+
+.ventas-error {
+  color: var(--danger);
+}
+
+.ventas-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.ventas-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ventas-table thead tr {
+  background: var(--bg-surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.ventas-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.ventas-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.ventas-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ventas-table tbody tr:hover td {
+  background: var(--bg-surface-2);
+}
+
+.date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: nowrap;
+}
+
+.time-cell {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.color-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  background: var(--bg-surface-3);
+  color: var(--text-secondary);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+
+.deleted-product {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.medio-pago-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.recargo-tag {
+  font-size: 0.625rem;
+  font-weight: 700;
+  background: var(--warning-dim);
+  color: var(--warning);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 2px;
+}
+
+.price-cell {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ganancia-cell {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ganancia-cell.positive { color: var(--accent); }
+.ganancia-cell.negative { color: var(--danger); }
+
+@media (max-width: 600px) {
+  .ventas-filters {
+    flex-direction: column;
+  }
+
+  .date-group {
+    width: 100%;
+  }
+}
