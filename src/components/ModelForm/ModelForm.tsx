@@ -18,7 +18,7 @@ interface ModelFormProps {
 
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
 const CATEGORIAS = ['F5', 'F11', 'Futsal', 'Hockey']
-const GAMAS = ['Económica', 'Mixto', 'Media', 'Alta']
+const GAMAS = ['Mixto', 'Media', 'Alta']
 const ARG_TO_US: Record<number, number> = {
   34: 5, 35: 5.5, 36: 6, 37: 7, 38: 7.5,
   39: 8, 40: 9, 41: 9.5, 42: 10, 43: 11, 44: 11.5,

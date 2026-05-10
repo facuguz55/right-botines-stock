@@ -8,7 +8,7 @@ interface FiltersProps {
 }
 
 const CATEGORIAS = ['F5', 'F11', 'Futsal', 'Hockey']
-const GAMAS = ['Económica', 'Mixto', 'Media', 'Alta']
+const GAMAS = ['Mixto', 'Media', 'Alta']
 
 export function Filters({ filters, onChange, modelos }: FiltersProps) {
   const marcas = [...new Set(modelos.map(m => m.marca))].sort()

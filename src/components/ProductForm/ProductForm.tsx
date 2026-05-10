@@ -18,7 +18,7 @@ interface ProductFormProps {
 
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
 const CATEGORIAS = ['F5', 'F11', 'Futsal', 'Hockey']
-const GAMAS = ['Económica', 'Mixto', 'Media', 'Alta']
+const GAMAS = ['Mixto', 'Media', 'Alta']
 
 export function ProductForm({ isOpen, onClose, onSave, initial }: ProductFormProps) {
   const isEdit = !!initial
