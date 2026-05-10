@@ -75,7 +75,23 @@ export interface DashboardData {
   }[]
 }
 
-export type ActivePage = 'stock' | 'dashboard' | 'ventas'
+export type ActivePage = 'stock' | 'dashboard' | 'ventas' | 'configuracion'
+
+export type AjusteTipo = 'porcentaje' | 'fijo'
+export type AjusteOperacion = 'descuento' | 'aumento'
+
+export interface AjustePrecioFiltros {
+  gama: string
+  marca: string
+  categoria: string
+}
+
+export interface AjustePrecioConfig {
+  tipo: AjusteTipo
+  operacion: AjusteOperacion
+  valor: number
+  filtros: AjustePrecioFiltros
+}
 
 export interface ModeloFilters {
   marca: string

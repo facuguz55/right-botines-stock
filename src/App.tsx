@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { ActivePage, Modelo, PhotoSlot, TalleRow, MedioPago } from './types'
 import { Layout } from './components/Layout/Layout'
 import { Modal } from './components/Modal/Modal'
@@ -14,12 +14,37 @@ import { ImportFotos } from './components/ImportFotos/ImportFotos'
 import { ImportExcel } from './components/ImportExcel/ImportExcel'
 import { Dashboard } from './components/Dashboard/Dashboard'
 import { VentasHistory } from './components/VentasHistory/VentasHistory'
+import { Configuracion } from './components/Configuracion/Configuracion'
 import { useModelos } from './hooks/useModelos'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
 
+const ACCENT_KEY = 'rb_accent'
+const ACCENTS = [
+  { value: '#00d46a', hover: '#00b559', dim: 'rgba(0,212,106,0.12)' },
+  { value: '#ff6b00', hover: '#e05f00', dim: 'rgba(255,107,0,0.12)' },
+  { value: '#3b82f6', hover: '#2563eb', dim: 'rgba(59,130,246,0.12)' },
+  { value: '#8b5cf6', hover: '#7c3aed', dim: 'rgba(139,92,246,0.12)' },
+  { value: '#ef4444', hover: '#dc2626', dim: 'rgba(239,68,68,0.12)' },
+]
+
+function restoreAccent() {
+  try {
+    const saved = localStorage.getItem(ACCENT_KEY)
+    if (!saved) return
+    const found = ACCENTS.find(a => a.value === saved)
+    if (!found) return
+    const root = document.documentElement
+    root.style.setProperty('--accent', found.value)
+    root.style.setProperty('--accent-hover', found.hover)
+    root.style.setProperty('--accent-dim', found.dim)
+  } catch { /* noop */ }
+}
+
 export function App() {
   const [activePage, setActivePage] = useState<ActivePage>('stock')
+
+  useEffect(() => { restoreAccent() }, [])
 
   const {
     modelos, loading, reload,
@@ -88,6 +113,7 @@ export function App() {
 
       {activePage === 'dashboard' && <Dashboard />}
       {activePage === 'ventas' && <VentasHistory />}
+      {activePage === 'configuracion' && <Configuracion modelos={modelos} onReload={reload} />}
 
       <ModelForm
         isOpen={showForm}
