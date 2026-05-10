@@ -19,7 +19,7 @@ export function SellModal({ modelo, onClose, onConfirm }: SellModalProps) {
 
   if (!modelo) return null
 
-  const disponibles = modelo.modelo_talles.filter(t => t.cantidad > 0)
+  const disponibles = modelo.modelo_talles
   const selectedTalle = modelo.modelo_talles.find(t => t.id === selectedTalleId)
   const mainFoto = modelo.modelo_fotos[0]?.foto_url ?? null
   const esTarjeta = medioPago === 'Tarjeta'
@@ -58,10 +58,7 @@ export function SellModal({ modelo, onClose, onConfirm }: SellModalProps) {
         {/* Selector de talle */}
         <div className="sell-section">
           <p className="sell-label">Elegí el talle</p>
-          {disponibles.length === 0 ? (
-            <p style={{ color: 'var(--danger)', fontSize: '.875rem' }}>No hay stock disponible</p>
-          ) : (
-            <div className="talle-selector">
+          <div className="talle-selector">
               {disponibles.map(t => (
                 <button
                   key={t.id}
@@ -75,7 +72,6 @@ export function SellModal({ modelo, onClose, onConfirm }: SellModalProps) {
                 </button>
               ))}
             </div>
-          )}
         </div>
 
         {/* Medio de pago */}
@@ -118,7 +114,7 @@ export function SellModal({ modelo, onClose, onConfirm }: SellModalProps) {
 
         <div className="sell-actions">
           <button className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleConfirm} disabled={loading || !selectedTalleId || disponibles.length === 0}>
+          <button className="btn btn-primary" onClick={handleConfirm} disabled={loading || !selectedTalleId}>
             {loading ? 'Registrando...' : '✓ Confirmar venta'}
           </button>
         </div>
