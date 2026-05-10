@@ -79,7 +79,7 @@ export async function sellTalle(
   medioPago: MedioPago
 ): Promise<void> {
   const talle = modelo.modelo_talles.find(t => t.id === talleId)
-  if (!talle || talle.cantidad <= 0) throw new Error('No hay stock para ese talle')
+  if (!talle) throw new Error('Talle no encontrado')
 
   const { error: upErr } = await supabase
     .from('modelo_talles')

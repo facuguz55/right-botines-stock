@@ -75,7 +75,7 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
         )}
 
         <div className="card-actions">
-          <button className="btn btn-primary btn-sm" onClick={() => onSell(modelo)} disabled={agotado}>
+          <button className="btn btn-primary btn-sm" onClick={() => onSell(modelo)}>
             Vender
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => onIngreso(modelo)}>
