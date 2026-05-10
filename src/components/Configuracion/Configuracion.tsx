@@ -293,7 +293,7 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
           <h2 className="config-section-title">Stock avanzado</h2>
         </div>
         <p className="config-section-desc">
-          Lista completa del stock con selección múltiple. Editá precios individualmente o en masa, eliminá varios de una vez y filtrá rápido.
+          Lista completa del stock. Hacé clic en cualquier precio o cantidad para editarlo directamente, o seleccioná varios modelos para editarlos o eliminarlos juntos.
         </p>
         <StockAvanzado modelos={modelos} onReload={onReload} />
       </section>

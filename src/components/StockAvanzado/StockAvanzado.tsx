@@ -58,7 +58,7 @@ function ModalPrecio({ seleccionados, onClose, onApply }: {
     <div className="sa-modal-overlay" onClick={e => e.target === e.currentTarget && !loading && onClose()}>
       <div className="sa-modal">
         <div className="sa-modal-header">
-          <h3>Editar precio — {seleccionados.length} modelo{seleccionados.length !== 1 ? 's' : ''}</h3>
+          <h3>{seleccionados.length === 1 ? `Editar precio — ${seleccionados[0].marca} ${seleccionados[0].modelo}` : `Editar precio — ${seleccionados.length} modelos`}</h3>
           <button className="sa-modal-close" onClick={onClose} disabled={loading}><X size={16} /></button>
         </div>
         <div className="sa-modal-body">
@@ -132,7 +132,7 @@ function ModalPrecio({ seleccionados, onClose, onApply }: {
         <div className="sa-modal-footer">
           <button className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancelar</button>
           <button className="btn btn-primary" onClick={handle} disabled={!isValid || loading}>
-            {loading ? 'Aplicando...' : `Aplicar a ${seleccionados.length} modelo${seleccionados.length !== 1 ? 's' : ''}`}
+            {loading ? 'Aplicando...' : seleccionados.length === 1 ? 'Aplicar' : `Aplicar a ${seleccionados.length} modelos`}
           </button>
         </div>
       </div>
@@ -186,7 +186,7 @@ function ModalStock({ seleccionados, onClose, onApply }: {
     <div className="sa-modal-overlay" onClick={e => e.target === e.currentTarget && !loading && onClose()}>
       <div className="sa-modal">
         <div className="sa-modal-header">
-          <h3>Editar stock — {seleccionados.length} modelo{seleccionados.length !== 1 ? 's' : ''}</h3>
+          <h3>{seleccionados.length === 1 ? `Editar stock — ${seleccionados[0].marca} ${seleccionados[0].modelo}` : `Editar stock — ${seleccionados.length} modelos`}</h3>
           <button className="sa-modal-close" onClick={onClose} disabled={loading}><X size={16} /></button>
         </div>
         <div className="sa-modal-body">
@@ -247,7 +247,7 @@ function ModalStock({ seleccionados, onClose, onApply }: {
         <div className="sa-modal-footer">
           <button className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancelar</button>
           <button className="btn btn-primary" onClick={handle} disabled={!isValid || loading}>
-            {loading ? 'Aplicando...' : `Aplicar a ${seleccionados.length} modelo${seleccionados.length !== 1 ? 's' : ''}`}
+            {loading ? 'Aplicando...' : seleccionados.length === 1 ? 'Aplicar' : `Aplicar a ${seleccionados.length} modelos`}
           </button>
         </div>
       </div>
