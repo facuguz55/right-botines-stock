@@ -116,8 +116,9 @@ export function detectColumns(headers: string[]): DetectedColumns {
   }
 
   const varNombreRegex = /variante\s*\d+\s*[-–]\s*nombre/i
+  const atribNombreRegex = /nombre\s*atributo\s*\d+/i
   for (let i = 0; i < headers.length; i++) {
-    if (varNombreRegex.test(headers[i])) {
+    if (varNombreRegex.test(headers[i]) || atribNombreRegex.test(headers[i])) {
       cols.talleVarianteNombre = i
       if (i + 1 < headers.length) cols.talleVarianteValor = i + 1
       break
@@ -131,7 +132,7 @@ function getTalleFromRow(row: string[], cols: DetectedColumns, headers: string[]
   if (cols.talleVarianteNombre !== -1) {
     const varNombre = (row[cols.talleVarianteNombre] || '').toLowerCase()
     if (varNombre.includes('talle') || varNombre.includes('size')) return row[cols.talleVarianteValor] ?? ''
-    const varCols = headers.map((h, i) => ({ h, i })).filter(({ h }) => /variante\s*\d+\s*[-–]\s*nombre/i.test(h))
+    const varCols = headers.map((h, i) => ({ h, i })).filter(({ h }) => /variante\s*\d+\s*[-–]\s*nombre/i.test(h) || /nombre\s*atributo\s*\d+/i.test(h))
     for (const { i } of varCols) {
       const n = (row[i] || '').toLowerCase(), v = row[i + 1] ?? ''
       if ((n.includes('talle') || n.includes('size')) && v) return v

@@ -1,0 +1,52 @@
+.import-excel { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* Upload */
+.ix-desc { color: var(--text-secondary); line-height: 1.6; margin: 0; }
+.ix-drop { display: flex; flex-direction: column; align-items: center; gap: .5rem; padding: 2rem 1rem; border: 2px dashed var(--border); border-radius: 10px; cursor: pointer; transition: border-color .2s, background .2s; text-align: center; }
+.ix-drop:hover { border-color: var(--accent, #6366f1); background: rgba(99,102,241,.04); }
+.ix-drop-icon { font-size: 2.2rem; }
+.ix-drop p { margin: 0; color: var(--text-secondary); }
+.ix-drop small { color: var(--text-muted, var(--text-secondary)); font-size: .8rem; }
+
+/* Warning */
+.ix-warning { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: .75rem 1rem; font-size: .9rem; line-height: 1.5; color: var(--text-primary); }
+
+/* Stats */
+.ix-stats { display: flex; gap: .75rem; }
+.ix-stat { display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .5rem 1.25rem; border-radius: 8px; min-width: 80px; }
+.ix-stat span { font-size: 1.4rem; font-weight: 700; line-height: 1; }
+.ix-stat small { font-size: .75rem; color: var(--text-secondary); }
+.ix-stat.ok { background: rgba(34,197,94,.08); color: #22c55e; }
+.ix-stat.err { background: rgba(239,68,68,.08); color: #ef4444; }
+.ix-stat.neutral { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* Table */
+.ix-table-wrap { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.ix-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.ix-table th { position: sticky; top: 0; background: var(--bg-secondary); padding: .45rem .65rem; text-align: left; font-weight: 600; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+.ix-table td { padding: .35rem .65rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.ix-table tr:last-child td { border-bottom: none; }
+.tr-ok td { color: var(--text-primary); }
+.tr-err td { color: var(--text-secondary); opacity: .65; }
+.ix-talles { display: flex; flex-wrap: wrap; gap: .2rem; }
+.ix-talle-chip { background: var(--bg-secondary); border-radius: 4px; padding: 1px 5px; font-size: .78rem; white-space: nowrap; }
+.ix-no-talles { color: var(--text-muted, var(--text-secondary)); }
+.ix-badge-ok { color: #22c55e; font-weight: 700; }
+.ix-badge-err { color: #ef4444; font-size: .78rem; }
+
+/* Actions */
+.ix-actions { display: flex; justify-content: flex-end; gap: .75rem; }
+
+/* Importing */
+.ix-loading { display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: 1.5rem 0; text-align: center; }
+.ix-progress-bar { width: 100%; height: 8px; background: var(--bg-secondary); border-radius: 99px; overflow: hidden; }
+.ix-progress-fill { height: 100%; background: var(--accent, #6366f1); border-radius: 99px; transition: width .3s ease; }
+.ix-progress-label { margin: 0; color: var(--text-primary); font-weight: 500; font-size: .9rem; }
+.ix-loading small { color: var(--text-secondary); font-size: .8rem; }
+
+/* Done */
+.ix-done { display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: 1rem 0; text-align: center; }
+.ix-done-icon { font-size: 2.5rem; }
+.ix-done-title { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--text-primary); }
+.ix-done-detail { margin: 0; color: var(--text-secondary); }
+.ix-err-inline { color: #ef4444; }
