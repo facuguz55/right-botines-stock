@@ -87,7 +87,7 @@ export function ImportExcel({ isOpen, onClose, modelos, onDone }: ImportExcelPro
             modelo_id: newModelo.id,
             talle_us: t.talle_us,
             talle_arg: t.talle_arg,
-            cantidad: t.cantidad,
+            cantidad: t.cantidad > 0 ? t.cantidad : 1,
             stock_minimo: 1,
           })
         }
