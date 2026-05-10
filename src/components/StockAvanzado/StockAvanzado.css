@@ -288,6 +288,64 @@
 .sa-inline-btn.cancel { color: var(--text-muted); }
 .sa-inline-btn.cancel:hover { background: var(--bg-surface-3); }
 
+/* Celda pares editable */
+.sa-pares-cell {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.12s;
+  width: 100%;
+}
+.sa-pares-cell:hover { background: var(--bg-surface-3); }
+.sa-pares-cell:hover .sa-edit-ico { opacity: 1; }
+.sa-pares-cell.zero .sa-pares { color: var(--danger); }
+
+/* Inline stock editor */
+.sa-inline-stock {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: nowrap;
+}
+.sa-stock-ops { display: flex; gap: 2px; }
+.sa-stock-op-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface-3);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.sa-stock-op-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sa-stock-op-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.sa-stock-input { width: 60px !important; }
+
+/* Preview talles en modal stock */
+.sa-prev-talles { display: flex; flex-wrap: wrap; gap: 3px; }
+.sa-prev-talle {
+  font-size: 0.6875rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-surface-3);
+  color: var(--text-muted);
+}
+.sa-prev-talle.changed { background: var(--accent-dim); color: var(--accent); }
+
+/* Contador selección en toolbar */
+.sa-count-sel { color: var(--accent); font-weight: 600; }
+
 /* Margen */
 .sa-margen { font-size: 0.75rem; color: var(--accent); font-weight: 500; }
 .sa-margen.low { color: var(--warning); }

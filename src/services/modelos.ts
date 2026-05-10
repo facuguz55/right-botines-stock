@@ -198,6 +198,30 @@ export async function bulkUpdatePrecio(
   }
 }
 
+export async function bulkUpdateStockTalles(
+  items: { modeloId: string; talles: { id: string; cantidadActual: number }[] }[],
+  op: 'sumar' | 'restar' | 'exacto',
+  valor: number
+): Promise<void> {
+  const updates = items.flatMap(({ talles }) =>
+    talles.map(t => {
+      let nueva: number
+      if (op === 'exacto') nueva = Math.max(0, valor)
+      else if (op === 'sumar') nueva = t.cantidadActual + valor
+      else nueva = Math.max(0, t.cantidadActual - valor)
+      return { id: t.id, cantidad: nueva }
+    })
+  )
+  const BATCH = 20
+  for (let i = 0; i < updates.length; i += BATCH) {
+    await Promise.all(
+      updates.slice(i, i + BATCH).map(({ id, cantidad }) =>
+        supabase.from('modelo_talles').update({ cantidad }).eq('id', id).then(({ error }) => { if (error) throw error })
+      )
+    )
+  }
+}
+
 export async function bulkDeleteModelos(ids: string[]): Promise<void> {
   const { data: fotos } = await supabase.from('modelo_fotos').select('foto_url').in('modelo_id', ids)
   if (fotos?.length) {
