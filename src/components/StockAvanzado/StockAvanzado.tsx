@@ -382,16 +382,15 @@ export function StockAvanzado({ modelos, onReload }: { modelos: Modelo[]; onRelo
     setInlineEdit(null)
   }
 
-  const EditableCell = ({ m, campo, display }: { m: Modelo; campo: InlineEdit['campo']; display: string }) => {
-    const isEditing = inlineEdit?.id === m.id && inlineEdit?.campo === campo
-    if (isEditing) {
+  const renderCell = (m: Modelo, campo: InlineEdit['campo'], display: string) => {
+    if (inlineEdit?.id === m.id && inlineEdit?.campo === campo) {
       return (
         <div className="sa-inline-edit">
           <input
             ref={inlineRef}
             className="sa-inline-input"
             type="number" min={0}
-            value={inlineEdit!.valor}
+            value={inlineEdit.valor}
             onChange={e => setInlineEdit(ie => ie ? { ...ie, valor: e.target.value } : ie)}
             onKeyDown={e => { if (e.key === 'Enter') commitInline(); if (e.key === 'Escape') setInlineEdit(null) }}
           />
@@ -536,13 +535,13 @@ export function StockAvanzado({ modelos, onReload }: { modelos: Modelo[]; onRelo
                     )}
                   </td>
                   <td className="sa-td-pares">
-                    <EditableCell m={m} campo="stock" display={String(pares)} />
+                    {renderCell(m, 'stock', String(pares))}
                   </td>
                   <td className="sa-td-precio">
-                    <EditableCell m={m} campo="precio_costo" display={fmt(m.precio_costo)} />
+                    {renderCell(m, 'precio_costo', fmt(m.precio_costo))}
                   </td>
                   <td className="sa-td-precio">
-                    <EditableCell m={m} campo="precio_venta" display={fmt(m.precio_venta)} />
+                    {renderCell(m, 'precio_venta', fmt(m.precio_venta))}
                   </td>
                   <td className="sa-td-margen">
                     {margen !== null ? <span className={`sa-margen${margen < 20 ? ' low' : ''}`}>{margen}%</span> : <span className="sa-muted">—</span>}
