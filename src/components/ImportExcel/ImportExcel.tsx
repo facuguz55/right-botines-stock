@@ -102,7 +102,7 @@ export function ImportExcel({ isOpen, onClose, modelos, onDone }: ImportExcelPro
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={step === 'importing' ? undefined : handleClose} title="Reemplazar stock desde Excel" maxWidth="740px">
+    <Modal isOpen={isOpen} onClose={step === 'importing' ? () => {} : handleClose} title="Reemplazar stock desde Excel" maxWidth="740px">
       <div className="import-excel">
 
         {step === 'upload' && (
