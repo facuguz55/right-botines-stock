@@ -200,13 +200,13 @@ export async function bulkUpdatePrecio(
 
 export async function bulkUpdateStockTalles(
   items: { modeloId: string; talles: { id: string; cantidadActual: number }[] }[],
-  op: 'sumar' | 'restar' | 'exacto',
+  op: 'sumar' | 'restar' | 'exacto' | 'fijar',
   valor: number
 ): Promise<void> {
   const updates = items.flatMap(({ talles }) =>
     talles.map(t => {
       let nueva: number
-      if (op === 'exacto') nueva = Math.max(0, valor)
+      if (op === 'exacto' || op === 'fijar') nueva = Math.max(0, valor)
       else if (op === 'sumar') nueva = t.cantidadActual + valor
       else nueva = Math.max(0, t.cantidadActual - valor)
       return { id: t.id, cantidad: nueva }

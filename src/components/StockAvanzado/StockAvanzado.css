@@ -288,6 +288,23 @@
 .sa-inline-btn.cancel { color: var(--text-muted); }
 .sa-inline-btn.cancel:hover { background: var(--bg-surface-3); }
 
+/* Leyenda inline */
+.sa-hint-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Hint de modal */
+.sa-modal-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: -0.5rem;
+  padding-left: 0.125rem;
+}
+
 /* Celda pares editable */
 .sa-pares-cell {
   background: none;
