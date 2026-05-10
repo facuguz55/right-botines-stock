@@ -176,6 +176,40 @@ export async function getUniqueCodigoBase(base: string): Promise<string> {
   return `${base}-${suffix}`
 }
 
+export async function bulkUpdatePrecio(
+  items: { id: string; precioActual: number; precioNuevo: number }[],
+  campo: 'precio_venta' | 'precio_costo'
+): Promise<void> {
+  const BATCH = 20
+  for (let i = 0; i < items.length; i += BATCH) {
+    await Promise.all(
+      items.slice(i, i + BATCH).map(async ({ id, precioActual, precioNuevo }) => {
+        const { error } = await supabase.from('modelos').update({ [campo]: precioNuevo }).eq('id', id)
+        if (error) throw error
+        if (campo === 'precio_venta') {
+          await supabase.from('historial_precios').insert([{
+            modelo_id: id,
+            precio_venta_anterior: precioActual,
+            precio_venta_nuevo: precioNuevo,
+          }])
+        }
+      })
+    )
+  }
+}
+
+export async function bulkDeleteModelos(ids: string[]): Promise<void> {
+  const { data: fotos } = await supabase.from('modelo_fotos').select('foto_url').in('modelo_id', ids)
+  if (fotos?.length) {
+    const paths = fotos
+      .map(f => { const p = f.foto_url.split('/fotos-botines/'); return p.length > 1 ? p[1] : null })
+      .filter(Boolean) as string[]
+    if (paths.length) await supabase.storage.from('fotos-botines').remove(paths)
+  }
+  const { error } = await supabase.from('modelos').delete().in('id', ids)
+  if (error) throw error
+}
+
 export async function clearAllModelos(): Promise<void> {
   const { data: fotos } = await supabase.from('modelo_fotos').select('foto_url')
   if (fotos?.length) {
