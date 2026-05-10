@@ -37,7 +37,10 @@ export function ImportFotos({ isOpen, onClose, modelos, onDone }: ImportFotosPro
 
     for (const file of Array.from(files)) {
       const nombreArchivo = normalize(file.name)
-      const match = modelos.find(m => normalize(m.modelo) === nombreArchivo)
+      const match = modelos.find(m =>
+        normalize(m.modelo) === nombreArchivo ||
+        normalize(m.marca + ' ' + m.modelo) === nombreArchivo
+      )
 
       if (!match) {
         items.push({ archivo: file.name, modelo: '-', status: 'no_match', msg: 'Sin modelo coincidente' })
