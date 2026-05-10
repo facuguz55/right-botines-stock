@@ -121,7 +121,7 @@
   border: 1px solid var(--border);
   letter-spacing: 0.02em;
 }
-.talle-chip.agotado { opacity: 0.3; text-decoration: line-through; }
+.talle-chip.agotado { opacity: 0.35; }
 .talle-chip.ultimo { border-color: rgba(245,166,35,.45); color: var(--warning); background: var(--warning-dim); }
 .talle-chip.bajo { border-color: rgba(245,166,35,.25); color: var(--warning); }
 

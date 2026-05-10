@@ -18,7 +18,7 @@ interface ProductFormProps {
 
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
 const CATEGORIAS = ['F5', 'F11', 'Futsal', 'Hockey']
-const GAMAS = ['Económica', 'Media', 'Alta']
+const GAMAS = ['Económica', 'Mixto', 'Media', 'Alta']
 
 export function ProductForm({ isOpen, onClose, onSave, initial }: ProductFormProps) {
   const isEdit = !!initial
@@ -54,7 +54,13 @@ export function ProductForm({ isOpen, onClose, onSave, initial }: ProductFormPro
     setError(null)
   }, [isOpen, initial])
 
-  const update = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }))
+  const update = (key: string, value: string) => setForm(f => {
+    const next = { ...f, [key]: value }
+    if (key === 'modelo' && value.toLowerCase().includes('mixto')) {
+      next.gama = 'Mixto'
+    }
+    return next
+  })
 
   const previewRef = buildCodigoRef(
     form.marca, form.modelo, form.talle_arg || form.talle_us, form.categoria, form.gama
