@@ -288,13 +288,37 @@
 .sa-inline-btn.cancel { color: var(--text-muted); }
 .sa-inline-btn.cancel:hover { background: var(--bg-surface-3); }
 
-/* Leyenda inline */
-.sa-hint-inline {
+/* Barra de hints */
+.sa-hint-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0;
+  padding: 0.625rem 0.875rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.sa-hint-item {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  padding: 0 0.75rem;
+}
+.sa-hint-item:first-child { padding-left: 0; }
+.sa-hint-item strong { color: var(--text-secondary); font-weight: 600; }
+.sa-hint-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+@media (max-width: 768px) {
+  .sa-hint-bar { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .sa-hint-sep { display: none; }
+  .sa-hint-item { padding: 0; }
 }
 
 /* Hint de modal */

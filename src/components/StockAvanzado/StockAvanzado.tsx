@@ -457,9 +457,22 @@ export function StockAvanzado({ modelos, onReload }: { modelos: Modelo[]; onRelo
       </div>
 
       {/* Leyenda de edición inline */}
-      <p className="sa-hint-inline">
-        <Edit2 size={11} /> Hacé clic en cualquier precio o cantidad para editarlo directamente.
-      </p>
+      <div className="sa-hint-bar">
+        <div className="sa-hint-item">
+          <Edit2 size={13} />
+          <span><strong>Clic en Pares</strong> → editá el total de stock del modelo</span>
+        </div>
+        <span className="sa-hint-sep" />
+        <div className="sa-hint-item">
+          <Edit2 size={13} />
+          <span><strong>Clic en Costo o Venta</strong> → editá el precio directamente</span>
+        </div>
+        <span className="sa-hint-sep" />
+        <div className="sa-hint-item">
+          <CheckSquare size={13} />
+          <span><strong>Seleccioná varios</strong> → editá o eliminá en conjunto</span>
+        </div>
+      </div>
 
       {/* Tabla */}
       <div className="sa-table-wrap">
