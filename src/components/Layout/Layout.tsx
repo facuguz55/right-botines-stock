@@ -1,4 +1,4 @@
-import { Package, BarChart2, DollarSign, Settings } from 'lucide-react'
+import { Package, BarChart2, DollarSign, Settings, List } from 'lucide-react'
 import type { ActivePage } from '../../types'
 import './Layout.css'
 
@@ -9,10 +9,11 @@ interface LayoutProps {
 }
 
 const NAV_ITEMS: { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }[] = [
-  { page: 'stock',         label: 'Stock',     Icon: Package    },
-  { page: 'dashboard',     label: 'Dashboard', Icon: BarChart2  },
-  { page: 'ventas',        label: 'Ventas',    Icon: DollarSign },
-  { page: 'configuracion', label: 'Ajustes',   Icon: Settings   },
+  { page: 'stock',          label: 'Stock',     Icon: Package    },
+  { page: 'dashboard',      label: 'Dashboard', Icon: BarChart2  },
+  { page: 'ventas',         label: 'Ventas',    Icon: DollarSign },
+  { page: 'stock_avanzado', label: 'Avanzado',  Icon: List       },
+  { page: 'configuracion',  label: 'Ajustes',   Icon: Settings   },
 ]
 
 export function Layout({ activePage, onNavigate, children }: LayoutProps) {

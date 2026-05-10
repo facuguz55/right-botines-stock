@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react'
-import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, List } from 'lucide-react'
+import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette } from 'lucide-react'
 import type { Modelo, AjustePrecioConfig, AjusteTipo, AjusteOperacion } from '../../types'
 import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
-import { StockAvanzado } from '../StockAvanzado/StockAvanzado'
 import './Configuracion.css'
 
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
@@ -284,18 +283,6 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
             </div>
           </div>
         )}
-      </section>
-
-      {/* ── Stock Avanzado ── */}
-      <section className="config-section">
-        <div className="config-section-header">
-          <List size={16} />
-          <h2 className="config-section-title">Stock avanzado</h2>
-        </div>
-        <p className="config-section-desc">
-          Lista completa del stock. Hacé clic en cualquier precio o cantidad para editarlo directamente, o seleccioná varios modelos para editarlos o eliminarlos juntos.
-        </p>
-        <StockAvanzado modelos={modelos} onReload={onReload} />
       </section>
 
       {/* ── Personalización ── */}

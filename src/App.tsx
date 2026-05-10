@@ -15,6 +15,7 @@ import { ImportExcel } from './components/ImportExcel/ImportExcel'
 import { Dashboard } from './components/Dashboard/Dashboard'
 import { VentasHistory } from './components/VentasHistory/VentasHistory'
 import { Configuracion } from './components/Configuracion/Configuracion'
+import { StockAvanzado } from './components/StockAvanzado/StockAvanzado'
 import { useModelos } from './hooks/useModelos'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
@@ -113,6 +114,14 @@ export function App() {
 
       {activePage === 'dashboard' && <Dashboard />}
       {activePage === 'ventas' && <VentasHistory />}
+      {activePage === 'stock_avanzado' && (
+        <div className="config-page">
+          <div className="page-header">
+            <h1 className="page-title">Stock avanzado</h1>
+          </div>
+          <StockAvanzado modelos={modelos} onReload={reload} />
+        </div>
+      )}
       {activePage === 'configuracion' && <Configuracion modelos={modelos} onReload={reload} />}
 
       <ModelForm
