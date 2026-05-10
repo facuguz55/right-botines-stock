@@ -19,7 +19,7 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
   const extraFotos = modelo.modelo_fotos.length - 1
 
   return (
-    <div className={`model-card${agotado ? ' agotado' : ''}`}>
+    <div className="model-card">
       <div className="card-image-wrap">
         {mainFoto ? (
           <img src={mainFoto} alt={modelo.modelo} className="card-image" loading="lazy" />
