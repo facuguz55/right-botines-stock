@@ -18,6 +18,7 @@ interface ModelGridProps {
   onAdd: () => void
   onPhotoSearch: () => void
   onImport: () => void
+  onImportFotos: () => void
   onClearAll: () => void
 }
 
@@ -28,7 +29,7 @@ const DEFAULT_FILTERS: ModeloFilters = {
 export function ModelGrid({
   modelos, loading,
   onSell, onEdit, onDelete, onIngreso, onPriceHistory,
-  onAdd, onPhotoSearch, onImport, onClearAll,
+  onAdd, onPhotoSearch, onImport, onImportFotos, onClearAll,
 }: ModelGridProps) {
   const [filters, setFilters] = useState<ModeloFilters>(DEFAULT_FILTERS)
   const filtered = filterModelos(modelos, filters)
@@ -48,6 +49,9 @@ export function ModelGrid({
           <div className="stock-actions-secondary">
             <button className="btn btn-secondary btn-sm" onClick={onImport}>
               <Upload size={13} /> Importar TiendaNube
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={onImportFotos}>
+              <Camera size={13} /> Importar fotos
             </button>
             <ExportButton modelos={modelos} />
             <button className="btn btn-danger btn-sm" onClick={onClearAll} disabled={modelos.length === 0}>

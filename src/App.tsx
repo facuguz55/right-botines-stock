@@ -10,6 +10,7 @@ import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
 import { PhotoSearch } from './components/PhotoSearch/PhotoSearch'
 import { TiendaNubeImport } from './components/TiendaNubeImport/TiendaNubeImport'
+import { ImportFotos } from './components/ImportFotos/ImportFotos'
 import { Dashboard } from './components/Dashboard/Dashboard'
 import { VentasHistory } from './components/VentasHistory/VentasHistory'
 import { useModelos } from './hooks/useModelos'
@@ -32,6 +33,7 @@ export function App() {
   const [priceHistoryTarget, setPriceHistoryTarget] = useState<Modelo | null>(null)
   const [showPhotoSearch, setShowPhotoSearch] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showImportFotos, setShowImportFotos] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [clearing, setClearing] = useState(false)
 
@@ -75,6 +77,7 @@ export function App() {
             onAdd={handleAdd}
             onPhotoSearch={() => setShowPhotoSearch(true)}
             onImport={() => setShowImport(true)}
+            onImportFotos={() => setShowImportFotos(true)}
             onClearAll={() => setShowClearConfirm(true)}
           />
         )
@@ -118,6 +121,13 @@ export function App() {
         isOpen={showImport}
         onClose={() => setShowImport(false)}
         onImported={reload}
+      />
+
+      <ImportFotos
+        isOpen={showImportFotos}
+        onClose={() => setShowImportFotos(false)}
+        modelos={modelos}
+        onDone={reload}
       />
 
       <Modal
