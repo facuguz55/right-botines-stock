@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import type { Modelo, PhotoSlot, TalleRow } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { buildCodigoBase } from '../../utils/codigos'
@@ -20,8 +20,8 @@ const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Und
 const CATEGORIAS = ['F5', 'F11', 'Futsal', 'Hockey']
 const GAMAS = ['Económica', 'Media', 'Alta']
 const ARG_TO_US: Record<number, number> = {
-  35: 3, 36: 4, 37: 5, 38: 6, 39: 6.5, 40: 7,
-  41: 8, 42: 8.5, 43: 9.5, 44: 10, 45: 11, 46: 12,
+  34: 5, 35: 5.5, 36: 6, 37: 7, 38: 7.5,
+  39: 8, 40: 9, 41: 9.5, 42: 10, 43: 11, 44: 11.5,
 }
 
 const EMPTY_TALLE: TalleRow = { talle_us: '', talle_arg: '', cantidad: '1', stock_minimo: '1', toDelete: false }

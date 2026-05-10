@@ -13,6 +13,7 @@ import { TiendaNubeImport } from './components/TiendaNubeImport/TiendaNubeImport
 import { Dashboard } from './components/Dashboard/Dashboard'
 import { VentasHistory } from './components/VentasHistory/VentasHistory'
 import { useModelos } from './hooks/useModelos'
+import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
 
 export function App() {
@@ -141,6 +142,7 @@ export function App() {
           </div>
         </div>
       </Modal>
+      <AiChat onReload={reload} />
     </Layout>
   )
 }

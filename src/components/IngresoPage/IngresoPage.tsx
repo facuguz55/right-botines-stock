@@ -1,12 +1,12 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import type { Modelo } from '../../types'
 import './IngresoPage.css'
 
-const TALLES_ARG = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46]
+const TALLES_ARG = [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
 const ARG_TO_US: Record<number, number> = {
-  35: 3, 36: 4, 37: 5, 38: 6, 39: 6.5, 40: 7,
-  41: 8, 42: 8.5, 43: 9.5, 44: 10, 45: 11, 46: 12,
+  34: 5, 35: 5.5, 36: 6, 37: 7, 38: 7.5,
+  39: 8, 40: 9, 41: 9.5, 42: 10, 43: 11, 44: 11.5,
 }
 
 interface TalleChange {
