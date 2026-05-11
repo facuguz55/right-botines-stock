@@ -1,7 +1,21 @@
 import { useState, useMemo } from 'react'
-import { FolderOpen, Folder, ChevronLeft, Search } from 'lucide-react'
+import { FolderOpen, Folder, ChevronLeft, Search, Download } from 'lucide-react'
 import type { Modelo } from '../../types'
 import './Carpetas.css'
+
+async function descargarFoto(url: string, nombre: string) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${nombre}.jpg`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch {
+    window.open(url, '_blank')
+  }
+}
 
 interface CarpetasProps {
   modelos: Modelo[]
@@ -97,10 +111,20 @@ export function Carpetas({ modelos, onSell, onIngreso }: CarpetasProps) {
             return (
               <div key={m.id} className={`modelo-row${agotado ? ' agotado' : ''}`}>
                 <div className="modelo-row-foto">
-                  {foto
-                    ? <img src={foto} alt={m.modelo} />
-                    : <span className="foto-placeholder">⚽</span>
-                  }
+                  {foto ? (
+                    <>
+                      <img src={foto} alt={m.modelo} />
+                      <button
+                        className="btn-descargar"
+                        title="Descargar foto"
+                        onClick={e => { e.stopPropagation(); descargarFoto(foto, `${m.marca}-${m.modelo}`) }}
+                      >
+                        <Download size={12} />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="foto-placeholder">⚽</span>
+                  )}
                 </div>
                 <div className="modelo-row-info">
                   <span className="row-marca">{m.marca}</span>

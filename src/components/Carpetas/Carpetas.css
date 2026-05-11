@@ -180,6 +180,25 @@
 .modelo-row-foto img { width: 100%; height: 100%; object-fit: cover; }
 .foto-placeholder { font-size: 1.25rem; }
 
+.btn-descargar {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.55);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  border-radius: 6px;
+}
+.modelo-row-foto:hover .btn-descargar { opacity: 1; }
+.modelo-row-foto { position: relative; }
+
 .modelo-row-info {
   display: flex;
   flex-direction: column;
