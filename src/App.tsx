@@ -114,11 +114,7 @@ export function App() {
       )}
 
       {activePage === 'carpetas' && (
-        <Carpetas
-          modelos={modelos}
-          onSell={setSellTarget}
-          onIngreso={setIngresoTarget}
-        />
+        <Carpetas modelos={modelos} />
       )}
 
       {activePage === 'dashboard' && <Dashboard />}
