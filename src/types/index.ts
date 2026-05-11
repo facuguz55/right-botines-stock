@@ -75,7 +75,7 @@ export interface DashboardData {
   }[]
 }
 
-export type ActivePage = 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'configuracion'
+export type ActivePage = 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'carpetas' | 'configuracion'
 
 export type AjusteTipo = 'porcentaje' | 'fijo'
 export type AjusteOperacion = 'descuento' | 'aumento'

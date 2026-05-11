@@ -16,6 +16,7 @@ import { Dashboard } from './components/Dashboard/Dashboard'
 import { VentasHistory } from './components/VentasHistory/VentasHistory'
 import { Configuracion } from './components/Configuracion/Configuracion'
 import { StockAvanzado } from './components/StockAvanzado/StockAvanzado'
+import { Carpetas } from './components/Carpetas/Carpetas'
 import { useModelos } from './hooks/useModelos'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
@@ -110,6 +111,14 @@ export function App() {
             onClearAll={() => setShowClearConfirm(true)}
           />
         )
+      )}
+
+      {activePage === 'carpetas' && (
+        <Carpetas
+          modelos={modelos}
+          onSell={setSellTarget}
+          onIngreso={setIngresoTarget}
+        />
       )}
 
       {activePage === 'dashboard' && <Dashboard />}
