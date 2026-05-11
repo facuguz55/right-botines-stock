@@ -218,18 +218,29 @@
 .sin-talles { font-size: 0.6875rem; color: var(--text-muted); }
 
 .talle-pill {
-  font-family: var(--font-display);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-surface-3);
   border: 1px solid var(--border);
-  letter-spacing: 0.02em;
+  border-radius: 4px;
+  padding: 3px 7px;
+  gap: 0;
 }
-.talle-pill.ok { background: var(--bg-surface-3); color: var(--text-primary); }
-.talle-pill.ultimo { background: var(--warning-dim); color: var(--warning); border-color: rgba(245,166,35,.4); }
-.talle-pill.bajo { background: var(--bg-surface-3); color: var(--warning); border-color: rgba(245,166,35,.3); }
-.talle-pill.sin-stock { background: var(--bg-surface-2); color: var(--text-muted); opacity: 0.35; }
+.talle-arg {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.talle-us {
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
 .row-precio {
   font-family: var(--font-display);

@@ -120,12 +120,9 @@ export function Carpetas({ modelos }: CarpetasProps) {
                     {m.modelo_talles.length === 0
                       ? <span className="sin-talles">Sin talles</span>
                       : m.modelo_talles.map(t => (
-                          <span
-                            key={t.id}
-                            className={`talle-pill ${t.cantidad === 0 ? 'sin-stock' : t.cantidad === 1 ? 'ultimo' : t.cantidad <= t.stock_minimo ? 'bajo' : 'ok'}`}
-                            title={`${t.talle_us} US`}
-                          >
-                            {t.talle_arg}
+                          <span key={t.id} className="talle-pill">
+                            <span className="talle-arg">{t.talle_arg}</span>
+                            <span className="talle-us">{t.talle_us} US</span>
                           </span>
                         ))
                     }
