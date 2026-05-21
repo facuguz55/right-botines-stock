@@ -78,6 +78,7 @@ export interface DashboardData {
 export type ActivePage =
   | 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'carpetas' | 'configuracion'
   | 'tn_dashboard' | 'tn_analytics' | 'tn_ordenes' | 'tn_productos' | 'tn_clientes' | 'tn_cupones' | 'tn_mails'
+  | 'rentabilidad'
 
 export type AjusteTipo = 'porcentaje' | 'fijo'
 export type AjusteOperacion = 'descuento' | 'aumento'

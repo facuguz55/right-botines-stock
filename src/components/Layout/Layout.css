@@ -37,21 +37,35 @@
   padding-bottom: 1rem;
 }
 
-.nav-section-label {
-  font-size: 0.5625rem;
+/* Universe label (LOCAL / TIENDA ONLINE) */
+.nav-universe-label {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 0 0.875rem;
+  margin: 0.75rem 0 0.125rem;
+}
+
+/* Group label inside universe (ANÁLISIS / GESTIÓN / MENSAJES) */
+.nav-group-label {
+  font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
   padding: 0 0.875rem;
-  margin: 0.5rem 0 0.25rem;
+  margin: 0.5rem 0 0.125rem;
 }
 
 .nav-divider {
   height: 1px;
   background: var(--border);
-  margin: 0.75rem 0.25rem 0.25rem;
+  margin: 0.625rem 0.25rem;
 }
+
+.nav-gap { height: 0.375rem; }
 
 .nav-item {
   display: flex;

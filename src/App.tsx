@@ -24,6 +24,7 @@ import { TNProductos } from './components/TNProductos/TNProductos'
 import { TNClientes } from './components/TNClientes/TNClientes'
 import { TNCupones } from './components/TNCupones/TNCupones'
 import { TNMails } from './components/TNMails/TNMails'
+import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
 import { useModelos } from './hooks/useModelos'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
@@ -143,6 +144,7 @@ export function App() {
       {activePage === 'tn_clientes'  && <TNClientes />}
       {activePage === 'tn_cupones'   && <TNCupones />}
       {activePage === 'tn_mails'     && <TNMails />}
+      {activePage === 'rentabilidad' && <Rentabilidad />}
 
       <ModelForm
         isOpen={showForm}
