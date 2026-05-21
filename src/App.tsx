@@ -17,6 +17,13 @@ import { VentasHistory } from './components/VentasHistory/VentasHistory'
 import { Configuracion } from './components/Configuracion/Configuracion'
 import { StockAvanzado } from './components/StockAvanzado/StockAvanzado'
 import { Carpetas } from './components/Carpetas/Carpetas'
+import { TNDashboard } from './components/TNDashboard/TNDashboard'
+import { TNAnalytics } from './components/TNAnalytics/TNAnalytics'
+import { TNOrdenes } from './components/TNOrdenes/TNOrdenes'
+import { TNProductos } from './components/TNProductos/TNProductos'
+import { TNClientes } from './components/TNClientes/TNClientes'
+import { TNCupones } from './components/TNCupones/TNCupones'
+import { TNMails } from './components/TNMails/TNMails'
 import { useModelos } from './hooks/useModelos'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
@@ -128,6 +135,14 @@ export function App() {
         </div>
       )}
       {activePage === 'configuracion' && <Configuracion modelos={modelos} onReload={reload} />}
+
+      {activePage === 'tn_dashboard' && <TNDashboard />}
+      {activePage === 'tn_analytics' && <TNAnalytics />}
+      {activePage === 'tn_ordenes'   && <TNOrdenes />}
+      {activePage === 'tn_productos' && <TNProductos />}
+      {activePage === 'tn_clientes'  && <TNClientes />}
+      {activePage === 'tn_cupones'   && <TNCupones />}
+      {activePage === 'tn_mails'     && <TNMails />}
 
       <ModelForm
         isOpen={showForm}
