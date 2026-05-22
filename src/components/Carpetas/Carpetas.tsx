@@ -28,7 +28,23 @@ interface CarpetasProps {
 }
 
 const GAMA_ORDER = ['Alta', 'Media', 'Mixto', 'Económica']
-const CAT_ORDER = ['F11', 'F5', 'Futsal', 'Hockey']
+const CAT_ORDER  = ['F11', 'F5', 'Futsal', 'Hockey']
+
+// Labels de display legibles para el usuario
+const CAT_LABELS: Record<string, string> = {
+  F11:    'Fútbol 11',
+  F5:     'Fútbol 5',
+  Futsal: 'Futsal',
+  Hockey: 'Hockey',
+}
+const GAMA_LABELS: Record<string, string> = {
+  Alta:      'Gama Alta',
+  Media:     'Gama Media',
+  Mixto:     'Mixto',
+  Económica: 'Gama Económica',
+}
+const catLabel  = (c: string) => CAT_LABELS[c]  ?? c
+const gamaLabel = (g: string) => GAMA_LABELS[g] ?? g
 
 export function Carpetas({ modelos }: CarpetasProps) {
   const [carpetaAbierta, setCarpetaAbierta] = useState<{ categoria: string; gama: string } | null>(null)
@@ -127,7 +143,7 @@ export function Carpetas({ modelos }: CarpetasProps) {
             onClick={() => { setTalleAbierto(null); setSeleccion(new Set()); setSearch('') }}
           >
             <ChevronLeft size={16} />
-            {carpetaAbierta.categoria} · {carpetaAbierta.gama}
+            {catLabel(carpetaAbierta.categoria)} · {gamaLabel(carpetaAbierta.gama)}
           </button>
           <div className="carpeta-title-row">
             <FolderOpen size={20} className="folder-icon-open" />
@@ -218,7 +234,7 @@ export function Carpetas({ modelos }: CarpetasProps) {
           </button>
           <div className="carpeta-title-row">
             <FolderOpen size={20} className="folder-icon-open" />
-            <h2 className="carpeta-title">{carpetaAbierta.categoria} · {carpetaAbierta.gama}</h2>
+            <h2 className="carpeta-title">{catLabel(carpetaAbierta.categoria)} · {gamaLabel(carpetaAbierta.gama)}</h2>
           </div>
           <p className="carpeta-sub-hint">Elegí un talle para ver los modelos disponibles</p>
         </div>
@@ -259,8 +275,8 @@ export function Carpetas({ modelos }: CarpetasProps) {
           >
             <Folder size={32} className="folder-icon" />
             <div className="carpeta-card-info">
-              <span className="carpeta-cat">{c.categoria}</span>
-              <span className="carpeta-gama">{c.gama}</span>
+              <span className="carpeta-cat">{catLabel(c.categoria)}</span>
+              <span className="carpeta-gama">{gamaLabel(c.gama)}</span>
             </div>
             <span className="carpeta-cant">{c.modelos.length} modelo{c.modelos.length !== 1 ? 's' : ''}</span>
           </button>

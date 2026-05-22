@@ -26,6 +26,7 @@ import { TNCupones } from './components/TNCupones/TNCupones'
 import { TNMails } from './components/TNMails/TNMails'
 import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
 import { useModelos } from './hooks/useModelos'
+import { useTNSync } from './hooks/useTNSync'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
 
@@ -60,6 +61,14 @@ export function App() {
     modelos, loading, reload,
     addModelo, editModelo, removeModelo, venderModelo, ingresarStockBatch, clearAll,
   } = useModelos()
+
+  const {
+    syncNow: syncTNNow,
+    syncing: syncingTN,
+    progress: tnProgress,
+    lastResult: tnLastResult,
+    lastSyncAt: tnLastSyncAt,
+  } = useTNSync(reload)
 
   const [showForm, setShowForm] = useState(false)
   const [editTarget, setEditTarget] = useState<Modelo | null>(null)
@@ -117,6 +126,11 @@ export function App() {
             onImportFotos={() => setShowImportFotos(true)}
             onImportExcel={() => setShowImportExcel(true)}
             onClearAll={() => setShowClearConfirm(true)}
+            onSyncTN={syncTNNow}
+            syncingTN={syncingTN}
+            tnProgress={tnProgress}
+            tnLastResult={tnLastResult}
+            tnLastSyncAt={tnLastSyncAt}
           />
         )
       )}

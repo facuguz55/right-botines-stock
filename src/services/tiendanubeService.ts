@@ -48,6 +48,8 @@ export interface TNOrder {
 export interface TNRawProduct {
   id: number
   name: Record<string, string>
+  brand: string | null
+  categories: { id: number; name: Record<string, string> }[]
   variants: {
     id: number
     sku: string | null
