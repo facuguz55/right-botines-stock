@@ -228,13 +228,16 @@ export function clearTNCache() {
 
 // ── TN credentials ────────────────────────────────────────────────────────────
 
+const _D_SID = '7648870'
+const _D_TOK = '26601c4de162ed6510520ed698dafcc809b84964'
+
 export function getTNCredentials(): { storeId: string; token: string } {
   try {
     return {
-      storeId: localStorage.getItem('tn_store_id') ?? '',
-      token:   localStorage.getItem('tn_token') ?? '',
+      storeId: localStorage.getItem('tn_store_id') || _D_SID,
+      token:   localStorage.getItem('tn_token')    || _D_TOK,
     }
-  } catch { return { storeId: '', token: '' } }
+  } catch { return { storeId: _D_SID, token: _D_TOK } }
 }
 
 export function saveTNCredentials(storeId: string, token: string) {
