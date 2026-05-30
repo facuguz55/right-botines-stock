@@ -1,7 +1,5 @@
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen,
-  ShoppingBag, TrendingUp, ShoppingCart, Box, Users, Tag, MessageCircle,
-  PieChart,
 } from 'lucide-react'
 import type { ActivePage } from '../../types'
 import './Layout.css'
@@ -27,20 +25,12 @@ function NavBtn({ item, active, onClick }: { item: NavItem; active: boolean; onC
 }
 
 const ALL_NAV: NavItem[] = [
-  { page: 'dashboard',      label: 'Dashboard',    Icon: BarChart2   },
-  { page: 'stock',          label: 'Stock',         Icon: Package     },
-  { page: 'carpetas',       label: 'Carpetas',      Icon: FolderOpen  },
-  { page: 'ventas',         label: 'Ventas',        Icon: DollarSign  },
-  { page: 'stock_avanzado', label: 'Avanzado',      Icon: List        },
-  { page: 'configuracion',  label: 'Ajustes',       Icon: Settings    },
-  { page: 'tn_dashboard',   label: 'Dashboard',     Icon: ShoppingBag },
-  { page: 'tn_analytics',   label: 'Análisis',      Icon: TrendingUp  },
-  { page: 'tn_ordenes',     label: 'Órdenes',       Icon: ShoppingCart},
-  { page: 'tn_productos',   label: 'Productos',     Icon: Box         },
-  { page: 'tn_clientes',    label: 'Clientes',      Icon: Users       },
-  { page: 'tn_cupones',     label: 'Cupones',       Icon: Tag         },
-  { page: 'tn_mails',       label: 'Mensajes',      Icon: MessageCircle},
-  { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart    },
+  { page: 'dashboard',      label: 'Dashboard',    Icon: BarChart2  },
+  { page: 'stock',          label: 'Stock',         Icon: Package    },
+  { page: 'carpetas',       label: 'Carpetas',      Icon: FolderOpen },
+  { page: 'ventas',         label: 'Ventas',        Icon: DollarSign },
+  { page: 'stock_avanzado', label: 'Avanzado',      Icon: List       },
+  { page: 'configuracion',  label: 'Ajustes',       Icon: Settings   },
 ]
 
 export function Layout({ activePage, onNavigate, children }: LayoutProps) {
@@ -54,9 +44,6 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
         </div>
         <nav className="sidebar-nav">
 
-          {/* ── LOCAL ── */}
-          <p className="nav-universe-label">Local</p>
-
           <p className="nav-group-label">Análisis</p>
           <NavBtn item={nav('dashboard')} active={activePage === 'dashboard'} onClick={() => onNavigate('dashboard')} />
 
@@ -68,35 +55,14 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
           <div className="nav-gap" />
           <NavBtn item={nav('configuracion')} active={activePage === 'configuracion'} onClick={() => onNavigate('configuracion')} />
 
-          {/* ── TIENDA ONLINE ── */}
-          <div className="nav-divider" />
-          <p className="nav-universe-label">Tienda Online</p>
-
-          <p className="nav-group-label">Análisis</p>
-          {(['tn_dashboard', 'tn_analytics'] as ActivePage[]).map(p => (
-            <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNavigate(p)} />
-          ))}
-
-          <p className="nav-group-label">Gestión</p>
-          {(['tn_ordenes', 'tn_productos', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
-            <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNavigate(p)} />
-          ))}
-
-          <p className="nav-group-label">Mensajes</p>
-          <NavBtn item={nav('tn_mails')} active={activePage === 'tn_mails'} onClick={() => onNavigate('tn_mails')} />
-
-          {/* ── RENTABILIDAD ── */}
-          <div className="nav-divider" />
-          <NavBtn item={nav('rentabilidad')} active={activePage === 'rentabilidad'} onClick={() => onNavigate('rentabilidad')} />
-
         </nav>
       </aside>
 
       <main className="main-content">{children}</main>
 
-      {/* Bottom nav mobile — solo páginas principales */}
+      {/* Bottom nav mobile */}
       <nav className="bottom-nav">
-        {(['stock', 'dashboard', 'tn_dashboard', 'tn_ordenes', 'rentabilidad'] as ActivePage[]).map(p => {
+        {(['stock', 'dashboard', 'ventas', 'configuracion'] as ActivePage[]).map(p => {
           const item = nav(p)
           return (
             <button

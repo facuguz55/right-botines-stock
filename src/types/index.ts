@@ -77,8 +77,6 @@ export interface DashboardData {
 
 export type ActivePage =
   | 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'carpetas' | 'configuracion'
-  | 'tn_dashboard' | 'tn_analytics' | 'tn_ordenes' | 'tn_productos' | 'tn_clientes' | 'tn_cupones' | 'tn_mails'
-  | 'rentabilidad'
 
 export type AjusteTipo = 'porcentaje' | 'fijo'
 export type AjusteOperacion = 'descuento' | 'aumento'
@@ -121,16 +119,3 @@ export interface TalleRow {
   toDelete: boolean
 }
 
-// Para importación TiendaNube
-export interface TiendaNubeModelo {
-  marca: string
-  modelo: string
-  categoria: string
-  gama: string
-  precio_venta: number
-  precio_costo: number
-  notas: string
-  talles: { talle_us: number; talle_arg: number; cantidad: number }[]
-  codigo_base_preview: string
-  errors: string[]
-}

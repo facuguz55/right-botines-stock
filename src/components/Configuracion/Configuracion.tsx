@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react'
-import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2 } from 'lucide-react'
+import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette } from 'lucide-react'
 import type { Modelo, AjustePrecioConfig, AjusteTipo, AjusteOperacion } from '../../types'
 import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
-import { getTNCredentials, saveTNCredentials, clearTNCredentials } from '../../services/tiendanubeService'
 import './Configuracion.css'
 
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
@@ -50,26 +49,6 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
   const [aplicando, setAplicando] = useState(false)
   const [resultado, setResultado] = useState<{ ok: boolean; msg: string } | null>(null)
   const [accentColor, setAccentColor] = useState(getSavedAccent)
-
-  // TiendaNube credentials
-  const tnSaved = getTNCredentials()
-  const [tnStoreId, setTnStoreId] = useState(tnSaved.storeId)
-  const [tnToken, setTnToken]     = useState(tnSaved.token)
-  const [tnMsg, setTnMsg]         = useState('')
-
-  const handleSaveTN = () => {
-    saveTNCredentials(tnStoreId.trim(), tnToken.trim())
-    setTnMsg('✓ Credenciales guardadas')
-    setTimeout(() => setTnMsg(''), 2500)
-  }
-
-  const handleClearTN = () => {
-    clearTNCredentials()
-    setTnStoreId('')
-    setTnToken('')
-    setTnMsg('Credenciales eliminadas')
-    setTimeout(() => setTnMsg(''), 2500)
-  }
 
   const preview = useMemo(() => {
     if (config.valor <= 0) return []
@@ -304,90 +283,6 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
             </div>
           </div>
         )}
-      </section>
-
-      {/* ── TiendaNube ── */}
-      <section className="config-section">
-        <div className="config-section-header">
-          <ShoppingBag size={16} />
-          <h2 className="config-section-title">TiendaNube — Credenciales de API</h2>
-        </div>
-        <p className="config-section-desc">
-          Ingresá tu ID de tienda y token de acceso para conectar el dashboard con TiendaNube.
-          Las credenciales se guardan solo en este dispositivo.
-        </p>
-        <div className="config-card">
-          <div className="config-row">
-            <label className="config-label"><Key size={11} /> ID de tienda</label>
-            <div className="config-input-wrap" style={{ maxWidth: 220 }}>
-              <input
-                type="text"
-                className="config-input"
-                value={tnStoreId}
-                onChange={e => setTnStoreId(e.target.value)}
-                placeholder="Ej: 1234567"
-              />
-            </div>
-          </div>
-          <div className="config-row">
-            <label className="config-label"><Key size={11} /> Token de acceso</label>
-            <div className="config-input-wrap">
-              <input
-                type="password"
-                className="config-input"
-                value={tnToken}
-                onChange={e => setTnToken(e.target.value)}
-                placeholder="Token de la API de TiendaNube"
-              />
-            </div>
-          </div>
-          {tnMsg && <p style={{ fontSize: '.8125rem', color: tnMsg.startsWith('✓') ? 'var(--accent)' : 'var(--text-secondary)' }}>{tnMsg}</p>}
-          <div className="config-actions">
-            {tnStoreId && tnToken && (
-              <button className="btn btn-danger btn-sm" onClick={handleClearTN}>
-                <Trash2 size={13} /> Desconectar
-              </button>
-            )}
-            <button
-              className="btn btn-primary"
-              onClick={handleSaveTN}
-              disabled={!tnStoreId || !tnToken}
-            >
-              <CheckCircle size={14} /> Guardar credenciales
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Webhook info ── */}
-      <section className="config-section">
-        <div className="config-section-header">
-          <ShoppingBag size={16} />
-          <h2 className="config-section-title">Sincronización de stock automática</h2>
-        </div>
-        <p className="config-section-desc">
-          Para que las ventas de TiendaNube descuenten el stock automáticamente, configurá este webhook en tu panel de TiendaNube
-          (Configuración → Webhooks → Nuevo webhook → Evento: "Orden pagada").
-        </p>
-        <div className="config-card">
-          <div className="config-row">
-            <label className="config-label">URL del webhook</label>
-            <div className="config-input-wrap">
-              <input
-                type="text"
-                className="config-input"
-                value={`${window.location.origin}/api/tn-webhook`}
-                readOnly
-                style={{ cursor: 'pointer' }}
-                onClick={e => { (e.target as HTMLInputElement).select(); navigator.clipboard.writeText(`${window.location.origin}/api/tn-webhook`) }}
-                title="Clic para copiar"
-              />
-            </div>
-          </div>
-          <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginTop: '.25rem' }}>
-            Clic sobre la URL para copiarla. También necesitás agregar <code style={{ fontFamily: 'monospace', background: 'var(--bg-surface-3)', padding: '1px 5px', borderRadius: '3px' }}>SUPABASE_URL</code> y <code style={{ fontFamily: 'monospace', background: 'var(--bg-surface-3)', padding: '1px 5px', borderRadius: '3px' }}>SUPABASE_ANON_KEY</code> como variables de entorno en Vercel.
-          </p>
-        </div>
       </section>
 
       {/* ── Personalización ── */}
