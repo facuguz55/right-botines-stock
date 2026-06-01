@@ -76,7 +76,43 @@ export interface DashboardData {
 }
 
 export type ActivePage =
-  | 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'carpetas' | 'configuracion'
+  | 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'carpetas' | 'configuracion' | 'seguimientos'
+
+export interface EmailEnviado {
+  id: string
+  client_id: string
+  email: string
+  fecha: string
+  created_at: string
+}
+
+export interface Conversion {
+  id: string
+  client_id: string
+  email: string
+  nombre_cliente: string
+  id_orden: string
+  total_orden: string
+  fecha_orden: string
+  fecha_click: string
+  fecha_verificacion: string
+  utm_campaign: string
+}
+
+export interface ClickTracking {
+  id: string
+  client_id: string
+  email: string
+  checkout_url: string
+  fecha_click: string
+  created_at: string
+}
+
+export interface SeguimientosData {
+  emailsEnviados: EmailEnviado[]
+  conversiones: Conversion[]
+  clicks: ClickTracking[]
+}
 
 export type AjusteTipo = 'porcentaje' | 'fijo'
 export type AjusteOperacion = 'descuento' | 'aumento'

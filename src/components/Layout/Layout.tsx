@@ -1,5 +1,5 @@
 import {
-  Package, BarChart2, DollarSign, Settings, List, FolderOpen,
+  Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
 } from 'lucide-react'
 import type { ActivePage } from '../../types'
 import './Layout.css'
@@ -25,12 +25,13 @@ function NavBtn({ item, active, onClick }: { item: NavItem; active: boolean; onC
 }
 
 const ALL_NAV: NavItem[] = [
-  { page: 'dashboard',      label: 'Dashboard',    Icon: BarChart2  },
-  { page: 'stock',          label: 'Stock',         Icon: Package    },
-  { page: 'carpetas',       label: 'Carpetas',      Icon: FolderOpen },
-  { page: 'ventas',         label: 'Ventas',        Icon: DollarSign },
-  { page: 'stock_avanzado', label: 'Avanzado',      Icon: List       },
-  { page: 'configuracion',  label: 'Ajustes',       Icon: Settings   },
+  { page: 'dashboard',      label: 'Dashboard',     Icon: BarChart2  },
+  { page: 'seguimientos',   label: 'Seguimientos',  Icon: Activity   },
+  { page: 'stock',          label: 'Stock',          Icon: Package    },
+  { page: 'carpetas',       label: 'Carpetas',       Icon: FolderOpen },
+  { page: 'ventas',         label: 'Ventas',         Icon: DollarSign },
+  { page: 'stock_avanzado', label: 'Avanzado',       Icon: List       },
+  { page: 'configuracion',  label: 'Ajustes',        Icon: Settings   },
 ]
 
 export function Layout({ activePage, onNavigate, children }: LayoutProps) {
@@ -46,6 +47,7 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
 
           <p className="nav-group-label">Análisis</p>
           <NavBtn item={nav('dashboard')} active={activePage === 'dashboard'} onClick={() => onNavigate('dashboard')} />
+          <NavBtn item={nav('seguimientos')} active={activePage === 'seguimientos'} onClick={() => onNavigate('seguimientos')} />
 
           <p className="nav-group-label">Gestión</p>
           {(['stock', 'carpetas', 'ventas', 'stock_avanzado'] as ActivePage[]).map(p => (

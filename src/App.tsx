@@ -15,6 +15,7 @@ import { VentasHistory } from './components/VentasHistory/VentasHistory'
 import { Configuracion } from './components/Configuracion/Configuracion'
 import { StockAvanzado } from './components/StockAvanzado/StockAvanzado'
 import { Carpetas } from './components/Carpetas/Carpetas'
+import { Seguimientos } from './components/Seguimientos/Seguimientos'
 import { useModelos } from './hooks/useModelos'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
@@ -112,6 +113,7 @@ export function App() {
       )}
 
       {activePage === 'dashboard' && <Dashboard />}
+      {activePage === 'seguimientos' && <Seguimientos />}
       {activePage === 'ventas' && <VentasHistory />}
       {activePage === 'stock_avanzado' && (
         <div className="config-page">
