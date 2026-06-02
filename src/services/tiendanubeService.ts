@@ -230,16 +230,13 @@ export function clearTNCache() {
 
 // ── TN credentials ────────────────────────────────────────────────────────────
 
-const _D_SID = '7648870'
-const _D_TOK = '26601c4de162ed6510520ed698dafcc809b84964'
-
 export function getTNCredentials(): { storeId: string; token: string } {
   try {
     return {
-      storeId: localStorage.getItem('tn_store_id') || _D_SID,
-      token:   localStorage.getItem('tn_token')    || _D_TOK,
+      storeId: localStorage.getItem('tn_store_id') || '',
+      token:   localStorage.getItem('tn_token')    || '',
     }
-  } catch { return { storeId: _D_SID, token: _D_TOK } }
+  } catch { return { storeId: '', token: '' } }
 }
 
 export function saveTNCredentials(storeId: string, token: string) {
@@ -306,8 +303,11 @@ async function tnFetch(
 
   const ctrl2 = new AbortController()
   const tid2 = setTimeout(() => ctrl2.abort(), 12000)
-  const proxyParams = new URLSearchParams({ storeId, token, path, ...params })
-  const proxyRes = await fetch(`/api/tiendanube?${proxyParams}`, { signal: ctrl2.signal })
+  const proxyParams = new URLSearchParams({ path, ...params })
+  const proxyRes = await fetch(`/api/tiendanube?${proxyParams}`, {
+    signal: ctrl2.signal,
+    headers: { 'x-tn-store': storeId, 'x-tn-token': token },
+  })
   clearTimeout(tid2)
   return await handleResponse(proxyRes)
 }

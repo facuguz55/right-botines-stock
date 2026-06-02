@@ -16,13 +16,32 @@ async function sbFetch(path: string, options: RequestInit = {}) {
   })
 }
 
+async function verifyHmac(req: Request, rawBody: string): Promise<boolean> {
+  const secret = process.env.TN_WEBHOOK_SECRET
+  if (!secret) return true // sin secret configurado, saltar verificación
+  const sig = req.headers.get('x-linkedstore-hmac-sha256') ?? ''
+  if (!sig) return false
+  try {
+    const enc = new TextEncoder()
+    const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'])
+    const sigBytes = Uint8Array.from(atob(sig), c => c.charCodeAt(0))
+    return await crypto.subtle.verify('HMAC', key, sigBytes, enc.encode(rawBody))
+  } catch { return false }
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
   }
 
   try {
-    const payload = await req.json() as {
+    const rawBody = await req.text()
+
+    if (!await verifyHmac(req, rawBody)) {
+      return new Response('Invalid signature', { status: 401 })
+    }
+
+    const payload = JSON.parse(rawBody) as {
       event: string
       store_id: number
       id?: number

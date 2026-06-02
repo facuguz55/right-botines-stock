@@ -4,23 +4,23 @@ export default async function handler(req: Request): Promise<Response> {
   const CORS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, x-tn-store, x-tn-token',
     'Access-Control-Expose-Headers': 'Link, X-Total-Count',
   }
 
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
 
   const url = new URL(req.url)
-  const storeId = url.searchParams.get('storeId')
-  const token   = url.searchParams.get('token')
-  const path    = url.searchParams.get('path') ?? 'orders'
+  const path = url.searchParams.get('path') ?? 'orders'
 
-  url.searchParams.delete('storeId')
-  url.searchParams.delete('token')
+  // Token y storeId llegan por headers (nunca en la URL)
+  const storeId = req.headers.get('x-tn-store')
+  const token   = req.headers.get('x-tn-token')
+
   url.searchParams.delete('path')
 
   if (!storeId || !token) {
-    return new Response(JSON.stringify({ error: 'Missing storeId or token' }), {
+    return new Response(JSON.stringify({ error: 'Missing x-tn-store or x-tn-token headers' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...CORS },
     })
