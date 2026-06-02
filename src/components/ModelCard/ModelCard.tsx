@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import type { Modelo } from '../../types'
 import './ModelCard.css'
@@ -20,6 +20,16 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
   const extraFotos = modelo.modelo_fotos.length - 1
   const [imgError, setImgError] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  // Si la imagen ya estaba cacheada, onLoad no dispara → revisar .complete
+  useEffect(() => {
+    if (imgRef.current?.complete && !imgRef.current.naturalWidth) {
+      setImgError(true)
+    } else if (imgRef.current?.complete) {
+      setImgLoaded(true)
+    }
+  }, [])
 
   return (
     <div className="model-card">
@@ -28,10 +38,10 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
           <>
             {!imgLoaded && <div className="card-image-skeleton skeleton" />}
             <img
+              ref={imgRef}
               src={mainFoto}
               alt={modelo.modelo}
-              className={`card-image${imgLoaded ? ' img-visible' : ' img-hidden'}`}
-              loading="lazy"
+              className={`card-image${imgLoaded ? ' img-loaded' : ' img-loading'}`}
               onLoad={() => setImgLoaded(true)}
               onError={() => setImgError(true)}
             />
