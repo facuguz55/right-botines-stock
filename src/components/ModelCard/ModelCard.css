@@ -25,16 +25,12 @@
 .card-image { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
 .model-card:hover .card-image { transform: scale(1.04); }
 
-/* Skeleton se muestra encima de la imagen mientras carga */
 .card-image-skeleton {
   position: absolute; inset: 0;
   border-radius: 0;
   z-index: 1;
+  pointer-events: none;
 }
-
-/* Imagen invisible mientras skeleton está activo, visible una vez cargada */
-.img-loading { opacity: 0; transition: opacity 0.3s ease; }
-.img-loaded  { opacity: 1; transition: opacity 0.3s ease; }
 
 .card-image-placeholder {
   width: 100%; height: 100%;
