@@ -8,7 +8,42 @@ export function Dashboard() {
   const { data, loading, error } = useDashboard()
   const [alertasOpen, setAlertasOpen] = useState(false)
 
-  if (loading) return <div className="dash-loading"><div className="spinner" /><p>Cargando dashboard...</p></div>
+  if (loading) return (
+    <div className="dashboard">
+      <div className="page-header">
+        <div className="skeleton" style={{ height: 36, width: 180 }} />
+      </div>
+      <div className="metrics-grid">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="metric-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="skeleton" style={{ height: 11, width: '60%' }} />
+            <div className="skeleton" style={{ height: 40, width: '70%' }} />
+            <div className="skeleton" style={{ height: 10, width: '45%' }} />
+          </div>
+        ))}
+      </div>
+      <div className="dash-main-grid">
+        <div className="dash-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="skeleton" style={{ height: 16, width: 160 }} />
+          <div className="skeleton" style={{ height: 200, borderRadius: 'var(--radius-sm)' }} />
+        </div>
+        <div className="dash-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div className="skeleton" style={{ height: 16, width: 140 }} />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', padding: '0.375rem 0', borderBottom: '1px solid var(--border)' }}>
+              <div className="skeleton" style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0 }} />
+              <div className="skeleton" style={{ width: 42, height: 32, flexShrink: 0 }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="skeleton" style={{ height: 12, width: '80%' }} />
+                <div className="skeleton" style={{ height: 10, width: '50%' }} />
+              </div>
+              <div className="skeleton" style={{ height: 14, width: 50, flexShrink: 0 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
   if (error) return <div className="dash-error">Error: {error}</div>
   if (!data) return null
 

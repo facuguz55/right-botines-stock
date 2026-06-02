@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import type { Modelo } from '../../types'
 import './ModelCard.css'
@@ -17,12 +18,24 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
   const ultimoPar = !agotado && totalPares === 1
   const mainFoto = modelo.modelo_fotos[0]?.foto_url ?? null
   const extraFotos = modelo.modelo_fotos.length - 1
+  const [imgError, setImgError] = useState(false)
+  const [imgLoaded, setImgLoaded] = useState(false)
 
   return (
     <div className="model-card">
       <div className="card-image-wrap">
-        {mainFoto ? (
-          <img src={mainFoto} alt={modelo.modelo} className="card-image" loading="lazy" />
+        {mainFoto && !imgError ? (
+          <>
+            {!imgLoaded && <div className="card-image-skeleton skeleton" />}
+            <img
+              src={mainFoto}
+              alt={modelo.modelo}
+              className={`card-image${imgLoaded ? ' img-visible' : ' img-hidden'}`}
+              loading="lazy"
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)}
+            />
+          </>
         ) : (
           <div className="card-image-placeholder"><span>⚽</span></div>
         )}

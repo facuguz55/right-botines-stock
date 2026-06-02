@@ -60,7 +60,9 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
         </nav>
       </aside>
 
-      <main className="main-content">{children}</main>
+      <main className="main-content">
+        <div key={activePage} className="page-enter">{children}</div>
+      </main>
 
       {/* Bottom nav mobile */}
       <nav className="bottom-nav">

@@ -68,7 +68,35 @@ export function ModelGrid({
       <Filters filters={filters} onChange={setFilters} modelos={modelos} />
 
       {loading ? (
-        <div className="grid-loading"><div className="spinner" /><p>Cargando stock...</p></div>
+        <div className="model-grid">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="model-card skeleton-card">
+              <div className="card-image-wrap skeleton" style={{ aspectRatio: '4/3' }} />
+              <div className="card-body" style={{ gap: '0.625rem' }}>
+                <div className="skeleton" style={{ height: 10, width: '40%' }} />
+                <div className="skeleton" style={{ height: 18, width: '75%' }} />
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <div className="skeleton" style={{ height: 16, width: 52 }} />
+                  <div className="skeleton" style={{ height: 16, width: 40 }} />
+                </div>
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <div key={j} className="skeleton" style={{ height: 22, width: 36 }} />
+                  ))}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="skeleton" style={{ height: 24, width: 80 }} />
+                  <div className="skeleton" style={{ height: 14, width: 50 }} />
+                </div>
+                <div style={{ display: 'flex', gap: 4, paddingTop: '0.5rem', borderTop: '1px solid var(--border)' }}>
+                  <div className="skeleton" style={{ height: 28, flex: 1 }} />
+                  <div className="skeleton" style={{ height: 28, flex: 1 }} />
+                  <div className="skeleton" style={{ height: 28, width: 30 }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="grid-empty">
           <span className="empty-icon">📦</span>

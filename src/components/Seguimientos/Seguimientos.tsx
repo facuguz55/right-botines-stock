@@ -19,13 +19,51 @@ function shortUrl(url: string) {
   }
 }
 
+function safeHref(url: string): string | undefined {
+  try {
+    const u = new URL(url)
+    return (u.protocol === 'https:' || u.protocol === 'http:') ? u.toString() : undefined
+  } catch { return undefined }
+}
+
 export function Seguimientos() {
   const { data, loading, error, reload } = useSeguimientos()
 
   if (loading) return (
-    <div className="seg-loading">
-      <div className="spinner" />
-      <p>Cargando seguimientos...</p>
+    <div className="seguimientos">
+      <div className="page-header">
+        <div className="skeleton" style={{ height: 36, width: 220 }} />
+      </div>
+      <div className="seg-metrics">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="seg-metric" style={{ gap: '1rem' }}>
+            <div className="skeleton" style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div className="skeleton" style={{ height: 32, width: 48 }} />
+              <div className="skeleton" style={{ height: 11, width: 100 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="seg-tables">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="seg-card">
+            <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div className="skeleton" style={{ height: 14, width: 14 }} />
+              <div className="skeleton" style={{ height: 14, width: 130 }} />
+            </div>
+            <div style={{ padding: '0.25rem 0' }}>
+              {Array.from({ length: 4 }).map((_, j) => (
+                <div key={j} style={{ display: 'flex', gap: '2rem', padding: '0.625rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+                  <div className="skeleton" style={{ height: 13, flex: 2 }} />
+                  <div className="skeleton" style={{ height: 13, flex: 1 }} />
+                  <div className="skeleton" style={{ height: 13, flex: 1 }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 
@@ -183,15 +221,18 @@ export function Seguimientos() {
                     <tr key={c.id}>
                       <td className="seg-email">{c.email}</td>
                       <td>
-                        <a
-                          href={c.checkout_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="seg-link"
-                          title={c.checkout_url}
-                        >
-                          {shortUrl(c.checkout_url)}
-                        </a>
+                        {safeHref(c.checkout_url) ? (
+                          <a
+                            href={safeHref(c.checkout_url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="seg-link"
+                          >
+                            {shortUrl(c.checkout_url)}
+                          </a>
+                        ) : (
+                          <span className="seg-link">{shortUrl(c.checkout_url)}</span>
+                        )}
                       </td>
                       <td className="seg-date">{fmt(c.fecha_click)}</td>
                     </tr>
