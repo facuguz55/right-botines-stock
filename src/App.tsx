@@ -9,14 +9,25 @@ import { IngresoPage } from './components/IngresoPage/IngresoPage'
 import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
 import { PhotoSearch } from './components/PhotoSearch/PhotoSearch'
+import { TiendaNubeImport } from './components/TiendaNubeImport/TiendaNubeImport'
 import { ImportFotos } from './components/ImportFotos/ImportFotos'
+import { ImportExcel } from './components/ImportExcel/ImportExcel'
 import { Dashboard } from './components/Dashboard/Dashboard'
 import { VentasHistory } from './components/VentasHistory/VentasHistory'
 import { Configuracion } from './components/Configuracion/Configuracion'
 import { StockAvanzado } from './components/StockAvanzado/StockAvanzado'
 import { Carpetas } from './components/Carpetas/Carpetas'
 import { Seguimientos } from './components/Seguimientos/Seguimientos'
+import { TNDashboard } from './components/TNDashboard/TNDashboard'
+import { TNAnalytics } from './components/TNAnalytics/TNAnalytics'
+import { TNOrdenes } from './components/TNOrdenes/TNOrdenes'
+import { TNProductos } from './components/TNProductos/TNProductos'
+import { TNClientes } from './components/TNClientes/TNClientes'
+import { TNCupones } from './components/TNCupones/TNCupones'
+import { TNMails } from './components/TNMails/TNMails'
+import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
 import { useModelos } from './hooks/useModelos'
+import { useTNSync } from './hooks/useTNSync'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
 
@@ -52,6 +63,14 @@ export function App() {
     addModelo, editModelo, removeModelo, venderModelo, ingresarStockBatch, clearAll,
   } = useModelos()
 
+  const {
+    syncNow: syncTNNow,
+    syncing: syncingTN,
+    progress: tnProgress,
+    lastResult: tnLastResult,
+    lastSyncAt: tnLastSyncAt,
+  } = useTNSync(reload)
+
   const [showForm, setShowForm] = useState(false)
   const [editTarget, setEditTarget] = useState<Modelo | null>(null)
   const [sellTarget, setSellTarget] = useState<Modelo | null>(null)
@@ -59,7 +78,9 @@ export function App() {
   const [deleteTarget, setDeleteTarget] = useState<Modelo | null>(null)
   const [priceHistoryTarget, setPriceHistoryTarget] = useState<Modelo | null>(null)
   const [showPhotoSearch, setShowPhotoSearch] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [showImportFotos, setShowImportFotos] = useState(false)
+  const [showImportExcel, setShowImportExcel] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [clearing, setClearing] = useState(false)
 
@@ -102,19 +123,23 @@ export function App() {
             onPriceHistory={setPriceHistoryTarget}
             onAdd={handleAdd}
             onPhotoSearch={() => setShowPhotoSearch(true)}
+            onImport={() => setShowImport(true)}
             onImportFotos={() => setShowImportFotos(true)}
+            onImportExcel={() => setShowImportExcel(true)}
             onClearAll={() => setShowClearConfirm(true)}
+            onSyncTN={syncTNNow}
+            syncingTN={syncingTN}
+            tnProgress={tnProgress}
+            tnLastResult={tnLastResult}
+            tnLastSyncAt={tnLastSyncAt}
           />
         )
       )}
 
-      {activePage === 'carpetas' && (
-        <Carpetas modelos={modelos} />
-      )}
-
+      {activePage === 'carpetas' && <Carpetas modelos={modelos} />}
       {activePage === 'dashboard' && <Dashboard />}
-      {activePage === 'seguimientos' && <Seguimientos />}
       {activePage === 'ventas' && <VentasHistory />}
+      {activePage === 'seguimientos' && <Seguimientos />}
       {activePage === 'stock_avanzado' && (
         <div className="config-page">
           <div className="page-header">
@@ -124,6 +149,15 @@ export function App() {
         </div>
       )}
       {activePage === 'configuracion' && <Configuracion modelos={modelos} onReload={reload} />}
+
+      {activePage === 'tn_dashboard' && <TNDashboard />}
+      {activePage === 'tn_analytics' && <TNAnalytics />}
+      {activePage === 'tn_ordenes'   && <TNOrdenes />}
+      {activePage === 'tn_productos' && <TNProductos />}
+      {activePage === 'tn_clientes'  && <TNClientes />}
+      {activePage === 'tn_cupones'   && <TNCupones />}
+      {activePage === 'tn_mails'     && <TNMails />}
+      {activePage === 'rentabilidad' && <Rentabilidad />}
 
       <ModelForm
         isOpen={showForm}
@@ -156,9 +190,22 @@ export function App() {
         onSelectModelo={m => { setShowPhotoSearch(false); handleEdit(m) }}
       />
 
+      <TiendaNubeImport
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        onImported={reload}
+      />
+
       <ImportFotos
         isOpen={showImportFotos}
         onClose={() => setShowImportFotos(false)}
+        modelos={modelos}
+        onDone={reload}
+      />
+
+      <ImportExcel
+        isOpen={showImportExcel}
+        onClose={() => setShowImportExcel(false)}
         modelos={modelos}
         onDone={reload}
       />

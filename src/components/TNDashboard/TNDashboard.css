@@ -1,0 +1,321 @@
+.tn-dashboard { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.tn-loading, .tn-error {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1rem; padding: 4rem;
+  color: var(--text-secondary); text-align: center;
+}
+.tn-error p { color: var(--warning); }
+
+/* ── Métricas grid 4 col → 2 col ── */
+.tn-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.tn-metric-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.125rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.tn-metric-icon {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.tn-metric-content { flex: 1; min-width: 0; }
+
+.tn-metric-label {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tn-metric-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  white-space: nowrap;
+}
+.tn-metric-value.accent { color: var(--accent); }
+
+/* ── Section ── */
+.tn-section { display: flex; flex-direction: column; gap: 0.875rem; }
+
+.tn-section-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── Monthly cards ── */
+.tn-monthly-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.75rem;
+}
+
+.tn-month-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tn-month-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.07em;
+}
+
+.tn-month-facturado {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tn-month-ventas {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.tn-month-bar {
+  height: 3px;
+  background: var(--bg-surface-3);
+  border-radius: 2px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.tn-month-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+/* ── Charts row ── */
+.tn-charts-row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr;
+  gap: 1rem;
+}
+
+.tn-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+}
+
+.tn-card-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.tn-no-data {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  padding: 0.5rem 0;
+}
+
+/* ── Top productos ── */
+.tn-top-productos { display: flex; flex-direction: column; gap: 0; }
+
+.tn-top-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.tn-top-row:last-child { border-bottom: none; }
+
+.tn-top-rank {
+  width: 18px; height: 18px;
+  background: var(--bg-surface-3);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.625rem; font-weight: 700;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.tn-top-info { flex: 1; min-width: 0; }
+
+.tn-top-nombre {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tn-top-total {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.tn-top-count {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Métodos de pago ── */
+.tn-metodos { display: flex; flex-direction: column; gap: 1rem; }
+
+.tn-metodos-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tn-metodo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.tn-metodo-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tn-metodo-name {
+  flex: 1;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tn-metodo-pct {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ── Última venta ── */
+.tn-ultima-venta { display: flex; flex-direction: column; }
+
+.tn-ultima-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tn-ultima-monto {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.tn-ultima-producto {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tn-ultima-cliente,
+.tn-ultima-fecha {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* ── Ratio clientes ── */
+.tn-clientes-ratio .tn-ratio-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.tn-ratio-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.tn-ratio-info {
+  display: flex;
+  flex-direction: column;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.tn-ratio-label {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.tn-ratio-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tn-ratio-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tn-ratio-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  min-width: 4px;
+}
+
+.tn-ratio-pct {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  width: 36px;
+  text-align: right;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1200px) {
+  .tn-metrics-grid { grid-template-columns: repeat(4, 1fr); }
+  .tn-monthly-grid { grid-template-columns: repeat(3, 1fr); }
+  .tn-charts-row   { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 900px) {
+  .tn-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+  .tn-charts-row   { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .tn-monthly-grid { grid-template-columns: repeat(2, 1fr); }
+}
