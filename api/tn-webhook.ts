@@ -1,10 +1,12 @@
 export const config = { runtime: 'edge' }
 
+// Usa service role key (nunca el anon key) para escrituras privilegiadas server-side
 const SB_URL = process.env.SUPABASE_URL ?? ''
-const SB_KEY = process.env.SUPABASE_ANON_KEY ?? ''
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
+const EXPECTED_STORE = process.env.TN_STORE_ID ?? ''
 
 async function sbFetch(path: string, options: RequestInit = {}) {
-  return fetch(`${SB_URL}/rest/v1/${path}`, {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: SB_KEY,
@@ -14,11 +16,16 @@ async function sbFetch(path: string, options: RequestInit = {}) {
       ...(options.headers as Record<string, string> | undefined),
     },
   })
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    throw new Error(`sbFetch ${path} → ${res.status}: ${txt}`)
+  }
+  return res
 }
 
 async function verifyHmac(req: Request, rawBody: string): Promise<boolean> {
   const secret = process.env.TN_WEBHOOK_SECRET
-  if (!secret) return true // sin secret configurado, saltar verificación
+  if (!secret) return true
   const sig = req.headers.get('x-linkedstore-hmac-sha256') ?? ''
   if (!sig) return false
   try {
@@ -56,6 +63,11 @@ export default async function handler(req: Request): Promise<Response> {
       }[]
     }
 
+    // Validar que el evento viene de nuestra tienda
+    if (EXPECTED_STORE && String(payload.store_id) !== EXPECTED_STORE) {
+      return new Response('Store mismatch', { status: 403 })
+    }
+
     // Solo procesar órdenes pagadas
     if (payload.event !== 'order/paid' && payload.event !== 'order/updated') {
       return new Response('OK', { status: 200 })
@@ -64,52 +76,57 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response('OK', { status: 200 })
     }
 
+    const orderId = payload.id
+    if (!orderId) return new Response('OK', { status: 200 })
+
+    // Idempotencia: no procesar la misma orden dos veces
+    const dupCheck = await sbFetch(`ventas?tn_order_id=eq.${orderId}&select=id&limit=1`)
+    const existing = await dupCheck.json() as unknown[]
+    if (existing.length > 0) {
+      return new Response(JSON.stringify({ ok: true, skipped: 'duplicate' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     const products = payload.products ?? []
 
     for (const item of products) {
       if (!item.sku) continue
 
-      // Buscar el modelo por codigo_base = SKU del producto
       const modelRes = await sbFetch(
         `modelos?codigo_base=eq.${encodeURIComponent(item.sku)}&select=id,precio_costo&limit=1`
       )
-      if (!modelRes.ok) continue
       const models = await modelRes.json() as { id: string; precio_costo: number }[]
       if (!models.length) continue
 
       const modelo = models[0]
-
-      // Intentar extraer el talle del nombre de variante
       const variantLabel = item.variant?.values?.[0]?.es ?? item.variant?.values?.[0]?.en ?? ''
       const talleArg = parseFloat(variantLabel) || null
 
-      // Buscar el talle correspondiente
       let talleRes: Response
       if (talleArg) {
         talleRes = await sbFetch(
           `modelo_talles?modelo_id=eq.${modelo.id}&talle_arg=eq.${talleArg}&select=id,cantidad&limit=1`
         )
       } else {
-        // Sin talle específico, tomar el primero con stock
         talleRes = await sbFetch(
           `modelo_talles?modelo_id=eq.${modelo.id}&cantidad=gt.0&select=id,cantidad&order=cantidad.asc&limit=1`
         )
       }
 
-      if (!talleRes.ok) continue
       const talles = await talleRes.json() as { id: string; cantidad: number }[]
       if (!talles.length) continue
 
       const talle = talles[0]
       const nuevaCantidad = Math.max(0, talle.cantidad - item.quantity)
 
-      // Decrementar stock
       await sbFetch(`modelo_talles?id=eq.${talle.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ cantidad: nuevaCantidad }),
       })
 
-      // Registrar la venta web
+      // Precio tomado del payload (ya verificado por HMAC)
       const precioVenta = parseFloat(item.price) * item.quantity
       const ganancia = precioVenta - (modelo.precio_costo * item.quantity)
 
@@ -122,7 +139,7 @@ export default async function handler(req: Request): Promise<Response> {
           precio_venta: precioVenta,
           medio_pago: 'TiendaNube',
           ganancia: Math.max(0, ganancia),
-          tn_order_id: payload.id ?? null,
+          tn_order_id: orderId,
         }),
       })
     }
