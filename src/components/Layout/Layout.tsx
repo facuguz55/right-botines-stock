@@ -99,7 +99,7 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
 
       {/* Bottom nav mobile */}
       <nav className="bottom-nav">
-        {(['stock', 'dashboard', 'tn_dashboard', 'tn_ordenes', 'rentabilidad'] as ActivePage[]).map(p => {
+        {(['stock', 'dashboard', 'seguimientos', 'tn_ordenes', 'tn_dashboard'] as ActivePage[]).map(p => {
           const item = nav(p)
           return (
             <button

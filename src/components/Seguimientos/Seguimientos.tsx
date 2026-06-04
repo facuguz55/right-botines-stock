@@ -169,9 +169,9 @@ export function Seguimientos() {
                   <tr>
                     <th>Cliente</th>
                     <th>Email</th>
-                    <th>Orden</th>
+                    <th className="col-hide-mobile">Orden</th>
                     <th>Total</th>
-                    <th>Campaña</th>
+                    <th className="col-hide-mobile">Campaña</th>
                     <th>Fecha</th>
                   </tr>
                 </thead>
@@ -180,11 +180,11 @@ export function Seguimientos() {
                     <tr key={c.id}>
                       <td className="seg-bold">{c.nombre_cliente || '—'}</td>
                       <td className="seg-email">{c.email}</td>
-                      <td className="seg-mono">#{c.id_orden}</td>
+                      <td className="seg-mono col-hide-mobile">#{c.id_orden}</td>
                       <td className="seg-money">
                         ${parseFloat(c.total_orden || '0').toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                       </td>
-                      <td>
+                      <td className="col-hide-mobile">
                         {c.utm_campaign ? (
                           <span className="seg-badge">{c.utm_campaign}</span>
                         ) : '—'}
@@ -212,7 +212,7 @@ export function Seguimientos() {
                 <thead>
                   <tr>
                     <th>Email</th>
-                    <th>URL destino</th>
+                    <th className="col-hide-mobile">URL destino</th>
                     <th>Fecha clic</th>
                   </tr>
                 </thead>
@@ -220,7 +220,7 @@ export function Seguimientos() {
                   {data.clicks.map(c => (
                     <tr key={c.id}>
                       <td className="seg-email">{c.email}</td>
-                      <td>
+                      <td className="col-hide-mobile">
                         {safeHref(c.checkout_url) ? (
                           <a
                             href={safeHref(c.checkout_url)}
