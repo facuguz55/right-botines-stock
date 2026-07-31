@@ -23,6 +23,7 @@ export function useTNSync(onSynced?: () => void) {
       const result = await syncTNStock(setProgress)
       setLastResult(result)
       setLastSyncAt(new Date())
+      if (result.errors.length > 0) console.error('Errores de sync TiendaNube:', result.errors)
       onSyncedRef.current?.()
     } catch (err) {
       setLastResult({

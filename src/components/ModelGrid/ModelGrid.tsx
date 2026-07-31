@@ -65,7 +65,10 @@ export function ModelGrid({
         </button>
 
         {!syncingTN && tnLastResult && (
-          <span className={`sync-result${hasErrors ? ' sync-result--error' : ''}`}>
+          <span
+            className={`sync-result${hasErrors ? ' sync-result--error' : ''}`}
+            title={hasErrors ? tnLastResult.errors.join('\n') : undefined}
+          >
             {hasErrors ? <AlertCircle size={12} /> : <CheckCircle size={12} />}
             {tnLastResult.created > 0 && `${tnLastResult.created} creados`}
             {tnLastResult.created > 0 && tnLastResult.updated > 0 && ' · '}
