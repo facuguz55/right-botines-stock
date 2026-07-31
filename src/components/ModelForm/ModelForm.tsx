@@ -102,7 +102,18 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    setPhotos(prev => [...prev, ...files.map((file, i) => ({
+
+    const empty = files.filter(f => f.size === 0)
+    const valid = files.filter(f => f.size > 0)
+    if (empty.length > 0) {
+      setError(
+        'Una o más fotos llegaron vacías (pasa seguido con fotos guardadas solo en iCloud y mala señal). ' +
+        'Esperá a que termine de descargarlas en el teléfono y volvé a intentar.'
+      )
+    }
+    if (!valid.length) return
+
+    setPhotos(prev => [...prev, ...valid.map((file, i) => ({
       url: URL.createObjectURL(file), file, orden: prev.length + i,
     }))])
     e.target.value = ''
@@ -139,7 +150,12 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
       )
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      const msg = (e as Error).message
+      setError(
+        /no content provided/i.test(msg)
+          ? 'Una de las fotos se subió vacía (falla común con fotos de iCloud sin descargar del todo). Volvé a seleccionarla y probá de nuevo.'
+          : msg
+      )
     } finally {
       setSaving(false)
     }
