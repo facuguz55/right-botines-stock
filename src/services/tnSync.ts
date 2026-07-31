@@ -4,7 +4,7 @@
 
 import { supabase } from '../lib/supabase'
 import { fetchModelos, createModelo, updateModelo, upsertTalle } from './modelos'
-import { fetchTNRawProducts, getTNCredentials } from './tiendanubeService'
+import { fetchTNRawProducts, fetchTNProduct, updateTNVariant, getTNCredentials } from './tiendanubeService'
 import type { Modelo } from '../types'
 
 export interface SyncResult {
@@ -40,7 +40,7 @@ function getUsFromArg(arg: number): number {
 
 // ── Parsing de talle desde el label de variante ──────────────────────────────
 
-function parseTalleArg(label: string): number | null {
+export function parseTalleArg(label: string): number | null {
   // Limpia prefijos comunes: "Talle 39", "T 39", "T39", "39 AR", etc.
   const cleaned = label.replace(/talle|t\.?\s*/gi, '').trim()
   const match = cleaned.match(/^(\d{2,3}(?:[.,]\d)?)/)
@@ -220,4 +220,30 @@ export async function syncTNStock(
   }
 
   return result
+}
+
+// ── Stock local → TiendaNube ─────────────────────────────────────────────────
+// Al vender un talle desde el dashboard, empuja el nuevo stock a la variante
+// correspondiente en TiendaNube (si el modelo proviene de un sync de TN).
+
+export async function pushStockToTN(modelo: Modelo, talleArg: number, nuevaCantidad: number): Promise<void> {
+  if (!modelo.codigo_base.startsWith('tn_')) return
+
+  const productId = parseInt(modelo.codigo_base.slice('tn_'.length), 10)
+  if (!Number.isFinite(productId)) return
+
+  const { storeId, token } = getTNCredentials()
+  if (!storeId || !token) return
+
+  const prod = await fetchTNProduct(storeId, token, productId)
+
+  const variant = prod.variants.find(v => {
+    const label = (v.values ?? [])
+      .map(val => val.es ?? val.en ?? Object.values(val).find(x => x) ?? '')
+      .join(' ')
+    return parseTalleArg(label) === talleArg
+  })
+  if (!variant) throw new Error(`No se encontró en TiendaNube la variante de talle ${talleArg}`)
+
+  await updateTNVariant(storeId, token, productId, variant.id, { stock: Math.max(0, nuevaCantidad) })
 }

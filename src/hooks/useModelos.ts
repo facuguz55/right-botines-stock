@@ -7,6 +7,7 @@ import {
 } from '../services/modelos'
 import { saveFotos, deleteFotosForModelo } from '../services/fotos'
 import { recordPriceChange } from '../services/historial_precios'
+import { pushStockToTN } from '../services/tnSync'
 
 type ModeloInput = Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>
 
@@ -91,6 +92,7 @@ export function useModelos() {
   }
 
   const venderModelo = async (modelo: Modelo, talleId: string, medioPago: MedioPago) => {
+    const talle = modelo.modelo_talles.find(t => t.id === talleId)
     await sellTalle(modelo, talleId, medioPago)
     setModelos(prev => prev.map(m =>
       m.id !== modelo.id ? m : {
@@ -100,6 +102,14 @@ export function useModelos() {
         ),
       }
     ))
+
+    // Best-effort: si el modelo viene de TiendaNube, reflejar el nuevo stock allá.
+    // No debe bloquear ni revertir la venta local si TN falla.
+    if (talle) {
+      pushStockToTN(modelo, talle.talle_arg, talle.cantidad - 1).catch(err => {
+        console.error('No se pudo actualizar el stock en TiendaNube:', err)
+      })
+    }
   }
 
   const ingresarStock = async (

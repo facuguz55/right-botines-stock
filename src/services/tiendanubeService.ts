@@ -363,6 +363,11 @@ export async function fetchTNRawProducts(storeId: string, token: string): Promis
   return all
 }
 
+export async function fetchTNProduct(storeId: string, token: string, productId: number): Promise<TNRawProduct> {
+  const { data } = await tnFetch(storeId, token, `products/${productId}`)
+  return data as TNRawProduct
+}
+
 export async function fetchTNVariants(storeId: string, token: string): Promise<TNVariantItem[]> {
   const raw = await fetchTNRawProducts(storeId, token)
   const items: TNVariantItem[] = []
