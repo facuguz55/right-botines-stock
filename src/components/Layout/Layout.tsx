@@ -9,8 +9,6 @@ interface LayoutProps {
   activePage: ActivePage
   onNavigate: (page: ActivePage) => void
   children: React.ReactNode
-  cartCount: number
-  onOpenCart: () => void
 }
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
@@ -46,7 +44,7 @@ const ALL_NAV: NavItem[] = [
   { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart     },
 ]
 
-export function Layout({ activePage, onNavigate, children, cartCount, onOpenCart }: LayoutProps) {
+export function Layout({ activePage, onNavigate, children }: LayoutProps) {
   const nav = (page: ActivePage) => ALL_NAV.find(n => n.page === page)!
 
   return (
@@ -99,11 +97,6 @@ export function Layout({ activePage, onNavigate, children, cartCount, onOpenCart
       <main className="main-content">
         <div key={activePage} className="page-enter">{children}</div>
       </main>
-
-      <button className="cart-fab" onClick={onOpenCart} aria-label="Ver carrito">
-        <ShoppingCart size={20} />
-        {cartCount > 0 && <span className="cart-fab-badge">{cartCount}</span>}
-      </button>
 
       {/* Bottom nav mobile */}
       <nav className="bottom-nav">

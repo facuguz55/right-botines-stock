@@ -1,0 +1,82 @@
+.venta-en-curso {
+  position: fixed;
+  left: 1.75rem;
+  right: 1.75rem;
+  bottom: 1.5rem;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+  z-index: 150;
+  overflow: hidden;
+}
+
+.venta-en-curso-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 1rem;
+  background: var(--accent-dim);
+  border-bottom: 1px solid var(--border);
+  font-size: .8125rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.venta-en-curso-total { font-size: .9375rem; }
+
+.venta-en-curso-items {
+  display: flex;
+  flex-direction: column;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.venta-en-curso-item {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .8125rem;
+}
+.venta-en-curso-item:last-child { border-bottom: none; }
+
+.venta-en-curso-item-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.venta-en-curso-item-detail {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.venta-en-curso-item-precio {
+  margin-left: auto;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.venta-en-curso-actions {
+  display: flex;
+  gap: .5rem;
+  padding: .75rem;
+  border-top: 1px solid var(--border);
+}
+.venta-en-curso-actions .btn { flex: 1; justify-content: center; padding: .5rem .625rem; font-size: .75rem; white-space: normal; }
+
+@media (max-width: 768px) {
+  .venta-en-curso { left: 1rem; right: 1rem; bottom: calc(68px + 1rem); }
+  .venta-en-curso-actions { flex-wrap: wrap; }
+  .venta-en-curso-actions .btn { flex: 1 1 45%; }
+}

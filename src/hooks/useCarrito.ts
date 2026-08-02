@@ -31,18 +31,10 @@ export function useCarrito() {
     })
   }, [])
 
-  const updateCantidad = useCallback((index: number, cantidad: number) => {
-    setItems(prev => prev.map((it, i) => (i === index ? { ...it, cantidad: Math.max(1, cantidad) } : it)))
-  }, [])
-
-  const removeItem = useCallback((index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index))
-  }, [])
-
   const clear = useCallback(() => setItems([]), [])
 
   const count = items.reduce((s, i) => s + i.cantidad, 0)
   const subtotal = items.reduce((s, i) => s + i.modelo.precio_venta * i.cantidad, 0)
 
-  return { items, addItem, updateCantidad, removeItem, clear, count, subtotal }
+  return { items, addItem, clear, count, subtotal }
 }

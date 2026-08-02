@@ -6,6 +6,7 @@ import { ModelGrid } from './components/ModelGrid/ModelGrid'
 import { ModelForm } from './components/ModelForm/ModelForm'
 import { SellModal } from './components/SellModal/SellModal'
 import { CartModal } from './components/CartModal/CartModal'
+import { VentaEnCurso } from './components/VentaEnCurso/VentaEnCurso'
 import { ClientesLocales } from './components/ClientesLocales/ClientesLocales'
 import { IngresoPage } from './components/IngresoPage/IngresoPage'
 import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
@@ -109,7 +110,7 @@ export function App() {
   }
 
   return (
-    <Layout activePage={activePage} onNavigate={setActivePage} cartCount={carrito.count} onOpenCart={() => setShowCart(true)}>
+    <Layout activePage={activePage} onNavigate={setActivePage}>
       {activePage === 'stock' && (
         ingresoTarget ? (
           <IngresoPage
@@ -193,12 +194,18 @@ export function App() {
         isOpen={showCart}
         onClose={() => setShowCart(false)}
         items={carrito.items}
-        updateCantidad={carrito.updateCantidad}
-        removeItem={carrito.removeItem}
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
         onSell={venderCarrito}
+      />
+
+      <VentaEnCurso
+        items={carrito.items}
+        subtotal={carrito.subtotal}
+        onAddMore={() => setActivePage('stock')}
+        onStartPayment={() => setShowCart(true)}
+        onCancelSale={carrito.clear}
       />
 
       <DeleteConfirm

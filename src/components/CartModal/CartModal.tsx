@@ -8,8 +8,6 @@ interface CartModalProps {
   isOpen: boolean
   onClose: () => void
   items: CartItem[]
-  updateCantidad: (index: number, cantidad: number) => void
-  removeItem: (index: number) => void
   clear: () => void
   clientes: ClienteLocal[]
   addCliente: (input: { nombre: string; telefono: string | null; email: string | null; notas: string | null }) => Promise<ClienteLocal>
@@ -18,8 +16,8 @@ interface CartModalProps {
 
 const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta']
 
-export function CartModal({ isOpen, onClose, items, updateCantidad, removeItem, clear, clientes, addCliente, onSell }: CartModalProps) {
-  const [step, setStep] = useState<'carrito' | 'cliente'>('carrito')
+export function CartModal({ isOpen, onClose, items, clear, clientes, addCliente, onSell }: CartModalProps) {
+  const [step, setStep] = useState<'pago' | 'cliente'>('pago')
   const [medioPago, setMedioPago] = useState<MedioPago>('Efectivo')
   const [search, setSearch] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
@@ -52,7 +50,7 @@ export function CartModal({ isOpen, onClose, items, updateCantidad, removeItem, 
   }
 
   const handleClose = () => {
-    setStep('carrito')
+    setStep('pago')
     resetCliente()
     onClose()
   }
@@ -90,65 +88,36 @@ export function CartModal({ isOpen, onClose, items, updateCantidad, removeItem, 
   const resultados = filterClientes(clientes, search)
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={step === 'carrito' ? 'Carrito' : 'Datos del cliente'} maxWidth="520px">
-      {step === 'carrito' && (
+    <Modal isOpen={isOpen} onClose={handleClose} title={step === 'pago' ? 'Medio de pago' : 'Datos del cliente'} maxWidth="520px">
+      {step === 'pago' && (
         <div className="cart-modal">
-          {items.length === 0 ? (
-            <p className="cart-empty">El carrito está vacío. Agregá productos desde el stock.</p>
-          ) : (
-            <div className="cart-items">
-              {items.map((item, idx) => {
-                const mainFoto = item.modelo.modelo_fotos[0]?.foto_url ?? null
-                return (
-                  <div key={`${item.modelo.id}-${item.talleId}`} className="cart-item">
-                    {mainFoto && <img src={mainFoto} alt={item.modelo.modelo} className="cart-item-thumb" />}
-                    <div className="cart-item-info">
-                      <p className="cart-item-name">{item.modelo.marca} {item.modelo.modelo}</p>
-                      <p className="cart-item-sub">Talle {item.talleArg} · ${item.modelo.precio_venta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</p>
-                    </div>
-                    <div className="cart-item-cantidad">
-                      <button type="button" className="cantidad-btn" onClick={() => updateCantidad(idx, item.cantidad - 1)}>−</button>
-                      <span className="cantidad-val">{item.cantidad}</span>
-                      <button type="button" className="cantidad-btn" onClick={() => updateCantidad(idx, item.cantidad + 1)}>+</button>
-                    </div>
-                    <button type="button" className="cart-item-remove" onClick={() => removeItem(idx)} aria-label="Quitar">✕</button>
-                  </div>
-                )
-              })}
+          <div className="sell-section">
+            <p className="sell-label">Medio de pago</p>
+            <div className="medio-pago-options">
+              {MEDIOS.map(m => (
+                <button key={m} type="button" className={`medio-btn${medioPago === m ? ' active' : ''}`} onClick={() => setMedioPago(m)}>
+                  {m === 'Efectivo' ? '💵 ' : m === 'Transferencia' ? '📲 ' : '💳 '}{m}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {esTarjeta && (
+            <div className="sell-recargo-notice">
+              <span>+10% recargo tarjeta</span>
+              <span className="recargo-amount">+${recargo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
             </div>
           )}
 
-          {items.length > 0 && (
-            <>
-              <div className="sell-section">
-                <p className="sell-label">Medio de pago</p>
-                <div className="medio-pago-options">
-                  {MEDIOS.map(m => (
-                    <button key={m} type="button" className={`medio-btn${medioPago === m ? ' active' : ''}`} onClick={() => setMedioPago(m)}>
-                      {m === 'Efectivo' ? '💵 ' : m === 'Transferencia' ? '📲 ' : '💳 '}{m}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {esTarjeta && (
-                <div className="sell-recargo-notice">
-                  <span>+10% recargo tarjeta</span>
-                  <span className="recargo-amount">+${recargo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
-                </div>
-              )}
-
-              <div className="sell-stats">
-                <div className="sell-stat"><span>Subtotal</span><span className="sell-stat-val">${subtotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
-                <div className="sell-stat"><span>Total</span><span className="sell-stat-val accent">${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
-                <div className="sell-stat"><span>Ganancia estimada</span><span className={`sell-stat-val ${ganancia >= 0 ? 'accent' : 'danger'}`}>${ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
-              </div>
-            </>
-          )}
+          <div className="sell-stats">
+            <div className="sell-stat"><span>Subtotal</span><span className="sell-stat-val">${subtotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
+            <div className="sell-stat"><span>Total</span><span className="sell-stat-val accent">${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
+            <div className="sell-stat"><span>Ganancia estimada</span><span className={`sell-stat-val ${ganancia >= 0 ? 'accent' : 'danger'}`}>${ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
+          </div>
 
           <div className="sell-actions">
             <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
-            <button className="btn btn-primary" disabled={items.length === 0} onClick={() => setStep('cliente')}>
+            <button className="btn btn-primary" onClick={() => setStep('cliente')}>
               Continuar →
             </button>
           </div>
@@ -222,7 +191,7 @@ export function CartModal({ isOpen, onClose, items, updateCantidad, removeItem, 
           {error && <p className="sell-error">{error}</p>}
 
           <div className="sell-actions">
-            <button className="btn btn-secondary" onClick={() => setStep('carrito')} disabled={loading}>← Volver</button>
+            <button className="btn btn-secondary" onClick={() => setStep('pago')} disabled={loading}>← Volver</button>
             <button
               className="btn btn-primary"
               onClick={handleConfirm}
