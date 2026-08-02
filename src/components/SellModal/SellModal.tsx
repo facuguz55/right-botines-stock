@@ -1,20 +1,17 @@
 import { useState } from 'react'
-import type { Modelo, MedioPago } from '../../types'
+import type { Modelo, ModeloTalle } from '../../types'
 import { Modal } from '../Modal/Modal'
 import './SellModal.css'
 
 interface SellModalProps {
   modelo: Modelo | null
   onClose: () => void
-  onConfirm: (modelo: Modelo, talleId: string, medioPago: MedioPago) => Promise<void>
+  onAdd: (modelo: Modelo, talle: ModeloTalle, cantidad: number) => void
 }
 
-const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta']
-
-export function SellModal({ modelo, onClose, onConfirm }: SellModalProps) {
+export function SellModal({ modelo, onClose, onAdd }: SellModalProps) {
   const [selectedTalleId, setSelectedTalleId] = useState<string>('')
-  const [medioPago, setMedioPago] = useState<MedioPago>('Efectivo')
-  const [loading, setLoading] = useState(false)
+  const [cantidad, setCantidad] = useState(1)
   const [error, setError] = useState<string | null>(null)
 
   if (!modelo) return null
@@ -22,29 +19,25 @@ export function SellModal({ modelo, onClose, onConfirm }: SellModalProps) {
   const disponibles = modelo.modelo_talles
   const selectedTalle = modelo.modelo_talles.find(t => t.id === selectedTalleId)
   const mainFoto = modelo.modelo_fotos[0]?.foto_url ?? null
-  const esTarjeta = medioPago === 'Tarjeta'
-  const recargo = esTarjeta ? modelo.precio_venta * 0.1 : 0
-  const precioFinal = modelo.precio_venta + recargo
-  const ganancia = precioFinal - modelo.precio_costo
 
-  const handleConfirm = async () => {
-    if (!selectedTalleId) return setError('Elegí un talle')
-    setLoading(true)
+  const handleSelectTalle = (id: string) => {
+    setSelectedTalleId(id)
+    setCantidad(1)
     setError(null)
-    try {
-      await onConfirm(modelo, selectedTalleId, medioPago)
-      setSelectedTalleId('')
-      setMedioPago('Efectivo')
-      onClose()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
+  }
+
+  const handleAdd = () => {
+    if (!selectedTalle) return setError('Elegí un talle')
+    if (cantidad > selectedTalle.cantidad) return setError('No hay stock suficiente')
+    onAdd(modelo, selectedTalle, cantidad)
+    setSelectedTalleId('')
+    setCantidad(1)
+    setError(null)
+    onClose()
   }
 
   return (
-    <Modal isOpen={!!modelo} onClose={onClose} title="Registrar venta" maxWidth="460px">
+    <Modal isOpen={!!modelo} onClose={onClose} title="Agregar al carrito" maxWidth="460px">
       <div className="sell-modal">
         <div className="sell-product-info">
           {mainFoto && <img src={mainFoto} alt={modelo.modelo} className="sell-thumb" />}
@@ -59,63 +52,64 @@ export function SellModal({ modelo, onClose, onConfirm }: SellModalProps) {
         <div className="sell-section">
           <p className="sell-label">Elegí el talle</p>
           <div className="talle-selector">
-              {disponibles.map(t => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`talle-btn${selectedTalleId === t.id ? ' active' : ''}`}
-                  onClick={() => setSelectedTalleId(t.id)}
-                >
-                  <span className="talle-btn-arg">{t.talle_arg}</span>
-                  <span className="talle-btn-us">{t.talle_us} us</span>
-                  <span className="talle-btn-stock">×{t.cantidad}</span>
-                </button>
-              ))}
-            </div>
-        </div>
-
-        {/* Medio de pago */}
-        <div className="sell-section">
-          <p className="sell-label">Medio de pago</p>
-          <div className="medio-pago-options">
-            {MEDIOS.map(m => (
-              <button key={m} type="button" className={`medio-btn${medioPago === m ? ' active' : ''}`} onClick={() => setMedioPago(m)}>
-                {m === 'Efectivo' ? '💵 ' : m === 'Transferencia' ? '📲 ' : '💳 '}{m}
+            {disponibles.map(t => (
+              <button
+                key={t.id}
+                type="button"
+                className={`talle-btn${selectedTalleId === t.id ? ' active' : ''}`}
+                onClick={() => handleSelectTalle(t.id)}
+                disabled={t.cantidad <= 0}
+              >
+                <span className="talle-btn-arg">{t.talle_arg}</span>
+                <span className="talle-btn-us">{t.talle_us} us</span>
+                <span className="talle-btn-stock">×{t.cantidad}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {esTarjeta && (
-          <div className="sell-recargo-notice">
-            <span>+10% recargo tarjeta</span>
-            <span className="recargo-amount">+${recargo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+        {selectedTalle && (
+          <div className="sell-section">
+            <p className="sell-label">Cantidad</p>
+            <div className="cantidad-stepper">
+              <button type="button" className="cantidad-btn" onClick={() => setCantidad(c => Math.max(1, c - 1))}>−</button>
+              <span className="cantidad-val">{cantidad}</span>
+              <button
+                type="button"
+                className="cantidad-btn"
+                onClick={() => setCantidad(c => Math.min(selectedTalle.cantidad, c + 1))}
+              >
+                +
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="sell-stats">
-          <div className="sell-stat">
-            <span>Precio {esTarjeta ? 'con recargo' : 'de venta'}</span>
-            <span className="sell-stat-val accent">${precioFinal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
-          </div>
-          <div className="sell-stat">
-            <span>Ganancia estimada</span>
-            <span className={`sell-stat-val ${ganancia >= 0 ? 'accent' : 'danger'}`}>${ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
-          </div>
-          {selectedTalle && (
+        {selectedTalle && (
+          <div className="sell-stats">
+            <div className="sell-stat">
+              <span>Precio unitario</span>
+              <span className="sell-stat-val">${modelo.precio_venta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+            </div>
+            <div className="sell-stat">
+              <span>Subtotal</span>
+              <span className="sell-stat-val accent">${(modelo.precio_venta * cantidad).toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+            </div>
             <div className="sell-stat">
               <span>Stock talle {selectedTalle.talle_arg} después</span>
-              <span className={`sell-stat-val ${selectedTalle.cantidad - 1 <= 0 ? 'danger' : ''}`}>{selectedTalle.cantidad - 1} pares</span>
+              <span className={`sell-stat-val ${selectedTalle.cantidad - cantidad <= 0 ? 'danger' : ''}`}>
+                {selectedTalle.cantidad - cantidad} pares
+              </span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {error && <p className="sell-error">{error}</p>}
 
         <div className="sell-actions">
-          <button className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleConfirm} disabled={loading || !selectedTalleId}>
-            {loading ? 'Registrando...' : '✓ Confirmar venta'}
+          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" onClick={handleAdd} disabled={!selectedTalleId}>
+            + Agregar al carrito
           </button>
         </div>
       </div>

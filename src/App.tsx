@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import type { ActivePage, Modelo, PhotoSlot, TalleRow, MedioPago } from './types'
+import type { ActivePage, Modelo, PhotoSlot, TalleRow } from './types'
 import { Layout } from './components/Layout/Layout'
 import { Modal } from './components/Modal/Modal'
 import { ModelGrid } from './components/ModelGrid/ModelGrid'
 import { ModelForm } from './components/ModelForm/ModelForm'
 import { SellModal } from './components/SellModal/SellModal'
+import { CartModal } from './components/CartModal/CartModal'
+import { ClientesLocales } from './components/ClientesLocales/ClientesLocales'
 import { IngresoPage } from './components/IngresoPage/IngresoPage'
 import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
@@ -28,6 +30,8 @@ import { TNMails } from './components/TNMails/TNMails'
 import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
 import { useModelos } from './hooks/useModelos'
 import { useTNSync } from './hooks/useTNSync'
+import { useCarrito } from './hooks/useCarrito'
+import { useClientesLocales } from './hooks/useClientesLocales'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
 
@@ -60,7 +64,7 @@ export function App() {
 
   const {
     modelos, loading, reload,
-    addModelo, editModelo, removeModelo, venderModelo, ingresarStockBatch, clearAll,
+    addModelo, editModelo, removeModelo, venderCarrito, ingresarStockBatch, clearAll,
   } = useModelos()
 
   const {
@@ -70,6 +74,10 @@ export function App() {
     lastResult: tnLastResult,
     lastSyncAt: tnLastSyncAt,
   } = useTNSync(reload)
+
+  const carrito = useCarrito()
+  const clientesLocales = useClientesLocales()
+  const [showCart, setShowCart] = useState(false)
 
   const [showForm, setShowForm] = useState(false)
   const [editTarget, setEditTarget] = useState<Modelo | null>(null)
@@ -101,7 +109,7 @@ export function App() {
   }
 
   return (
-    <Layout activePage={activePage} onNavigate={setActivePage}>
+    <Layout activePage={activePage} onNavigate={setActivePage} cartCount={carrito.count} onOpenCart={() => setShowCart(true)}>
       {activePage === 'stock' && (
         ingresoTarget ? (
           <IngresoPage
@@ -137,6 +145,15 @@ export function App() {
       )}
 
       {activePage === 'carpetas' && <Carpetas modelos={modelos} />}
+      {activePage === 'clientes_locales' && (
+        <ClientesLocales
+          clientes={clientesLocales.clientes}
+          loading={clientesLocales.loading}
+          addCliente={clientesLocales.addCliente}
+          editCliente={clientesLocales.editCliente}
+          removeCliente={clientesLocales.removeCliente}
+        />
+      )}
       {activePage === 'dashboard' && <Dashboard />}
       {activePage === 'ventas' && <VentasHistory />}
       {activePage === 'seguimientos' && <Seguimientos />}
@@ -169,7 +186,19 @@ export function App() {
       <SellModal
         modelo={sellTarget}
         onClose={() => setSellTarget(null)}
-        onConfirm={(m: Modelo, talleId: string, medioPago: MedioPago) => venderModelo(m, talleId, medioPago)}
+        onAdd={(modelo, talle, cantidad) => carrito.addItem(modelo, talle, cantidad)}
+      />
+
+      <CartModal
+        isOpen={showCart}
+        onClose={() => setShowCart(false)}
+        items={carrito.items}
+        updateCantidad={carrito.updateCantidad}
+        removeItem={carrito.removeItem}
+        clear={carrito.clear}
+        clientes={clientesLocales.clientes}
+        addCliente={clientesLocales.addCliente}
+        onSell={venderCarrito}
       />
 
       <DeleteConfirm

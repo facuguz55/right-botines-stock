@@ -73,32 +73,41 @@ export async function deleteTalle(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function sellTalle(
-  modelo: Modelo,
-  talleId: string,
-  medioPago: MedioPago
+export async function sellCarrito(
+  items: { modelo: Modelo; talleId: string; cantidad: number }[],
+  medioPago: MedioPago,
+  clienteId: string
 ): Promise<void> {
-  const talle = modelo.modelo_talles.find(t => t.id === talleId)
-  if (!talle) throw new Error('Talle no encontrado')
+  const ventaGrupoId = crypto.randomUUID()
 
-  const { error: upErr } = await supabase
-    .from('modelo_talles')
-    .update({ cantidad: talle.cantidad - 1 })
-    .eq('id', talleId)
-  if (upErr) throw upErr
+  for (const { modelo, talleId, cantidad } of items) {
+    const talle = modelo.modelo_talles.find(t => t.id === talleId)
+    if (!talle) throw new Error(`Talle no encontrado para ${modelo.modelo}`)
+    if (cantidad > talle.cantidad) throw new Error(`No hay stock suficiente de ${modelo.modelo} (talle ${talle.talle_arg})`)
 
-  const recargo = medioPago === 'Tarjeta' ? modelo.precio_venta * 0.1 : null
-  const precioFinal = medioPago === 'Tarjeta' ? modelo.precio_venta * 1.1 : modelo.precio_venta
+    const { error: upErr } = await supabase
+      .from('modelo_talles')
+      .update({ cantidad: talle.cantidad - cantidad })
+      .eq('id', talleId)
+    if (upErr) throw upErr
 
-  const { error: ventaErr } = await supabase.from('ventas').insert([{
-    modelo_id: modelo.id,
-    talle_arg: talle.talle_arg,
-    precio_venta: precioFinal,
-    medio_pago: medioPago,
-    recargo_tarjeta: recargo,
-    ganancia: precioFinal - modelo.precio_costo,
-  }])
-  if (ventaErr) throw ventaErr
+    const recargo = medioPago === 'Tarjeta' ? modelo.precio_venta * 0.1 : null
+    const precioFinal = medioPago === 'Tarjeta' ? modelo.precio_venta * 1.1 : modelo.precio_venta
+
+    const filas = Array.from({ length: cantidad }, () => ({
+      modelo_id: modelo.id,
+      talle_arg: talle.talle_arg,
+      precio_venta: precioFinal,
+      medio_pago: medioPago,
+      recargo_tarjeta: recargo,
+      ganancia: precioFinal - modelo.precio_costo,
+      cliente_id: clienteId,
+      venta_grupo_id: ventaGrupoId,
+    }))
+
+    const { error: ventaErr } = await supabase.from('ventas').insert(filas)
+    if (ventaErr) throw ventaErr
+  }
 }
 
 export async function addIngreso(

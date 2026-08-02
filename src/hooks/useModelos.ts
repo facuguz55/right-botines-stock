@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Modelo, ModeloFilters, PhotoSlot, TalleRow, MedioPago } from '../types'
+import type { Modelo, ModeloFilters, PhotoSlot, TalleRow, MedioPago, CartItem } from '../types'
 import {
   fetchModelos, createModelo, updateModelo, deleteModelo,
-  sellTalle, addIngreso, addIngresoBatch, upsertTalle, deleteTalle,
+  sellCarrito, addIngreso, addIngresoBatch, upsertTalle, deleteTalle,
   getUniqueCodigoBase, clearAllModelos,
 } from '../services/modelos'
 import { saveFotos, deleteFotosForModelo } from '../services/fotos'
@@ -91,24 +91,36 @@ export function useModelos() {
     setModelos(prev => prev.filter(m => m.id !== id))
   }
 
-  const venderModelo = async (modelo: Modelo, talleId: string, medioPago: MedioPago) => {
-    const talle = modelo.modelo_talles.find(t => t.id === talleId)
-    await sellTalle(modelo, talleId, medioPago)
-    setModelos(prev => prev.map(m =>
-      m.id !== modelo.id ? m : {
+  const venderCarrito = async (items: CartItem[], medioPago: MedioPago, clienteId: string) => {
+    const resolved = items.map(item => {
+      const modelo = modelos.find(m => m.id === item.modelo.id)
+      if (!modelo) throw new Error(`El modelo ${item.modelo.modelo} ya no existe`)
+      return { modelo, talleId: item.talleId, cantidad: item.cantidad }
+    })
+
+    await sellCarrito(resolved, medioPago, clienteId)
+
+    setModelos(prev => prev.map(m => {
+      const afectados = resolved.filter(r => r.modelo.id === m.id)
+      if (!afectados.length) return m
+      return {
         ...m,
-        modelo_talles: m.modelo_talles.map(t =>
-          t.id !== talleId ? t : { ...t, cantidad: t.cantidad - 1 }
-        ),
+        modelo_talles: m.modelo_talles.map(t => {
+          const match = afectados.find(a => a.talleId === t.id)
+          return match ? { ...t, cantidad: t.cantidad - match.cantidad } : t
+        }),
       }
-    ))
+    }))
 
     // Best-effort: si el modelo viene de TiendaNube, reflejar el nuevo stock allá.
     // No debe bloquear ni revertir la venta local si TN falla.
-    if (talle) {
-      pushStockToTN(modelo, talle.talle_arg, talle.cantidad - 1).catch(err => {
-        console.error('No se pudo actualizar el stock en TiendaNube:', err)
-      })
+    for (const { modelo, talleId, cantidad } of resolved) {
+      const talle = modelo.modelo_talles.find(t => t.id === talleId)
+      if (talle) {
+        pushStockToTN(modelo, talle.talle_arg, talle.cantidad - cantidad).catch(err => {
+          console.error('No se pudo actualizar el stock en TiendaNube:', err)
+        })
+      }
     }
   }
 
@@ -142,7 +154,7 @@ export function useModelos() {
 
   return {
     modelos, loading, error, reload: load,
-    addModelo, editModelo, removeModelo, venderModelo, ingresarStock, ingresarStockBatch, clearAll,
+    addModelo, editModelo, removeModelo, venderCarrito, ingresarStock, ingresarStockBatch, clearAll,
   }
 }
 

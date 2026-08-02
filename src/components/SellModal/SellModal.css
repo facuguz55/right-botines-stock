@@ -44,3 +44,13 @@
 
 .sell-error { background: var(--danger-dim); border: 1px solid var(--danger); border-radius: var(--radius-sm); color: var(--danger); padding: .5rem .75rem; font-size: .8125rem; }
 .sell-actions { display: flex; justify-content: flex-end; gap: .75rem; padding-top: .25rem; }
+
+/* Cantidad stepper */
+.cantidad-stepper { display: flex; align-items: center; gap: .875rem; }
+.cantidad-btn {
+  width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--bg-surface-3); color: var(--text-primary); font-size: 1.125rem; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color .15s;
+}
+.cantidad-btn:hover { border-color: var(--accent); color: var(--accent); }
+.cantidad-val { font-size: 1rem; font-weight: 700; color: var(--text-primary); min-width: 1.5rem; text-align: center; }

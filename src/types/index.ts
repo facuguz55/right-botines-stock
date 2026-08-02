@@ -49,7 +49,27 @@ export interface Venta {
   medio_pago: MedioPago
   recargo_tarjeta: number | null
   ganancia: number
+  cliente_id: string | null
+  venta_grupo_id: string | null
   modelos?: { modelo: string; marca: string; categoria: string; gama: string } | null
+  clientes_locales?: { nombre: string; telefono: string | null; email: string | null } | null
+}
+
+export interface ClienteLocal {
+  id: string
+  nombre: string
+  telefono: string | null
+  email: string | null
+  notas: string | null
+  created_at: string
+}
+
+export interface CartItem {
+  modelo: Modelo
+  talleId: string
+  talleArg: number
+  talleUs: number
+  cantidad: number
 }
 
 export interface TopModelo {
@@ -77,6 +97,7 @@ export interface DashboardData {
 
 export type ActivePage =
   | 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'carpetas' | 'configuracion' | 'seguimientos'
+  | 'clientes_locales'
   | 'tn_dashboard' | 'tn_analytics' | 'tn_ordenes' | 'tn_productos' | 'tn_clientes' | 'tn_cupones' | 'tn_mails'
   | 'rentabilidad'
 

@@ -1,0 +1,53 @@
+.clientes-page { display: flex; flex-direction: column; }
+
+.clientes-search { margin-bottom: 1.25rem; }
+.clientes-search input {
+  background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-primary); padding: 0.5rem 0.75rem; width: 100%; max-width: 360px; outline: none;
+  transition: border-color 0.12s;
+}
+.clientes-search input:focus { border-color: var(--accent); }
+
+.clientes-loading, .clientes-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.875rem; padding: 3rem; color: var(--text-secondary); text-align: center;
+}
+.clientes-empty span { font-size: 2.5rem; }
+
+.clientes-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.clientes-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.clientes-table thead tr { background: var(--bg-surface-2); border-bottom: 1px solid var(--border); }
+.clientes-table th {
+  text-align: left; padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600;
+  color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+}
+.clientes-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+.clientes-table tbody tr:last-child td { border-bottom: none; }
+.clientes-row { cursor: pointer; }
+.clientes-row:hover td { background: var(--bg-surface-2); }
+
+.cell-muted { color: var(--text-muted); }
+
+.contact-link { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); white-space: nowrap; }
+.contact-link:hover { color: var(--accent); }
+
+.clientes-actions { display: flex; gap: 0.375rem; white-space: nowrap; }
+.icon-btn {
+  background: var(--bg-surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.12s, color 0.12s;
+}
+.icon-btn:hover { border-color: var(--border-light); color: var(--text-primary); }
+.icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+.cliente-form { display: flex; flex-direction: column; gap: 0.875rem; }
+
+/* Historial de compras */
+.compras-list { display: flex; flex-direction: column; gap: 0.75rem; max-height: 420px; overflow-y: auto; }
+.compra-ticket { background: var(--bg-surface-2); border-radius: var(--radius-md); padding: 0.75rem 1rem; }
+.compra-ticket-header { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+.compra-ticket-pago { flex: 1; }
+.compra-ticket-total { font-weight: 700; color: var(--accent); }
+.compra-ticket-items { list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
+.compra-ticket-items li { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.8125rem; color: var(--text-primary); }
+.compra-ticket-item-precio { color: var(--text-secondary); white-space: nowrap; }
