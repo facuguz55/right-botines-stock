@@ -285,28 +285,35 @@ async function tnFetch(
 ): Promise<{ data: unknown; hasMore: boolean }> {
   const qs = new URLSearchParams(params).toString()
 
-  // Intento directo
-  try {
-    const ctrl = new AbortController()
-    const tid = setTimeout(() => ctrl.abort(), 12000)
-    const res = await fetch(`${TN_BASE}/${storeId}/${path}?${qs}`, {
-      headers: tnHeaders(token),
-      signal: ctrl.signal,
-    })
-    clearTimeout(tid)
-    return await handleResponse(res)
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : ''
-    if (msg.startsWith('TOKEN_INVALID') || msg.startsWith('STORE_INVALID') || msg.startsWith('TN_API_')) throw err
-    // CORS → usar proxy Vercel
+  // Intento directo (solo si tenemos credenciales locales)
+  if (storeId && token) {
+    try {
+      const ctrl = new AbortController()
+      const tid = setTimeout(() => ctrl.abort(), 12000)
+      const res = await fetch(`${TN_BASE}/${storeId}/${path}?${qs}`, {
+        headers: tnHeaders(token),
+        signal: ctrl.signal,
+      })
+      clearTimeout(tid)
+      return await handleResponse(res)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.startsWith('TOKEN_INVALID') || msg.startsWith('STORE_INVALID') || msg.startsWith('TN_API_')) throw err
+      // CORS → usar proxy Vercel
+    }
   }
 
+  // Sin credenciales locales o CORS: el proxy Vercel usa las credenciales
+  // del servidor si no le mandamos headers.
   const ctrl2 = new AbortController()
   const tid2 = setTimeout(() => ctrl2.abort(), 12000)
   const proxyParams = new URLSearchParams({ path, ...params })
   const proxyRes = await fetch(`/api/tiendanube?${proxyParams}`, {
     signal: ctrl2.signal,
-    headers: { 'x-tn-store': storeId, 'x-tn-token': token },
+    headers: {
+      ...(storeId ? { 'x-tn-store': storeId } : {}),
+      ...(token ? { 'x-tn-token': token } : {}),
+    },
   })
   clearTimeout(tid2)
   return await handleResponse(proxyRes)
@@ -407,24 +414,32 @@ export async function updateTNVariant(
   data: { price?: string; stock?: number },
 ): Promise<void> {
   const path = `products/${productId}/variants/${variantId}`
-  const headers: Record<string, string> = {
-    ...tnHeaders(token) as Record<string, string>,
-    'Content-Type': 'application/json',
+
+  if (storeId && token) {
+    try {
+      const res = await fetch(`${TN_BASE}/${storeId}/${path}`, {
+        method: 'PUT',
+        headers: { ...tnHeaders(token) as Record<string, string>, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) return
+    } catch {
+      // CORS o red: probamos el proxy
+    }
   }
 
-  let res: Response
-  try {
-    res = await fetch(`${TN_BASE}/${storeId}/${path}`, {
-      method: 'PUT', headers, body: JSON.stringify(data),
-    })
-  } catch {
-    const qs = new URLSearchParams({ storeId, token, path })
-    res = await fetch(`/api/tiendanube?${qs}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-  }
+  // Sin credenciales locales o falló el directo: el proxy Vercel usa las
+  // credenciales del servidor si no le mandamos headers.
+  const qs = new URLSearchParams({ path })
+  const res = await fetch(`/api/tiendanube?${qs}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(storeId ? { 'x-tn-store': storeId } : {}),
+      ...(token ? { 'x-tn-token': token } : {}),
+    },
+    body: JSON.stringify(data),
+  })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
 }
 

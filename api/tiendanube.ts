@@ -33,9 +33,10 @@ export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url)
   const path = url.searchParams.get('path') ?? 'orders'
 
-  // Token y storeId en headers, nunca en la URL
-  const storeId = req.headers.get('x-tn-store')
-  const token   = req.headers.get('x-tn-token')
+  // Token y storeId en headers, nunca en la URL. Si el cliente no los manda
+  // (dispositivo sin credenciales cargadas en Ajustes), usamos las del servidor.
+  const storeId = req.headers.get('x-tn-store') || process.env.TN_STORE_ID || null
+  const token   = req.headers.get('x-tn-token') || process.env.TN_TOKEN || null
 
   url.searchParams.delete('path')
 

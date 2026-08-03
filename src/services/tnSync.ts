@@ -232,8 +232,9 @@ export async function pushStockToTN(modelo: Modelo, talleArg: number, nuevaCanti
   const productId = parseInt(modelo.codigo_base.slice('tn_'.length), 10)
   if (!Number.isFinite(productId)) return
 
+  // Si este dispositivo no tiene credenciales cargadas en Ajustes, igual
+  // intentamos vía el proxy del servidor (usa TN_STORE_ID/TN_TOKEN de Vercel).
   const { storeId, token } = getTNCredentials()
-  if (!storeId || !token) return
 
   const prod = await fetchTNProduct(storeId, token, productId)
 
