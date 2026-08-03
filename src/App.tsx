@@ -100,12 +100,13 @@ export function App() {
     data: Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>,
     photos: PhotoSlot[],
     toDeleteFotoIds: string[],
-    talleRows: TalleRow[]
+    talleRows: TalleRow[],
+    tnCategoryId: number | null
   ) => {
     if (editTarget) {
       await editModelo(editTarget.id, data, photos, toDeleteFotoIds, talleRows)
     } else {
-      await addModelo(data, photos, talleRows)
+      await addModelo(data, photos, talleRows, tnCategoryId)
     }
   }
 

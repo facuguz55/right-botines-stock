@@ -2,6 +2,7 @@
 import type { Modelo, PhotoSlot, TalleRow } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { buildCodigoBase } from '../../utils/codigos'
+import { fetchTNCategories, getTNCredentials, type TNCategory } from '../../services/tiendanubeService'
 import './ModelForm.css'
 
 interface ModelFormProps {
@@ -11,9 +12,18 @@ interface ModelFormProps {
     data: Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>,
     photos: PhotoSlot[],
     toDeleteFotoIds: string[],
-    talleRows: TalleRow[]
+    talleRows: TalleRow[],
+    tnCategoryId: number | null
   ) => Promise<void>
   initial?: Modelo | null
+}
+
+function categoriaLabel(cat: TNCategory, all: TNCategory[]): string {
+  const nombre = cat.name.es ?? cat.name.en ?? Object.values(cat.name)[0] ?? ''
+  if (!cat.parent) return nombre
+  const padre = all.find(c => c.id === cat.parent!.id)
+  const nombrePadre = padre ? (padre.name.es ?? padre.name.en ?? Object.values(padre.name)[0] ?? '') : ''
+  return nombrePadre ? `${nombrePadre} › ${nombre}` : nombre
 }
 
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
@@ -41,6 +51,15 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const [tnCategorias, setTnCategorias] = useState<TNCategory[]>([])
+  const [tnCategoryId, setTnCategoryId] = useState<string>('')
+
+  useEffect(() => {
+    if (!isOpen || isEdit) return
+    const { storeId, token } = getTNCredentials()
+    fetchTNCategories(storeId, token).then(setTnCategorias).catch(() => setTnCategorias([]))
+  }, [isOpen, isEdit])
+
   useEffect(() => {
     if (!isOpen) return
     if (initial) {
@@ -67,6 +86,7 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
     }
     setNewTalle(EMPTY_TALLE)
     setToDeleteFotoIds([])
+    setTnCategoryId('')
     setError(null)
   }, [isOpen, initial])
 
@@ -146,7 +166,8 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
           codigo_base: isEdit ? initial!.codigo_base : previewCodigo,
           notas: form.notas.trim() || null,
         },
-        photos, toDeleteFotoIds, talleRows
+        photos, toDeleteFotoIds, talleRows,
+        isEdit ? null : (tnCategoryId ? parseInt(tnCategoryId, 10) : null)
       )
       onClose()
     } catch (e) {
@@ -227,6 +248,18 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
           <label>Notas internas</label>
           <textarea placeholder="Aclaraciones..." value={form.notas} onChange={e => update('notas', e.target.value)} rows={2} />
         </div>
+
+        {!isEdit && (
+          <div className="form-group">
+            <label>Categoría en TiendaNube</label>
+            <select value={tnCategoryId} onChange={e => setTnCategoryId(e.target.value)}>
+              <option value="">Sin categoría (asignar después)</option>
+              {tnCategorias.map(c => (
+                <option key={c.id} value={c.id}>{categoriaLabel(c, tnCategorias)}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Talles */}
         <div className="form-section">

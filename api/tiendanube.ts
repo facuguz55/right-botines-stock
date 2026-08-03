@@ -8,7 +8,7 @@ const ALLOWED_ORIGINS = [
 
 const ALLOWED_PATHS = new Set([
   'orders', 'products', 'customers', 'coupons', 'shipping_carriers',
-  'payment_providers', 'store', 'webhooks',
+  'payment_providers', 'store', 'webhooks', 'categories',
 ])
 
 function corsHeaders(origin: string | null) {

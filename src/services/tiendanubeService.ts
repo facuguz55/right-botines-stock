@@ -443,6 +443,64 @@ export async function updateTNVariant(
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
 }
 
+export interface CreateTNProductInput {
+  name: string
+  categoryId: number | null
+  precioVenta: number
+  talles: { talleArg: number; talleUs: number; cantidad: number }[]
+  fotos: string[]
+}
+
+export async function createTNProduct(
+  storeId: string,
+  token: string,
+  input: CreateTNProductInput,
+): Promise<{ productId: number }> {
+  const body = JSON.stringify({
+    name: { es: input.name },
+    categories: input.categoryId ? [input.categoryId] : [],
+    attributes: [{ es: 'Talle' }],
+    variants: input.talles.map(t => ({
+      price: String(input.precioVenta),
+      stock: t.cantidad,
+      values: [{ es: `${t.talleArg} arg / ${String(t.talleUs).replace('.', ',')} us` }],
+    })),
+    images: input.fotos.map(src => ({ src })),
+  })
+
+  if (storeId && token) {
+    try {
+      const res = await fetch(`${TN_BASE}/${storeId}/products`, {
+        method: 'POST',
+        headers: { ...tnHeaders(token) as Record<string, string>, 'Content-Type': 'application/json' },
+        body,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return { productId: data.id }
+      }
+    } catch {
+      // CORS o red: probamos el proxy
+    }
+  }
+
+  // Sin credenciales locales o falló el directo: el proxy Vercel usa las
+  // credenciales del servidor si no le mandamos headers.
+  const qs = new URLSearchParams({ path: 'products' })
+  const res = await fetch(`/api/tiendanube?${qs}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(storeId ? { 'x-tn-store': storeId } : {}),
+      ...(token ? { 'x-tn-token': token } : {}),
+    },
+    body,
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  return { productId: data.id }
+}
+
 // ── Customers ─────────────────────────────────────────────────────────────────
 
 export async function fetchTNCustomers(storeId: string, token: string): Promise<TNCustomer[]> {

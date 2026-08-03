@@ -4,7 +4,7 @@
 
 import { supabase } from '../lib/supabase'
 import { fetchModelos, createModelo, updateModelo, upsertTalle } from './modelos'
-import { fetchTNRawProducts, fetchTNProduct, updateTNVariant, getTNCredentials } from './tiendanubeService'
+import { fetchTNRawProducts, fetchTNProduct, updateTNVariant, createTNProduct, getTNCredentials } from './tiendanubeService'
 import type { Modelo } from '../types'
 
 export interface SyncResult {
@@ -247,4 +247,28 @@ export async function pushStockToTN(modelo: Modelo, talleArg: number, nuevaCanti
   if (!variant) throw new Error(`No se encontró en TiendaNube la variante de talle ${talleArg}`)
 
   await updateTNVariant(storeId, token, productId, variant.id, { stock: Math.max(0, nuevaCantidad) })
+}
+
+// ── Modelo nuevo local → TiendaNube ──────────────────────────────────────────
+// Al cargar un modelo que no viene de un import de TN, lo crea también allá
+// y vincula el modelo local pasando a usar el mismo esquema codigo_base =
+// 'tn_<productId>' que ya usan los productos importados.
+
+export async function createTNProductAndLink(
+  modelo: Modelo,
+  talles: { talleArg: number; talleUs: number; cantidad: number }[],
+  fotoUrls: string[],
+  categoryId: number | null,
+): Promise<void> {
+  const { storeId, token } = getTNCredentials()
+
+  const { productId } = await createTNProduct(storeId, token, {
+    name: `${modelo.marca} ${modelo.modelo}`,
+    categoryId,
+    precioVenta: modelo.precio_venta,
+    talles,
+    fotos: fotoUrls,
+  })
+
+  await updateModelo(modelo.id, { codigo_base: `tn_${productId}` })
 }
