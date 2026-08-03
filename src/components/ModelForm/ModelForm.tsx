@@ -19,10 +19,10 @@ interface ModelFormProps {
 }
 
 function categoriaLabel(cat: TNCategory, all: TNCategory[]): string {
-  const nombre = cat.name.es ?? cat.name.en ?? Object.values(cat.name)[0] ?? ''
+  const nombre = (cat.name.es ?? cat.name.en ?? Object.values(cat.name)[0] ?? '').trim()
   if (!cat.parent) return nombre
-  const padre = all.find(c => c.id === cat.parent!.id)
-  const nombrePadre = padre ? (padre.name.es ?? padre.name.en ?? Object.values(padre.name)[0] ?? '') : ''
+  const padre = all.find(c => c.id === cat.parent)
+  const nombrePadre = padre ? (padre.name.es ?? padre.name.en ?? Object.values(padre.name)[0] ?? '').trim() : ''
   return nombrePadre ? `${nombrePadre} › ${nombre}` : nombre
 }
 

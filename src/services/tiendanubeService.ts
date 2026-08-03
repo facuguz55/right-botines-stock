@@ -89,7 +89,7 @@ export interface TNCoupon {
 export interface TNCategory {
   id: number
   name: Record<string, string>
-  parent: { id: number } | null
+  parent: number | null // TN devuelve 0 cuando no tiene categoría padre
   handle: Record<string, string>
   created_at: string
 }
