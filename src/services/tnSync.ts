@@ -32,6 +32,7 @@ export async function upsertModeloFromTNProduct(
   prod: TNRawProduct,
   existing: Modelo | undefined,
 ): Promise<{ created: boolean; imagesAdded: number }> {
+  console.warn('[DEBUG] upsertModeloFromTNProduct prod.id=', prod.id, 'existing=', existing ? existing.id : 'undefined')
   const name = prod.name.es ?? prod.name.en ?? Object.values(prod.name)[0] ?? `Producto ${prod.id}`
   const catNames = (prod.categories ?? []).map(c => c.name?.es ?? c.name?.en ?? '')
   const categoria = detectCategoria(name, catNames)
@@ -95,6 +96,8 @@ export async function upsertModeloFromTNProduct(
 
     return { created: false, imagesAdded }
   }
+
+  console.warn('[DEBUG] upsertModeloFromTNProduct CREATE (no existing) prod.id=', prod.id, new Error().stack)
 
   const newModelo = await createModelo({
     marca, modelo, categoria, gama,
@@ -270,6 +273,7 @@ export async function createTNProductAndLink(
   fotoUrls: string[],
   categoryId: number | null,
 ): Promise<void> {
+  console.warn('[DEBUG] createTNProductAndLink llamado para modelo.id=', modelo.id, modelo.marca, modelo.modelo, new Error().stack)
   const { storeId, token } = getTNCredentials()
 
   const { productId, variants } = await createTNProduct(storeId, token, {

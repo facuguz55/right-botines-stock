@@ -15,6 +15,7 @@ export function useTNSync(onSynced?: () => void) {
   useEffect(() => { onSyncedRef.current = onSynced }, [onSynced])
 
   const syncNow = useCallback(async () => {
+    console.warn('[DEBUG] syncNow (syncTNStock) invocado', new Date().toISOString())
     if (syncingRef.current) return
     syncingRef.current = true
     setSyncing(true)

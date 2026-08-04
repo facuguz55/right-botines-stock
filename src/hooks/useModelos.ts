@@ -40,6 +40,7 @@ export function useModelos() {
     talleRows: TalleRow[],
     tnCategoryId: number | null = null
   ) => {
+    console.warn('[DEBUG] addModelo llamado con', data.marca, data.modelo, new Error().stack)
     const codigoBase = await getUniqueCodigoBase(data.codigo_base)
     const newModelo = await createModelo({ ...data, codigo_base: codigoBase })
 
