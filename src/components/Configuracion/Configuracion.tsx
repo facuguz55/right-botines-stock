@@ -431,7 +431,7 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
             <button
               className="btn btn-primary"
               onClick={handleRegisterWebhooks}
-              disabled={!tnStoreId || !tnToken || registrandoWebhooks}
+              disabled={registrandoWebhooks}
             >
               <CheckCircle size={14} /> {registrandoWebhooks ? 'Registrando...' : 'Registrar webhooks automáticamente'}
             </button>
