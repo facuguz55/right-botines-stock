@@ -1,0 +1,144 @@
+.login-screen {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+  background: var(--bg-primary);
+}
+
+.login-logo {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+}
+
+/* ── Selección de modo ── */
+.login-select {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0 1.5rem;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 200px;
+  padding: 2rem 1.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  transition: border-color .15s, transform .15s, background .15s;
+}
+
+.login-card:hover {
+  border-color: var(--border-light);
+  background: var(--bg-surface-2);
+  transform: translateY(-2px);
+}
+
+.login-card span {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.login-card small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.login-card svg { color: var(--accent); }
+
+.login-card-dueno svg { color: var(--warning); }
+.login-card-dueno:hover { border-color: var(--warning); }
+
+/* ── PIN ── */
+.login-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.login-pin-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.login-pin-dots {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.login-pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border-light);
+  background: transparent;
+  transition: background .15s, border-color .15s;
+}
+
+.login-pin-dot.filled {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.login-pin-dot.error {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.login-pin-error {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--danger);
+  font-size: 0.8125rem;
+  margin-top: -0.75rem;
+}
+
+.login-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  gap: 0.75rem;
+}
+
+.login-key {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, border-color .15s;
+}
+
+.login-key:hover:not(:disabled) {
+  background: var(--bg-surface-2);
+  border-color: var(--border-light);
+}
+
+.login-key:disabled { opacity: 0.4; }
+
+.login-key-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}

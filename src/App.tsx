@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import type { ActivePage, Modelo, PhotoSlot, TalleRow } from './types'
-import { Layout } from './components/Layout/Layout'
+import { Layout, SOLO_DUENO } from './components/Layout/Layout'
+import { Login } from './components/Login/Login'
+import { useAuth } from './hooks/useAuth'
 import { Modal } from './components/Modal/Modal'
 import { ModelGrid } from './components/ModelGrid/ModelGrid'
 import { ModelForm } from './components/ModelForm/ModelForm'
@@ -59,9 +61,16 @@ function restoreAccent() {
 }
 
 export function App() {
+  const { role, loginEmpleado, loginDueno, logout } = useAuth()
   const [activePage, setActivePage] = useState<ActivePage>('stock')
 
   useEffect(() => { restoreAccent() }, [])
+
+  // Si el rol cambia (ej: se pierde el acceso dueño) y la página activa quedó
+  // en una sección restringida, volvemos a stock.
+  useEffect(() => {
+    if (role !== 'dueno' && SOLO_DUENO.includes(activePage)) setActivePage('stock')
+  }, [role, activePage])
 
   const {
     modelos, loading, reload,
@@ -110,8 +119,12 @@ export function App() {
     }
   }
 
+  if (!role) {
+    return <Login onLoginEmpleado={loginEmpleado} onLoginDueno={loginDueno} />
+  }
+
   return (
-    <Layout activePage={activePage} onNavigate={setActivePage}>
+    <Layout activePage={activePage} onNavigate={setActivePage} role={role} onLogout={logout}>
       {activePage === 'stock' && (
         ingresoTarget ? (
           <IngresoPage
@@ -167,7 +180,7 @@ export function App() {
           <StockAvanzado modelos={modelos} onReload={reload} />
         </div>
       )}
-      {activePage === 'configuracion' && <Configuracion modelos={modelos} onReload={reload} />}
+      {activePage === 'configuracion' && role === 'dueno' && <Configuracion modelos={modelos} onReload={reload} />}
 
       {activePage === 'tn_dashboard' && <TNDashboard />}
       {activePage === 'tn_analytics' && <TNAnalytics />}
@@ -176,7 +189,7 @@ export function App() {
       {activePage === 'tn_clientes'  && <TNClientes />}
       {activePage === 'tn_cupones'   && <TNCupones />}
       {activePage === 'tn_mails'     && <TNMails />}
-      {activePage === 'rentabilidad' && <Rentabilidad />}
+      {activePage === 'rentabilidad' && role === 'dueno' && <Rentabilidad />}
 
       <ModelForm
         isOpen={showForm}

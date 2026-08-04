@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2 } from 'lucide-react'
+import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2, ShieldCheck } from 'lucide-react'
 import type { Modelo, AjustePrecioConfig, AjusteTipo, AjusteOperacion } from '../../types'
 import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
 import { getTNCredentials, saveTNCredentials, clearTNCredentials } from '../../services/tiendanubeService'
+import { setOwnerPin } from '../../services/auth'
 import './Configuracion.css'
 
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
@@ -50,6 +51,35 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
   const [aplicando, setAplicando] = useState(false)
   const [resultado, setResultado] = useState<{ ok: boolean; msg: string } | null>(null)
   const [accentColor, setAccentColor] = useState(getSavedAccent)
+
+  // PIN de acceso dueño
+  const [nuevoPin, setNuevoPin] = useState('')
+  const [confirmarPin, setConfirmarPin] = useState('')
+  const [pinMsg, setPinMsg] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [guardandoPin, setGuardandoPin] = useState(false)
+
+  const handleGuardarPin = async () => {
+    setPinMsg(null)
+    if (!/^\d{4}$/.test(nuevoPin)) {
+      setPinMsg({ ok: false, msg: 'El PIN debe tener 4 dígitos.' })
+      return
+    }
+    if (nuevoPin !== confirmarPin) {
+      setPinMsg({ ok: false, msg: 'Los PIN no coinciden.' })
+      return
+    }
+    setGuardandoPin(true)
+    try {
+      await setOwnerPin(nuevoPin)
+      setPinMsg({ ok: true, msg: '✓ PIN actualizado' })
+      setNuevoPin('')
+      setConfirmarPin('')
+    } catch (e: any) {
+      setPinMsg({ ok: false, msg: e.message ?? 'Error al actualizar el PIN.' })
+    } finally {
+      setGuardandoPin(false)
+    }
+  }
 
   // TiendaNube credentials
   const tnSaved = getTNCredentials()
@@ -387,6 +417,59 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
           <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginTop: '.25rem' }}>
             Clic sobre la URL para copiarla. También necesitás agregar <code style={{ fontFamily: 'monospace', background: 'var(--bg-surface-3)', padding: '1px 5px', borderRadius: '3px' }}>SUPABASE_URL</code> y <code style={{ fontFamily: 'monospace', background: 'var(--bg-surface-3)', padding: '1px 5px', borderRadius: '3px' }}>SUPABASE_ANON_KEY</code> como variables de entorno en Vercel.
           </p>
+        </div>
+      </section>
+
+      {/* ── Seguridad ── */}
+      <section className="config-section">
+        <div className="config-section-header">
+          <ShieldCheck size={16} />
+          <h2 className="config-section-title">Seguridad — PIN de acceso dueño</h2>
+        </div>
+        <p className="config-section-desc">
+          Cambiá el PIN de 4 dígitos que se pide para entrar como dueño. Los intentos fallidos quedan registrados y avisan en la campanita del menú.
+        </p>
+        <div className="config-card">
+          <div className="config-row">
+            <label className="config-label"><Key size={11} /> Nuevo PIN</label>
+            <div className="config-input-wrap" style={{ maxWidth: 140 }}>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                className="config-input"
+                value={nuevoPin}
+                onChange={e => setNuevoPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+              />
+            </div>
+          </div>
+          <div className="config-row">
+            <label className="config-label"><Key size={11} /> Confirmar PIN</label>
+            <div className="config-input-wrap" style={{ maxWidth: 140 }}>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                className="config-input"
+                value={confirmarPin}
+                onChange={e => setConfirmarPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+              />
+            </div>
+          </div>
+          {pinMsg && (
+            <p style={{ fontSize: '.8125rem', color: pinMsg.ok ? 'var(--accent)' : 'var(--danger)' }}>{pinMsg.msg}</p>
+          )}
+          <div className="config-actions">
+            <button
+              className="btn btn-primary"
+              disabled={guardandoPin || nuevoPin.length !== 4 || confirmarPin.length !== 4}
+              onClick={handleGuardarPin}
+            >
+              {guardandoPin ? 'Guardando...' : 'Actualizar PIN'}
+            </button>
+          </div>
         </div>
       </section>
 

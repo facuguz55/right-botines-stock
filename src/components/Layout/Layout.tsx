@@ -1,15 +1,22 @@
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Box, Users, UserCheck, Tag, MessageCircle, PieChart,
+  LogOut,
 } from 'lucide-react'
-import type { ActivePage } from '../../types'
+import type { ActivePage, Role } from '../../types'
+import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
 import './Layout.css'
 
 interface LayoutProps {
   activePage: ActivePage
   onNavigate: (page: ActivePage) => void
+  role: Role
+  onLogout: () => void
   children: React.ReactNode
 }
+
+// Páginas visibles solo para el dueño
+export const SOLO_DUENO: ActivePage[] = ['configuracion', 'rentabilidad']
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
 
@@ -44,8 +51,9 @@ const ALL_NAV: NavItem[] = [
   { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart     },
 ]
 
-export function Layout({ activePage, onNavigate, children }: LayoutProps) {
+export function Layout({ activePage, onNavigate, role, onLogout, children }: LayoutProps) {
   const nav = (page: ActivePage) => ALL_NAV.find(n => n.page === page)!
+  const esDueno = role === 'dueno'
 
   return (
     <div className="layout">
@@ -67,8 +75,12 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
             <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNavigate(p)} />
           ))}
 
-          <div className="nav-gap" />
-          <NavBtn item={nav('configuracion')} active={activePage === 'configuracion'} onClick={() => onNavigate('configuracion')} />
+          {esDueno && (
+            <>
+              <div className="nav-gap" />
+              <NavBtn item={nav('configuracion')} active={activePage === 'configuracion'} onClick={() => onNavigate('configuracion')} />
+            </>
+          )}
 
           {/* ── TIENDA ONLINE ── */}
           <div className="nav-divider" />
@@ -88,10 +100,22 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
           <NavBtn item={nav('tn_mails')} active={activePage === 'tn_mails'} onClick={() => onNavigate('tn_mails')} />
 
           {/* ── RENTABILIDAD ── */}
-          <div className="nav-divider" />
-          <NavBtn item={nav('rentabilidad')} active={activePage === 'rentabilidad'} onClick={() => onNavigate('rentabilidad')} />
+          {esDueno && (
+            <>
+              <div className="nav-divider" />
+              <NavBtn item={nav('rentabilidad')} active={activePage === 'rentabilidad'} onClick={() => onNavigate('rentabilidad')} />
+            </>
+          )}
 
         </nav>
+
+        <div className="sidebar-footer">
+          {esDueno && <AccessAlerts />}
+          <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
+            <LogOut size={15} />
+            <span>{esDueno ? 'Dueño' : 'Empleado'} · Salir</span>
+          </button>
+        </div>
       </aside>
 
       <main className="main-content">
