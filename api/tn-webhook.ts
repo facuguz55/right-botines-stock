@@ -109,6 +109,14 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
     existing = await findExistingModeloByTNProduct(prod.id)
   }
 
+  await sbFetch('webhook_debug_log', {
+    method: 'POST',
+    body: JSON.stringify({
+      source: 'upsert',
+      note: `prod.id=${prod.id} existing=${existing ? existing.id : 'null'} variants=${prod.variants.length} talles=${variantTalles.map(v=>v.talle_arg).join(',')}`,
+    }),
+  }).catch(() => {})
+
   let modeloId: string
   if (existing) {
     modeloId = existing.id
@@ -219,6 +227,14 @@ export default async function handler(req: Request): Promise<Response> {
         variant?: { values?: { es?: string; en?: string }[] }
       }[]
     }
+
+    await sbFetch('webhook_debug_log', {
+      method: 'POST',
+      body: JSON.stringify({
+        source: 'handler',
+        note: `event=${payload.event} id=${payload.id ?? 'null'} store_id=${payload.store_id} rawLen=${rawBody.length}`,
+      }),
+    }).catch(() => {})
 
     // Validar que el evento viene de nuestra tienda
     if (EXPECTED_STORE && String(payload.store_id) !== EXPECTED_STORE) {

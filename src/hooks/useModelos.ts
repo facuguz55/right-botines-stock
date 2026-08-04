@@ -78,6 +78,7 @@ export function useModelos() {
     talleRows: TalleRow[],
     tnCategoryId?: number | null
   ) => {
+    console.warn('[DEBUG] editModelo llamado id=', id, 'talleRows=', JSON.stringify(talleRows))
     const current = modelos.find(m => m.id === id)
     if (current && data.precio_venta !== undefined && data.precio_venta !== current.precio_venta) {
       await recordPriceChange(id, current.precio_venta, data.precio_venta)
