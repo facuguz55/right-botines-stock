@@ -116,7 +116,7 @@ export function useModelos() {
             })
           } else {
             const labelChanged = !!talleActual &&
-              (talleActual.talle_arg !== talle_arg || talleActual.talle_us !== talle_us)
+              (Number(talleActual.talle_arg) !== talle_arg || Number(talleActual.talle_us) !== talle_us)
             pushTalleUpdateToTN(
               updated,
               { ...saved, tn_variant_id: talleActual?.tn_variant_id ?? null },

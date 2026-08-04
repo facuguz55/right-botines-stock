@@ -104,20 +104,10 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   // y el webhook puede llegar antes de que termine — reintentamos un par de
   // veces antes de asumir que el producto es realmente nuevo, para no crear
   // un modelo local duplicado por una carrera.
-  let retries = 0
   for (let i = 0; i < 3 && !existing; i++) {
-    retries++
     await new Promise(resolve => setTimeout(resolve, 1500))
     existing = await findExistingModeloByTNProduct(prod.id)
   }
-
-  await sbFetch('webhook_debug_log', {
-    method: 'POST',
-    body: JSON.stringify({
-      event: 'upsert', payload_id: prod.id,
-      note: `existing=${existing ? existing.id : 'null'} retries=${retries} variants=${prod.variants.length}`,
-    }),
-  }).catch(() => {})
 
   let modeloId: string
   if (existing) {
@@ -163,10 +153,12 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   const tallesRes = await sbFetch(`modelo_talles?modelo_id=eq.${modeloId}&select=id,talle_arg,stock_minimo`)
   const existingTalles = await tallesRes.json() as { id: string; talle_arg: number; stock_minimo: number }[]
 
+  // Comparación con Number(): talle_arg es `numeric` en Postgres y puede
+  // volver como string vía PostgREST — evita un mismatch de tipo silencioso.
   const seenTalleArgs = new Set<number>()
   for (const vt of variantTalles) {
     seenTalleArgs.add(vt.talle_arg)
-    const existingTalle = existingTalles.find(t => t.talle_arg === vt.talle_arg)
+    const existingTalle = existingTalles.find(t => Number(t.talle_arg) === vt.talle_arg)
     if (existingTalle) {
       await sbFetch(`modelo_talles?id=eq.${existingTalle.id}`, {
         method: 'PATCH',
@@ -185,7 +177,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
 
   // Bidireccional: un talle local que ya no está en TN se borra acá.
   for (const t of existingTalles) {
-    if (!seenTalleArgs.has(t.talle_arg)) await sbFetch(`modelo_talles?id=eq.${t.id}`, { method: 'DELETE' })
+    if (!seenTalleArgs.has(Number(t.talle_arg))) await sbFetch(`modelo_talles?id=eq.${t.id}`, { method: 'DELETE' })
   }
 
   // Fotos solo si el modelo no tiene ninguna todavía (no se resuelve sync de fotos en esta iteración)
@@ -236,10 +228,6 @@ export default async function handler(req: Request): Promise<Response> {
     // ── Eventos de producto (alta/edición) ──────────────────────────────────
     if (payload.event === 'product/created' || payload.event === 'product/updated') {
       const productId = payload.id
-      await sbFetch('webhook_debug_log', {
-        method: 'POST',
-        body: JSON.stringify({ event: payload.event, payload_id: productId ?? null, note: 'handler entry' }),
-      }).catch(() => {})
       if (!productId) return new Response('OK', { status: 200 })
       const prod = await fetchTNProductServerSide(productId)
       await upsertModeloFromTNProductREST(prod)

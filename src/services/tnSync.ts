@@ -62,10 +62,13 @@ export async function upsertModeloFromTNProduct(
       tn_category_id,
     })
 
+    // Comparación por string: talle_arg es `numeric` en Postgres y puede
+    // volver como string vía la API REST — Number(x) === Number(y) evita
+    // que un mismatch de tipo rompa el matching silenciosamente.
     const seenTalleArgs = new Set<number>()
     for (const vt of variantTalles) {
       seenTalleArgs.add(vt.talle_arg)
-      const existingTalle = existing.modelo_talles.find(t => t.talle_arg === vt.talle_arg)
+      const existingTalle = existing.modelo_talles.find(t => Number(t.talle_arg) === vt.talle_arg)
       await upsertTalle({
         id: existingTalle?.id,
         modelo_id: existing.id,
@@ -79,7 +82,7 @@ export async function upsertModeloFromTNProduct(
 
     // Bidireccional: un talle local que ya no aparece en TN se borra acá.
     for (const t of existing.modelo_talles) {
-      if (!seenTalleArgs.has(t.talle_arg)) await deleteTalle(t.id)
+      if (!seenTalleArgs.has(Number(t.talle_arg))) await deleteTalle(t.id)
     }
 
     if (existing.modelo_fotos.length === 0 && prod.images.length > 0) {
@@ -141,8 +144,11 @@ export async function syncTNStock(
 
   onProgress?.('Cargando stock local...')
   const localModelos = await fetchModelos()
-  const localByTNId = new Map<number, Modelo>()
-  for (const m of localModelos) if (m.tn_product_id) localByTNId.set(m.tn_product_id, m)
+  // Claves como string: Postgres devuelve las columnas bigint (tn_product_id)
+  // como string en algunos casos vía la API REST — comparar como number con
+  // Map<number,...> puede fallar silenciosamente por mismatch de tipo.
+  const localByTNId = new Map<string, Modelo>()
+  for (const m of localModelos) if (m.tn_product_id != null) localByTNId.set(String(m.tn_product_id), m)
 
   for (let i = 0; i < tnProducts.length; i++) {
     const prod = tnProducts[i]
@@ -150,7 +156,7 @@ export async function syncTNStock(
     onProgress?.(`[${i + 1}/${tnProducts.length}] ${name.slice(0, 40)}`)
 
     try {
-      const { created, imagesAdded } = await upsertModeloFromTNProduct(prod, localByTNId.get(prod.id))
+      const { created, imagesAdded } = await upsertModeloFromTNProduct(prod, localByTNId.get(String(prod.id)))
       result[created ? 'created' : 'updated']++
       result.imagesAdded += imagesAdded
     } catch (err) {
@@ -169,7 +175,7 @@ export async function resolveTNVariantId(modelo: Modelo, talle: ModeloTalle): Pr
 
   const { storeId, token } = getTNCredentials()
   const prod = await fetchTNProduct(storeId, token, modelo.tn_product_id)
-  const variant = prod.variants.find(v => parseTalleArg(variantLabel(v)) === talle.talle_arg)
+  const variant = prod.variants.find(v => parseTalleArg(variantLabel(v)) === Number(talle.talle_arg))
   if (!variant) return null
 
   await supabase.from('modelo_talles').update({ tn_variant_id: variant.id }).eq('id', talle.id)
@@ -180,7 +186,7 @@ export async function resolveTNVariantId(modelo: Modelo, talle: ModeloTalle): Pr
 
 export async function pushStockToTN(modelo: Modelo, talleArg: number, nuevaCantidad: number): Promise<void> {
   if (!modelo.tn_product_id) return
-  const talle = modelo.modelo_talles.find(t => t.talle_arg === talleArg)
+  const talle = modelo.modelo_talles.find(t => Number(t.talle_arg) === Number(talleArg))
   if (!talle) return
 
   const variantId = await resolveTNVariantId(modelo, talle)
