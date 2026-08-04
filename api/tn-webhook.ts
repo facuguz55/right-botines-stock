@@ -66,6 +66,17 @@ async function fetchTNProductServerSide(productId: number): Promise<TNRawProduct
   return await res.json()
 }
 
+async function findExistingModeloByTNProduct(productId: number): Promise<{ id: string } | undefined> {
+  const byTnId = await sbFetch(`modelos?tn_product_id=eq.${productId}&select=id&limit=1`)
+  const rowsA = await byTnId.json() as { id: string }[]
+  if (rowsA[0]) return rowsA[0]
+  // Fallback defensivo: por si algún modelo quedó con el codigo_base viejo
+  // (tn_<id>) sin tn_product_id seteado, para no crear otro duplicado.
+  const byCodigo = await sbFetch(`modelos?codigo_base=eq.tn_${productId}&select=id&limit=1`)
+  const rowsB = await byCodigo.json() as { id: string }[]
+  return rowsB[0]
+}
+
 // ── Upsert de un modelo a partir de un producto TN completo (versión REST) ──
 // Misma lógica que upsertModeloFromTNProduct en src/services/tnSync.ts, pero
 // vía sbFetch (Edge runtime no puede usar el cliente supabase-js del browser).
@@ -88,20 +99,34 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
 
-  const existingRes = await sbFetch(`modelos?tn_product_id=eq.${prod.id}&select=id&limit=1`)
-  const existingRows = await existingRes.json() as { id: string }[]
-  const existing = existingRows[0]
+  let existing = await findExistingModeloByTNProduct(prod.id)
+  // El push local (creación/edición) puede tardar en persistir tn_product_id
+  // y el webhook puede llegar antes de que termine — reintentamos un par de
+  // veces antes de asumir que el producto es realmente nuevo, para no crear
+  // un modelo local duplicado por una carrera.
+  for (let i = 0; i < 3 && !existing; i++) {
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    existing = await findExistingModeloByTNProduct(prod.id)
+  }
 
   let modeloId: string
   if (existing) {
     modeloId = existing.id
     await sbFetch(`modelos?id=eq.${modeloId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, tn_category_id }),
+      body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, tn_category_id, tn_product_id: prod.id }),
     })
   } else {
-    const insertRes = await sbFetch('modelos', {
+    // Insert directo (no sbFetch) para poder detectar un choque de unique
+    // constraint (23505) contra tn_product_id — última red de contención
+    // ante una carrera real de dos webhooks concurrentes — y autocorregir
+    // cayendo a un update en vez de fallar o duplicar.
+    const insertRes = await fetch(`${SB_URL}/rest/v1/modelos`, {
       method: 'POST',
+      headers: {
+        apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
+        'Content-Type': 'application/json', Prefer: 'return=representation',
+      },
       body: JSON.stringify({
         marca, modelo, categoria, gama, precio_venta,
         precio_costo: 0,
@@ -111,8 +136,18 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
         tn_category_id,
       }),
     })
-    const inserted = await insertRes.json() as { id: string }[]
-    modeloId = inserted[0].id
+    if (insertRes.ok) {
+      const inserted = await insertRes.json() as { id: string }[]
+      modeloId = inserted[0].id
+    } else {
+      const conflict = await findExistingModeloByTNProduct(prod.id)
+      if (!conflict) throw new Error(`insert modelos → ${insertRes.status}: ${await insertRes.text().catch(() => '')}`)
+      modeloId = conflict.id
+      await sbFetch(`modelos?id=eq.${modeloId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, tn_category_id, tn_product_id: prod.id }),
+      })
+    }
   }
 
   const tallesRes = await sbFetch(`modelo_talles?modelo_id=eq.${modeloId}&select=id,talle_arg,stock_minimo`)
