@@ -104,10 +104,20 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   // y el webhook puede llegar antes de que termine — reintentamos un par de
   // veces antes de asumir que el producto es realmente nuevo, para no crear
   // un modelo local duplicado por una carrera.
+  let retries = 0
   for (let i = 0; i < 3 && !existing; i++) {
+    retries++
     await new Promise(resolve => setTimeout(resolve, 1500))
     existing = await findExistingModeloByTNProduct(prod.id)
   }
+
+  await sbFetch('webhook_debug_log', {
+    method: 'POST',
+    body: JSON.stringify({
+      event: 'upsert', payload_id: prod.id,
+      note: `existing=${existing ? existing.id : 'null'} retries=${retries} variants=${prod.variants.length}`,
+    }),
+  }).catch(() => {})
 
   let modeloId: string
   if (existing) {
@@ -226,6 +236,10 @@ export default async function handler(req: Request): Promise<Response> {
     // ── Eventos de producto (alta/edición) ──────────────────────────────────
     if (payload.event === 'product/created' || payload.event === 'product/updated') {
       const productId = payload.id
+      await sbFetch('webhook_debug_log', {
+        method: 'POST',
+        body: JSON.stringify({ event: payload.event, payload_id: productId ?? null, note: 'handler entry' }),
+      }).catch(() => {})
       if (!productId) return new Response('OK', { status: 200 })
       const prod = await fetchTNProductServerSide(productId)
       await upsertModeloFromTNProductREST(prod)
