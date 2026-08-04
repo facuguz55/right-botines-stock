@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Briefcase, ShieldCheck, Delete, AlertTriangle } from 'lucide-react'
 import './Login.css'
 
@@ -38,6 +38,18 @@ export function Login({ onLoginEmpleado, onLoginDueno }: LoginProps) {
   }
 
   const borrar = () => setPin(p => p.slice(0, -1))
+
+  // Permite ingresar el PIN con el teclado físico, no solo tocando el teclado numérico.
+  useEffect(() => {
+    if (modo !== 'pin') return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (/^[0-9]$/.test(e.key)) presionar(e.key)
+      else if (e.key === 'Backspace') borrar()
+      else if (e.key === 'Escape') volver()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [modo, pin, checking])
 
   return (
     <div className="login-screen">
