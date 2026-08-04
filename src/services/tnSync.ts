@@ -102,11 +102,9 @@ export async function syncTNStock(
 ): Promise<SyncResult> {
   const result: SyncResult = { created: 0, updated: 0, imagesAdded: 0, errors: [], total: 0 }
 
+  // Si este dispositivo no tiene credenciales cargadas en Ajustes, tnFetch
+  // igual intenta vía el proxy del servidor (usa TN_STORE_ID/TN_TOKEN de Vercel).
   const { storeId, token } = getTNCredentials()
-  if (!storeId || !token) {
-    result.errors.push('Sin credenciales TiendaNube')
-    return result
-  }
 
   onProgress?.('Obteniendo catálogo de TiendaNube...')
   const tnProducts = await fetchTNRawProducts(storeId, token)
