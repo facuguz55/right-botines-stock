@@ -411,7 +411,7 @@ export async function updateTNVariant(
   token: string,
   productId: number,
   variantId: number,
-  data: { price?: string; stock?: number },
+  data: { price?: string; stock?: number; values?: { es: string }[] },
 ): Promise<void> {
   const path = `products/${productId}/variants/${variantId}`
 
@@ -451,11 +451,16 @@ export interface CreateTNProductInput {
   fotos: string[]
 }
 
+export interface CreateTNProductResult {
+  productId: number
+  variants: { id: number; values: { es?: string; en?: string; [k: string]: string | undefined }[] }[]
+}
+
 export async function createTNProduct(
   storeId: string,
   token: string,
   input: CreateTNProductInput,
-): Promise<{ productId: number }> {
+): Promise<CreateTNProductResult> {
   const body = JSON.stringify({
     name: { es: input.name },
     categories: input.categoryId ? [input.categoryId] : [],
@@ -477,7 +482,7 @@ export async function createTNProduct(
       })
       if (res.ok) {
         const data = await res.json()
-        return { productId: data.id }
+        return { productId: data.id, variants: data.variants ?? [] }
       }
     } catch {
       // CORS o red: probamos el proxy
@@ -498,7 +503,195 @@ export async function createTNProduct(
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
   const data = await res.json()
-  return { productId: data.id }
+  return { productId: data.id, variants: data.variants ?? [] }
+}
+
+// ── Escritura de producto (nombre, categoría) ────────────────────────────────
+
+export async function updateTNProduct(
+  storeId: string,
+  token: string,
+  productId: number,
+  data: { name?: string; categoryId?: number | null },
+): Promise<void> {
+  const path = `products/${productId}`
+  const body = JSON.stringify({
+    ...(data.name !== undefined ? { name: { es: data.name } } : {}),
+    ...(data.categoryId !== undefined ? { categories: data.categoryId ? [data.categoryId] : [] } : {}),
+  })
+
+  if (storeId && token) {
+    try {
+      const res = await fetch(`${TN_BASE}/${storeId}/${path}`, {
+        method: 'PUT',
+        headers: { ...tnHeaders(token) as Record<string, string>, 'Content-Type': 'application/json' },
+        body,
+      })
+      if (res.ok) return
+    } catch {
+      // CORS o red: probamos el proxy
+    }
+  }
+
+  const qs = new URLSearchParams({ path })
+  const res = await fetch(`/api/tiendanube?${qs}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(storeId ? { 'x-tn-store': storeId } : {}),
+      ...(token ? { 'x-tn-token': token } : {}),
+    },
+    body,
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+}
+
+export async function deleteTNProduct(storeId: string, token: string, productId: number): Promise<void> {
+  const path = `products/${productId}`
+
+  if (storeId && token) {
+    try {
+      const res = await fetch(`${TN_BASE}/${storeId}/${path}`, { method: 'DELETE', headers: tnHeaders(token) })
+      if (res.ok || res.status === 404) return
+    } catch {
+      // CORS o red: probamos el proxy
+    }
+  }
+
+  const qs = new URLSearchParams({ path })
+  const res = await fetch(`/api/tiendanube?${qs}`, {
+    method: 'DELETE',
+    headers: {
+      ...(storeId ? { 'x-tn-store': storeId } : {}),
+      ...(token ? { 'x-tn-token': token } : {}),
+    },
+  })
+  if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`)
+}
+
+// ── Escritura de variantes (altas/bajas de talle) ────────────────────────────
+
+export interface CreateTNVariantInput {
+  price: number
+  stock: number
+  talleArg: number
+  talleUs: number
+}
+
+export async function createTNVariant(
+  storeId: string,
+  token: string,
+  productId: number,
+  input: CreateTNVariantInput,
+): Promise<{ variantId: number }> {
+  const path = `products/${productId}/variants`
+  const body = JSON.stringify({
+    price: String(input.price),
+    stock: input.stock,
+    values: [{ es: `${input.talleArg} arg / ${String(input.talleUs).replace('.', ',')} us` }],
+  })
+
+  if (storeId && token) {
+    try {
+      const res = await fetch(`${TN_BASE}/${storeId}/${path}`, {
+        method: 'POST',
+        headers: { ...tnHeaders(token) as Record<string, string>, 'Content-Type': 'application/json' },
+        body,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return { variantId: data.id }
+      }
+    } catch {
+      // CORS o red: probamos el proxy
+    }
+  }
+
+  const qs = new URLSearchParams({ path })
+  const res = await fetch(`/api/tiendanube?${qs}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(storeId ? { 'x-tn-store': storeId } : {}),
+      ...(token ? { 'x-tn-token': token } : {}),
+    },
+    body,
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  return { variantId: data.id }
+}
+
+export async function deleteTNVariant(
+  storeId: string,
+  token: string,
+  productId: number,
+  variantId: number,
+): Promise<void> {
+  const path = `products/${productId}/variants/${variantId}`
+
+  if (storeId && token) {
+    try {
+      const res = await fetch(`${TN_BASE}/${storeId}/${path}`, { method: 'DELETE', headers: tnHeaders(token) })
+      if (res.ok || res.status === 404) return
+    } catch {
+      // CORS o red: probamos el proxy
+    }
+  }
+
+  const qs = new URLSearchParams({ path })
+  const res = await fetch(`/api/tiendanube?${qs}`, {
+    method: 'DELETE',
+    headers: {
+      ...(storeId ? { 'x-tn-store': storeId } : {}),
+      ...(token ? { 'x-tn-token': token } : {}),
+    },
+  })
+  if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`)
+}
+
+// ── Webhooks ──────────────────────────────────────────────────────────────────
+
+export interface TNWebhook {
+  id: number
+  event: string
+  url: string
+}
+
+export async function listTNWebhooks(storeId: string, token: string): Promise<TNWebhook[]> {
+  const { data } = await tnFetch(storeId, token, 'webhooks', { per_page: '200' })
+  return data as TNWebhook[]
+}
+
+export async function createTNWebhook(storeId: string, token: string, event: string, url: string): Promise<TNWebhook> {
+  const path = 'webhooks'
+  const body = JSON.stringify({ event, url })
+
+  if (storeId && token) {
+    try {
+      const res = await fetch(`${TN_BASE}/${storeId}/${path}`, {
+        method: 'POST',
+        headers: { ...tnHeaders(token) as Record<string, string>, 'Content-Type': 'application/json' },
+        body,
+      })
+      if (res.ok) return await res.json()
+    } catch {
+      // CORS o red: probamos el proxy
+    }
+  }
+
+  const qs = new URLSearchParams({ path })
+  const res = await fetch(`/api/tiendanube?${qs}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(storeId ? { 'x-tn-store': storeId } : {}),
+      ...(token ? { 'x-tn-token': token } : {}),
+    },
+    body,
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
+  return await res.json()
 }
 
 // ── Customers ─────────────────────────────────────────────────────────────────

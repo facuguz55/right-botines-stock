@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { syncTNStock, type SyncResult } from '../services/tnSync'
 
-const SYNC_INTERVAL = 5 * 60 * 1000 // 5 minutos
+const SYNC_INTERVAL = 60 * 60 * 1000 // 1 hora — red de seguridad de respaldo para webhooks perdidos
 
 export function useTNSync(onSynced?: () => void) {
   const [syncing, setSyncing]       = useState(false)

@@ -1,11 +1,19 @@
-// ── Servicio de sincronización TiendaNube → Stock local ─────────────────────
-// Descarga todos los productos de TN y los upsertea en Supabase.
-// Las imágenes se guardan como URLs directas del CDN de TN (sin re-upload).
+// ── Servicio de sincronización TiendaNube ↔ Stock local ─────────────────────
+// Sync incremental y bidireccional: los cambios puntuales (alta/edición/borrado
+// de producto o talle) se empujan al toque. syncTNStock queda como resync de
+// respaldo (corre cada 1h, ver useTNSync.ts) para cubrir webhooks perdidos.
 
 import { supabase } from '../lib/supabase'
-import { fetchModelos, createModelo, updateModelo, upsertTalle } from './modelos'
-import { fetchTNRawProducts, fetchTNProduct, updateTNVariant, createTNProduct, getTNCredentials } from './tiendanubeService'
-import type { Modelo } from '../types'
+import { fetchModelos, createModelo, updateModelo, upsertTalle, deleteTalle } from './modelos'
+import {
+  fetchTNRawProducts, fetchTNProduct, updateTNVariant, createTNProduct,
+  updateTNProduct, deleteTNProduct, createTNVariant, deleteTNVariant,
+  getTNCredentials, type TNRawProduct,
+} from './tiendanubeService'
+import {
+  parseTalleArg, getUsFromArg, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
+} from '../lib/tnMapping'
+import type { Modelo, ModeloTalle } from '../types'
 
 export interface SyncResult {
   created: number
@@ -15,95 +23,115 @@ export interface SyncResult {
   total: number
 }
 
-// ── Tablas de conversión de talles ──────────────────────────────────────────
+export { parseTalleArg }
 
-const ARG_TO_US: Record<number, number> = {
-  34: 2, 34.5: 2.5,
-  35: 3, 35.5: 3.5,
-  36: 4, 36.5: 4.5,
-  37: 5, 37.5: 5.5,
-  38: 6, 38.5: 6.5,
-  39: 7, 39.5: 7.5,
-  40: 8, 40.5: 8.5,
-  41: 9, 41.5: 9.5,
-  42: 10, 42.5: 10.5,
-  43: 11, 43.5: 11.5,
-  44: 12, 44.5: 12.5,
-  45: 13, 45.5: 13.5,
-  46: 14, 46.5: 14.5,
-  47: 15,
-}
+// ── Upsert de un modelo local a partir de un producto TN completo ───────────
+// Compartido por syncTNStock (full-pull) y por el webhook de un solo producto.
 
-function getUsFromArg(arg: number): number {
-  return ARG_TO_US[arg] ?? Math.round((arg - 30.5) * 2) / 2
-}
-
-// ── Parsing de talle desde el label de variante ──────────────────────────────
-
-export function parseTalleArg(label: string): number | null {
-  // Limpia prefijos comunes: "Talle 39", "T 39", "T39", "39 AR", etc.
-  const cleaned = label.replace(/talle|t\.?\s*/gi, '').trim()
-  const match = cleaned.match(/^(\d{2,3}(?:[.,]\d)?)/)
-  if (!match) return null
-  const n = parseFloat(match[1].replace(',', '.'))
-  if (n < 30 || n > 60) return null
-  return n
-}
-
-// ── Detección de categoría y gama ────────────────────────────────────────────
-
-function detectCategoria(name: string, catNames: string[]): string {
-  const all = [name, ...catNames].join(' ').toLowerCase()
-  if (/futsal|f\.?sala|sala/.test(all))                               return 'Futsal'
-  if (/hockey/.test(all))                                              return 'Hockey'
-  if (/\bf5\b|fútbol\s*5|futbol\s*5|cinco/.test(all))                return 'F5'
-  if (/\bf11\b|fútbol\s*11|futbol\s*11|once|eleven/.test(all))       return 'F11'
-  return 'F11' // fallback
-}
-
-function detectGama(name: string, catNames: string[]): string {
-  const all = [name, ...catNames].join(' ').toLowerCase()
-  if (/económica|economica|low|entry|baja/.test(all))                 return 'Económica'
-  if (/mixto|mix|dual|campo/.test(all))                               return 'Mixto'
-  if (/\bmedia\b|mid\b|intermedia/.test(all))                         return 'Media'
-  if (/\balta\b|high|premium|pro\b|top\b|elite/.test(all))           return 'Alta'
-  return 'Alta' // fallback
-}
-
-// ── Extracción de marca y modelo ─────────────────────────────────────────────
-
-function extractMarcaModelo(prod: {
-  brand?: string | null
-  name: Record<string, string>
-  id: number
-}): { marca: string; modelo: string } {
+export async function upsertModeloFromTNProduct(
+  prod: TNRawProduct,
+  existing: Modelo | undefined,
+): Promise<{ created: boolean; imagesAdded: number }> {
   const name = prod.name.es ?? prod.name.en ?? Object.values(prod.name)[0] ?? `Producto ${prod.id}`
-  const brand = (prod.brand ?? '').trim()
+  const catNames = (prod.categories ?? []).map(c => c.name?.es ?? c.name?.en ?? '')
+  const categoria = detectCategoria(name, catNames)
+  const gama = detectGama(name, catNames)
+  const { marca, modelo } = extractMarcaModelo(prod)
+  const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
+  const tn_category_id = prod.categories?.[0]?.id ?? null
 
-  if (brand) {
-    const modelo = name.toLowerCase().startsWith(brand.toLowerCase())
-      ? name.slice(brand.length).trim().replace(/^[-–—·]\s*/, '')
-      : name
-    return { marca: brand, modelo: modelo || name }
+  const variantTalles = prod.variants
+    .map(v => {
+      const talle_arg = parseTalleArg(variantLabel(v))
+      return talle_arg !== null
+        ? { talle_arg, talle_us: getUsFromArg(talle_arg), stock: v.stock ?? 0, variantId: v.id }
+        : null
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+
+  let imagesAdded = 0
+
+  if (existing) {
+    await updateModelo(existing.id, {
+      marca, modelo, categoria, gama,
+      precio_venta,
+      precio_costo: existing.precio_costo,
+      codigo_base: existing.codigo_base,
+      notas: existing.notas,
+      tn_product_id: prod.id,
+      tn_category_id,
+    })
+
+    const seenTalleArgs = new Set<number>()
+    for (const vt of variantTalles) {
+      seenTalleArgs.add(vt.talle_arg)
+      const existingTalle = existing.modelo_talles.find(t => t.talle_arg === vt.talle_arg)
+      await upsertTalle({
+        id: existingTalle?.id,
+        modelo_id: existing.id,
+        talle_us: vt.talle_us,
+        talle_arg: vt.talle_arg,
+        cantidad: vt.stock,
+        stock_minimo: existingTalle?.stock_minimo ?? 1,
+        tn_variant_id: vt.variantId,
+      })
+    }
+
+    // Bidireccional: un talle local que ya no aparece en TN se borra acá.
+    for (const t of existing.modelo_talles) {
+      if (!seenTalleArgs.has(t.talle_arg)) await deleteTalle(t.id)
+    }
+
+    if (existing.modelo_fotos.length === 0 && prod.images.length > 0) {
+      const rows = prod.images.slice(0, 5).map((img, idx) => ({
+        modelo_id: existing.id, foto_url: img.src, orden: idx,
+      }))
+      const { error } = await supabase.from('modelo_fotos').insert(rows)
+      if (!error) imagesAdded = rows.length
+    }
+
+    return { created: false, imagesAdded }
   }
 
-  // Sin brand: primera palabra como marca
-  const parts = name.split(' ')
-  return {
-    marca: parts[0] || 'Sin marca',
-    modelo: parts.slice(1).join(' ') || name,
+  const newModelo = await createModelo({
+    marca, modelo, categoria, gama,
+    precio_venta,
+    precio_costo: 0,
+    codigo_base: `tn_${prod.id}`,
+    notas: null,
+    tn_product_id: prod.id,
+    tn_category_id,
+  })
+
+  for (const vt of variantTalles) {
+    await upsertTalle({
+      modelo_id: newModelo.id,
+      talle_us: vt.talle_us,
+      talle_arg: vt.talle_arg,
+      cantidad: vt.stock,
+      stock_minimo: 1,
+      tn_variant_id: vt.variantId,
+    })
   }
+
+  if (prod.images.length > 0) {
+    const rows = prod.images.slice(0, 5).map((img, idx) => ({
+      modelo_id: newModelo.id, foto_url: img.src, orden: idx,
+    }))
+    const { error } = await supabase.from('modelo_fotos').insert(rows)
+    if (!error) imagesAdded = rows.length
+  }
+
+  return { created: true, imagesAdded }
 }
 
-// ── Función principal de sincronización ──────────────────────────────────────
+// ── Resync completo de respaldo (cada 1h, ver useTNSync.ts) ─────────────────
 
 export async function syncTNStock(
   onProgress?: (msg: string) => void
 ): Promise<SyncResult> {
   const result: SyncResult = { created: 0, updated: 0, imagesAdded: 0, errors: [], total: 0 }
 
-  // Si este dispositivo no tiene credenciales cargadas en Ajustes, tnFetch
-  // igual intenta vía el proxy del servidor (usa TN_STORE_ID/TN_TOKEN de Vercel).
   const { storeId, token } = getTNCredentials()
 
   onProgress?.('Obteniendo catálogo de TiendaNube...')
@@ -113,9 +141,8 @@ export async function syncTNStock(
 
   onProgress?.('Cargando stock local...')
   const localModelos = await fetchModelos()
-
-  const localByCode = new Map<string, Modelo>()
-  for (const m of localModelos) localByCode.set(m.codigo_base, m)
+  const localByTNId = new Map<number, Modelo>()
+  for (const m of localModelos) if (m.tn_product_id) localByTNId.set(m.tn_product_id, m)
 
   for (let i = 0; i < tnProducts.length; i++) {
     const prod = tnProducts[i]
@@ -123,95 +150,9 @@ export async function syncTNStock(
     onProgress?.(`[${i + 1}/${tnProducts.length}] ${name.slice(0, 40)}`)
 
     try {
-      const codigoBase   = `tn_${prod.id}`
-      const catNames     = (prod.categories ?? []).map(c => c.name?.es ?? c.name?.en ?? '')
-      const categoria    = detectCategoria(name, catNames)
-      const gama         = detectGama(name, catNames)
-      const { marca, modelo } = extractMarcaModelo(prod)
-      const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
-
-      const existing = localByCode.get(codigoBase)
-
-      // ── VARIANTES: parseamos los talles ─────────────────────────────────
-      const variantTalles = prod.variants
-        .map(v => {
-          const label = (v.values ?? [])
-            .map(val => val.es ?? val.en ?? Object.values(val).find(x => x) ?? '')
-            .join(' ')
-          const talle_arg = parseTalleArg(label)
-          return talle_arg !== null
-            ? { talle_arg, talle_us: getUsFromArg(talle_arg), stock: v.stock ?? 0, sku: v.sku }
-            : null
-        })
-        .filter((x): x is NonNullable<typeof x> => x !== null)
-
-      if (existing) {
-        // ── ACTUALIZAR ──────────────────────────────────────────────────
-        await updateModelo(existing.id, {
-          marca, modelo, categoria, gama,
-          precio_venta,
-          precio_costo: existing.precio_costo,
-          codigo_base: codigoBase,
-          notas: existing.notas,
-        })
-
-        for (const vt of variantTalles) {
-          const existingTalle = existing.modelo_talles.find(t => t.talle_arg === vt.talle_arg)
-          await upsertTalle({
-            id:          existingTalle?.id,
-            modelo_id:   existing.id,
-            talle_us:    vt.talle_us,
-            talle_arg:   vt.talle_arg,
-            cantidad:    vt.stock,
-            stock_minimo: existingTalle?.stock_minimo ?? 1,
-          })
-        }
-
-        // Agregar imágenes solo si el modelo no tiene ninguna
-        if (existing.modelo_fotos.length === 0 && prod.images.length > 0) {
-          const rows = prod.images.slice(0, 5).map((img, idx) => ({
-            modelo_id: existing.id,
-            foto_url:  img.src,
-            orden:     idx,
-          }))
-          const { error } = await supabase.from('modelo_fotos').insert(rows)
-          if (!error) result.imagesAdded += rows.length
-        }
-
-        result.updated++
-
-      } else {
-        // ── CREAR ───────────────────────────────────────────────────────
-        const newModelo = await createModelo({
-          marca, modelo, categoria, gama,
-          precio_venta,
-          precio_costo: 0,
-          codigo_base:  codigoBase,
-          notas:        null,
-        })
-
-        for (const vt of variantTalles) {
-          await upsertTalle({
-            modelo_id:   newModelo.id,
-            talle_us:    vt.talle_us,
-            talle_arg:   vt.talle_arg,
-            cantidad:    vt.stock,
-            stock_minimo: 1,
-          })
-        }
-
-        if (prod.images.length > 0) {
-          const rows = prod.images.slice(0, 5).map((img, idx) => ({
-            modelo_id: newModelo.id,
-            foto_url:  img.src,
-            orden:     idx,
-          }))
-          const { error } = await supabase.from('modelo_fotos').insert(rows)
-          if (!error) result.imagesAdded += rows.length
-        }
-
-        result.created++
-      }
+      const { created, imagesAdded } = await upsertModeloFromTNProduct(prod, localByTNId.get(prod.id))
+      result[created ? 'created' : 'updated']++
+      result.imagesAdded += imagesAdded
     } catch (err) {
       result.errors.push(`Producto ${prod.id}: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -220,53 +161,123 @@ export async function syncTNStock(
   return result
 }
 
+// ── Resolución de variant.id (con auto-cacheo en Supabase) ──────────────────
+
+export async function resolveTNVariantId(modelo: Modelo, talle: ModeloTalle): Promise<number | null> {
+  if (talle.tn_variant_id) return talle.tn_variant_id
+  if (!modelo.tn_product_id) return null
+
+  const { storeId, token } = getTNCredentials()
+  const prod = await fetchTNProduct(storeId, token, modelo.tn_product_id)
+  const variant = prod.variants.find(v => parseTalleArg(variantLabel(v)) === talle.talle_arg)
+  if (!variant) return null
+
+  await supabase.from('modelo_talles').update({ tn_variant_id: variant.id }).eq('id', talle.id)
+  return variant.id
+}
+
 // ── Stock local → TiendaNube ─────────────────────────────────────────────────
-// Al vender un talle desde el dashboard, empuja el nuevo stock a la variante
-// correspondiente en TiendaNube (si el modelo proviene de un sync de TN).
 
 export async function pushStockToTN(modelo: Modelo, talleArg: number, nuevaCantidad: number): Promise<void> {
-  if (!modelo.codigo_base.startsWith('tn_')) return
+  if (!modelo.tn_product_id) return
+  const talle = modelo.modelo_talles.find(t => t.talle_arg === talleArg)
+  if (!talle) return
 
-  const productId = parseInt(modelo.codigo_base.slice('tn_'.length), 10)
-  if (!Number.isFinite(productId)) return
+  const variantId = await resolveTNVariantId(modelo, talle)
+  if (!variantId) return
 
-  // Si este dispositivo no tiene credenciales cargadas en Ajustes, igual
-  // intentamos vía el proxy del servidor (usa TN_STORE_ID/TN_TOKEN de Vercel).
+  const { storeId, token } = getTNCredentials()
+  await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, { stock: Math.max(0, nuevaCantidad) })
+}
+
+// ── Edición/borrado de producto local → TiendaNube ───────────────────────────
+
+export async function pushModeloUpdateToTN(modelo: Modelo, opts: { categoryChanged?: boolean } = {}): Promise<void> {
+  if (!modelo.tn_product_id) return
   const { storeId, token } = getTNCredentials()
 
-  const prod = await fetchTNProduct(storeId, token, productId)
-
-  const variant = prod.variants.find(v => {
-    const label = (v.values ?? [])
-      .map(val => val.es ?? val.en ?? Object.values(val).find(x => x) ?? '')
-      .join(' ')
-    return parseTalleArg(label) === talleArg
+  await updateTNProduct(storeId, token, modelo.tn_product_id, {
+    name: `${modelo.marca} ${modelo.modelo}`,
+    ...(opts.categoryChanged ? { categoryId: modelo.tn_category_id ?? null } : {}),
   })
-  if (!variant) throw new Error(`No se encontró en TiendaNube la variante de talle ${talleArg}`)
 
-  await updateTNVariant(storeId, token, productId, variant.id, { stock: Math.max(0, nuevaCantidad) })
+  // El precio en TN vive por VARIANTE, no por producto → iterar todos los talles
+  for (const talle of modelo.modelo_talles) {
+    const variantId = await resolveTNVariantId(modelo, talle)
+    if (variantId) {
+      await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, { price: String(modelo.precio_venta) })
+    }
+  }
+}
+
+export async function pushModeloDeleteToTN(modelo: Modelo): Promise<void> {
+  if (!modelo.tn_product_id) return
+  const { storeId, token } = getTNCredentials()
+  await deleteTNProduct(storeId, token, modelo.tn_product_id)
+}
+
+// ── Altas/bajas/ediciones de talle local → TiendaNube ────────────────────────
+
+export async function pushTalleCreateToTN(
+  modelo: Modelo,
+  talle: { id: string; talle_arg: number; talle_us: number; cantidad: number },
+): Promise<void> {
+  if (!modelo.tn_product_id) return
+  const { storeId, token } = getTNCredentials()
+  const { variantId } = await createTNVariant(storeId, token, modelo.tn_product_id, {
+    price: modelo.precio_venta, stock: talle.cantidad, talleArg: talle.talle_arg, talleUs: talle.talle_us,
+  })
+  await supabase.from('modelo_talles').update({ tn_variant_id: variantId }).eq('id', talle.id)
+}
+
+export async function pushTalleDeleteToTN(modelo: Modelo, talle: ModeloTalle): Promise<void> {
+  if (!modelo.tn_product_id) return
+  const variantId = await resolveTNVariantId(modelo, talle)
+  if (!variantId) return
+  const { storeId, token } = getTNCredentials()
+  await deleteTNVariant(storeId, token, modelo.tn_product_id, variantId)
+}
+
+export async function pushTalleUpdateToTN(
+  modelo: Modelo, talle: ModeloTalle, opts: { labelChanged?: boolean } = {},
+): Promise<void> {
+  if (!modelo.tn_product_id) return
+  const variantId = await resolveTNVariantId(modelo, talle)
+  if (!variantId) {
+    // Self-heal: si nunca se creó del lado de TN (ej. falló el alta original), la creamos ahora.
+    await pushTalleCreateToTN(modelo, talle)
+    return
+  }
+  const { storeId, token } = getTNCredentials()
+  const data: { stock: number; values?: { es: string }[] } = { stock: Math.max(0, talle.cantidad) }
+  if (opts.labelChanged) {
+    data.values = [{ es: `${talle.talle_arg} arg / ${String(talle.talle_us).replace('.', ',')} us` }]
+  }
+  await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, data)
 }
 
 // ── Modelo nuevo local → TiendaNube ──────────────────────────────────────────
-// Al cargar un modelo que no viene de un import de TN, lo crea también allá
-// y vincula el modelo local pasando a usar el mismo esquema codigo_base =
-// 'tn_<productId>' que ya usan los productos importados.
 
 export async function createTNProductAndLink(
   modelo: Modelo,
-  talles: { talleArg: number; talleUs: number; cantidad: number }[],
+  talles: { id: string; talleArg: number; talleUs: number; cantidad: number }[],
   fotoUrls: string[],
   categoryId: number | null,
 ): Promise<void> {
   const { storeId, token } = getTNCredentials()
 
-  const { productId } = await createTNProduct(storeId, token, {
+  const { productId, variants } = await createTNProduct(storeId, token, {
     name: `${modelo.marca} ${modelo.modelo}`,
     categoryId,
     precioVenta: modelo.precio_venta,
-    talles,
+    talles: talles.map(({ talleArg, talleUs, cantidad }) => ({ talleArg, talleUs, cantidad })),
     fotos: fotoUrls,
   })
 
-  await updateModelo(modelo.id, { codigo_base: `tn_${productId}` })
+  await updateModelo(modelo.id, { tn_product_id: productId, tn_category_id: categoryId })
+
+  for (const t of talles) {
+    const match = variants.find(v => parseTalleArg(variantLabel(v)) === t.talleArg)
+    if (match) await supabase.from('modelo_talles').update({ tn_variant_id: match.id }).eq('id', t.id)
+  }
 }

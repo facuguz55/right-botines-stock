@@ -46,7 +46,13 @@ export async function upsertTalle(
   if (talle.id) {
     const { data, error } = await supabase
       .from('modelo_talles')
-      .update({ cantidad: talle.cantidad, stock_minimo: talle.stock_minimo })
+      .update({
+        talle_us: talle.talle_us,
+        talle_arg: talle.talle_arg,
+        cantidad: talle.cantidad,
+        stock_minimo: talle.stock_minimo,
+        ...(talle.tn_variant_id !== undefined ? { tn_variant_id: talle.tn_variant_id } : {}),
+      })
       .eq('id', talle.id)
       .select()
       .single()
@@ -61,6 +67,7 @@ export async function upsertTalle(
       talle_arg: talle.talle_arg,
       cantidad: talle.cantidad,
       stock_minimo: talle.stock_minimo,
+      ...(talle.tn_variant_id !== undefined ? { tn_variant_id: talle.tn_variant_id } : {}),
     }])
     .select()
     .single()
@@ -143,7 +150,7 @@ export async function addIngresoBatch(
   changes: { talleId: string; talleArg: number; talleUs: number; cantidadActual: number; delta: number }[],
   newTalle: { talleArg: number; talleUs: number; cantidad: number } | null,
   costoTotal: number
-): Promise<void> {
+): Promise<{ newTalleId: string | null }> {
   for (const c of changes) {
     const { error } = await supabase
       .from('modelo_talles')
@@ -152,11 +159,15 @@ export async function addIngresoBatch(
     if (error) throw error
   }
 
+  let newTalleId: string | null = null
   if (newTalle) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('modelo_talles')
       .insert([{ modelo_id: modeloId, talle_us: newTalle.talleUs, talle_arg: newTalle.talleArg, cantidad: newTalle.cantidad, stock_minimo: 1 }])
+      .select('id')
+      .single()
     if (error) throw error
+    newTalleId = data.id
   }
 
   const totalCantidad = changes.reduce((s, c) => s + c.delta, 0) + (newTalle?.cantidad ?? 0)
@@ -171,6 +182,8 @@ export async function addIngresoBatch(
     }])
     if (error) throw error
   }
+
+  return { newTalleId }
 }
 
 export async function getUniqueCodigoBase(base: string): Promise<string> {

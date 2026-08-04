@@ -85,7 +85,7 @@ export function ModelGrid({
           </span>
         )}
 
-        <span className="sync-auto-badge">↺ auto cada 5 min</span>
+        <span className="sync-auto-badge">↺ resync de respaldo cada 1h</span>
       </div>
 
       <div className="stock-page-header">

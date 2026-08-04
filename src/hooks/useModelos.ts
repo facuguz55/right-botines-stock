@@ -7,7 +7,11 @@ import {
 } from '../services/modelos'
 import { saveFotos, deleteFotosForModelo } from '../services/fotos'
 import { recordPriceChange } from '../services/historial_precios'
-import { pushStockToTN, createTNProductAndLink } from '../services/tnSync'
+import {
+  pushStockToTN, createTNProductAndLink,
+  pushModeloUpdateToTN, pushModeloDeleteToTN,
+  pushTalleCreateToTN, pushTalleDeleteToTN, pushTalleUpdateToTN,
+} from '../services/tnSync'
 
 type ModeloInput = Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>
 
@@ -39,19 +43,19 @@ export function useModelos() {
     const codigoBase = await getUniqueCodigoBase(data.codigo_base)
     const newModelo = await createModelo({ ...data, codigo_base: codigoBase })
 
-    const talles: { talleArg: number; talleUs: number; cantidad: number }[] = []
+    const talles: { id: string; talleArg: number; talleUs: number; cantidad: number }[] = []
     for (const row of talleRows.filter(r => !r.toDelete)) {
       const talleArg = parseFloat(row.talle_arg)
       const talleUs = parseFloat(row.talle_us)
       const cantidad = parseInt(row.cantidad) || 0
-      await upsertTalle({
+      const savedTalle = await upsertTalle({
         modelo_id: newModelo.id,
         talle_us: talleUs,
         talle_arg: talleArg,
         cantidad,
         stock_minimo: parseInt(row.stock_minimo) || 1,
       })
-      talles.push({ talleArg, talleUs, cantidad })
+      talles.push({ id: savedTalle.id, talleArg, talleUs, cantidad })
     }
 
     const fotos = await saveFotos(newModelo.id, codigoBase, photos, [])
@@ -70,28 +74,73 @@ export function useModelos() {
     data: Partial<ModeloInput>,
     photos: PhotoSlot[],
     toDeleteFotoIds: string[],
-    talleRows: TalleRow[]
+    talleRows: TalleRow[],
+    tnCategoryId?: number | null
   ) => {
     const current = modelos.find(m => m.id === id)
     if (current && data.precio_venta !== undefined && data.precio_venta !== current.precio_venta) {
       await recordPriceChange(id, current.precio_venta, data.precio_venta)
     }
 
-    const updated = await updateModelo(id, data)
+    const updated = await updateModelo(id, {
+      ...data,
+      ...(tnCategoryId !== undefined ? { tn_category_id: tnCategoryId } : {}),
+    })
 
     for (const row of talleRows) {
+      const talleActual = current?.modelo_talles.find(t => t.id === row.id)
+
       if (row.id && row.toDelete) {
         await deleteTalle(row.id)
+        if (updated.tn_product_id && talleActual) {
+          pushTalleDeleteToTN(updated, talleActual).catch(err => {
+            console.error('No se pudo borrar el talle en TiendaNube:', err)
+          })
+        }
       } else if (!row.toDelete) {
-        await upsertTalle({
+        const talle_us = parseFloat(row.talle_us)
+        const talle_arg = parseFloat(row.talle_arg)
+        const cantidad = parseInt(row.cantidad) || 0
+        const saved = await upsertTalle({
           id: row.id,
           modelo_id: id,
-          talle_us: parseFloat(row.talle_us),
-          talle_arg: parseFloat(row.talle_arg),
-          cantidad: parseInt(row.cantidad) || 0,
+          talle_us,
+          talle_arg,
+          cantidad,
           stock_minimo: parseInt(row.stock_minimo) || 1,
         })
+        if (updated.tn_product_id) {
+          if (!row.id) {
+            pushTalleCreateToTN(updated, saved).catch(err => {
+              console.error('No se pudo crear el talle en TiendaNube:', err)
+            })
+          } else {
+            const labelChanged = !!talleActual &&
+              (talleActual.talle_arg !== talle_arg || talleActual.talle_us !== talle_us)
+            pushTalleUpdateToTN(
+              updated,
+              { ...saved, tn_variant_id: talleActual?.tn_variant_id ?? null },
+              { labelChanged }
+            ).catch(err => {
+              console.error('No se pudo actualizar el talle en TiendaNube:', err)
+            })
+          }
+        }
       }
+    }
+
+    const nombreOPrecioOCategoriaCambio =
+      (data.marca !== undefined && data.marca !== current?.marca) ||
+      (data.modelo !== undefined && data.modelo !== current?.modelo) ||
+      (data.precio_venta !== undefined && data.precio_venta !== current?.precio_venta) ||
+      (tnCategoryId !== undefined && tnCategoryId !== current?.tn_category_id)
+
+    if (updated.tn_product_id && nombreOPrecioOCategoriaCambio) {
+      pushModeloUpdateToTN(updated, {
+        categoryChanged: tnCategoryId !== undefined && tnCategoryId !== current?.tn_category_id,
+      }).catch(err => {
+        console.error('No se pudo actualizar el producto en TiendaNube:', err)
+      })
     }
 
     await saveFotos(id, updated.codigo_base, photos, toDeleteFotoIds)
@@ -99,9 +148,15 @@ export function useModelos() {
   }
 
   const removeModelo = async (id: string) => {
+    const current = modelos.find(m => m.id === id)
     await deleteFotosForModelo(id)
     await deleteModelo(id)
     setModelos(prev => prev.filter(m => m.id !== id))
+    if (current?.tn_product_id) {
+      pushModeloDeleteToTN(current).catch(err => {
+        console.error('No se pudo borrar el producto en TiendaNube:', err)
+      })
+    }
   }
 
   const venderCarrito = async (items: CartItem[], medioPago: MedioPago, clienteId: string) => {
@@ -164,16 +219,22 @@ export function useModelos() {
     newTalle: { talleArg: number; talleUs: number; cantidad: number } | null,
     costoTotal: number
   ) => {
-    await addIngresoBatch(modeloId, changes, newTalle, costoTotal)
+    const { newTalleId } = await addIngresoBatch(modeloId, changes, newTalle, costoTotal)
     await load()
 
-    // Best-effort: reflejar el nuevo stock en TiendaNube (el talle nuevo, si
-    // lo hay, todavía no tiene variante en TN — queda logueado y sin bloquear).
+    // Best-effort: reflejar el nuevo stock en TiendaNube.
     const modelo = modelos.find(m => m.id === modeloId)
     if (modelo) {
       for (const c of changes) {
         pushStockToTN(modelo, c.talleArg, c.cantidadActual + c.delta).catch(err => {
           console.error('No se pudo actualizar el stock en TiendaNube:', err)
+        })
+      }
+      if (newTalle && newTalleId && modelo.tn_product_id) {
+        pushTalleCreateToTN(modelo, {
+          id: newTalleId, talle_arg: newTalle.talleArg, talle_us: newTalle.talleUs, cantidad: newTalle.cantidad,
+        }).catch(err => {
+          console.error('No se pudo crear el talle nuevo en TiendaNube:', err)
         })
       }
     }

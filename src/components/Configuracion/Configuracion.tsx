@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2, ShieldCheck } from 'lucide-react'
 import type { Modelo, AjustePrecioConfig, AjusteTipo, AjusteOperacion } from '../../types'
 import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
-import { getTNCredentials, saveTNCredentials, clearTNCredentials } from '../../services/tiendanubeService'
+import { getTNCredentials, saveTNCredentials, clearTNCredentials, listTNWebhooks, createTNWebhook } from '../../services/tiendanubeService'
 import { setOwnerPin } from '../../services/auth'
 import './Configuracion.css'
 
@@ -99,6 +99,34 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
     setTnToken('')
     setTnMsg('Credenciales eliminadas')
     setTimeout(() => setTnMsg(''), 2500)
+  }
+
+  // Registro automático de webhooks (reemplaza la configuración manual en el panel de TN)
+  const [registrandoWebhooks, setRegistrandoWebhooks] = useState(false)
+  const [webhookMsg, setWebhookMsg] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  const REQUIRED_TN_EVENTS = ['order/paid', 'product/created', 'product/updated', 'product/deleted']
+
+  const handleRegisterWebhooks = async () => {
+    setRegistrandoWebhooks(true)
+    setWebhookMsg(null)
+    try {
+      const { storeId, token } = getTNCredentials()
+      const url = `${window.location.origin}/api/tn-webhook`
+      const existing = await listTNWebhooks(storeId, token)
+      const lineas: string[] = []
+      for (const event of REQUIRED_TN_EVENTS) {
+        const yaExiste = existing.some(w => w.event === event && w.url === url)
+        if (yaExiste) { lineas.push(`${event}: ya estaba`); continue }
+        await createTNWebhook(storeId, token, event, url)
+        lineas.push(`${event}: registrado`)
+      }
+      setWebhookMsg({ ok: true, msg: lineas.join(' · ') })
+    } catch (e) {
+      setWebhookMsg({ ok: false, msg: (e as Error).message ?? 'No se pudieron registrar los webhooks.' })
+    } finally {
+      setRegistrandoWebhooks(false)
+    }
   }
 
   const preview = useMemo(() => {
@@ -396,12 +424,25 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
           <h2 className="config-section-title">Sincronización de stock automática</h2>
         </div>
         <p className="config-section-desc">
-          Para que las ventas de TiendaNube descuenten el stock automáticamente, configurá este webhook en tu panel de TiendaNube
-          (Configuración → Webhooks → Nuevo webhook → Evento: "Orden pagada").
+          La app avisa a TiendaNube que le mande un aviso cada vez que se vende, crea, edita o borra un producto, para reflejarlo acá al toque (sin esperar la sync de respaldo cada 1h).
         </p>
         <div className="config-card">
-          <div className="config-row">
-            <label className="config-label">URL del webhook</label>
+          <div className="config-actions">
+            <button
+              className="btn btn-primary"
+              onClick={handleRegisterWebhooks}
+              disabled={!tnStoreId || !tnToken || registrandoWebhooks}
+            >
+              <CheckCircle size={14} /> {registrandoWebhooks ? 'Registrando...' : 'Registrar webhooks automáticamente'}
+            </button>
+          </div>
+          {webhookMsg && (
+            <p style={{ fontSize: '.8125rem', color: webhookMsg.ok ? 'var(--accent)' : 'var(--danger)' }}>
+              {webhookMsg.msg}
+            </p>
+          )}
+          <div className="config-row" style={{ marginTop: '.5rem' }}>
+            <label className="config-label">URL del webhook (por si el registro automático falla)</label>
             <div className="config-input-wrap">
               <input
                 type="text"
@@ -415,7 +456,7 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
             </div>
           </div>
           <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginTop: '.25rem' }}>
-            Clic sobre la URL para copiarla. También necesitás agregar <code style={{ fontFamily: 'monospace', background: 'var(--bg-surface-3)', padding: '1px 5px', borderRadius: '3px' }}>SUPABASE_URL</code> y <code style={{ fontFamily: 'monospace', background: 'var(--bg-surface-3)', padding: '1px 5px', borderRadius: '3px' }}>SUPABASE_ANON_KEY</code> como variables de entorno en Vercel.
+            Clic sobre la URL para copiarla y cargarla a mano en Configuración → Webhooks del panel de TiendaNube. También necesitás las variables de entorno <code style={{ fontFamily: 'monospace', background: 'var(--bg-surface-3)', padding: '1px 5px', borderRadius: '3px' }}>SUPABASE_URL</code> y <code style={{ fontFamily: 'monospace', background: 'var(--bg-surface-3)', padding: '1px 5px', borderRadius: '3px' }}>SUPABASE_ANON_KEY</code> en Vercel.
           </p>
         </div>
       </section>

@@ -113,7 +113,7 @@ export function App() {
     tnCategoryId: number | null
   ) => {
     if (editTarget) {
-      await editModelo(editTarget.id, data, photos, toDeleteFotoIds, talleRows)
+      await editModelo(editTarget.id, data, photos, toDeleteFotoIds, talleRows, tnCategoryId)
     } else {
       await addModelo(data, photos, talleRows, tnCategoryId)
     }

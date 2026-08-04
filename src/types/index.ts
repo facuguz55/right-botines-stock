@@ -13,6 +13,7 @@ export interface ModeloTalle {
   talle_arg: number
   cantidad: number
   stock_minimo: number
+  tn_variant_id?: number | null
 }
 
 export interface Modelo {
@@ -28,6 +29,8 @@ export interface Modelo {
   created_at: string
   modelo_talles: ModeloTalle[]
   modelo_fotos: ModeloFoto[]
+  tn_product_id?: number | null
+  tn_category_id?: number | null
 }
 
 export interface HistorialPrecio {

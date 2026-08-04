@@ -55,10 +55,10 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
   const [tnCategoryId, setTnCategoryId] = useState<string>('')
 
   useEffect(() => {
-    if (!isOpen || isEdit) return
+    if (!isOpen) return
     const { storeId, token } = getTNCredentials()
     fetchTNCategories(storeId, token).then(setTnCategorias).catch(() => setTnCategorias([]))
-  }, [isOpen, isEdit])
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -86,7 +86,7 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
     }
     setNewTalle(EMPTY_TALLE)
     setToDeleteFotoIds([])
-    setTnCategoryId('')
+    setTnCategoryId(initial?.tn_category_id ? String(initial.tn_category_id) : '')
     setError(null)
   }, [isOpen, initial])
 
@@ -167,7 +167,7 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
           notas: form.notas.trim() || null,
         },
         photos, toDeleteFotoIds, talleRows,
-        isEdit ? null : (tnCategoryId ? parseInt(tnCategoryId, 10) : null)
+        tnCategoryId ? parseInt(tnCategoryId, 10) : null
       )
       onClose()
     } catch (e) {
@@ -249,17 +249,15 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
           <textarea placeholder="Aclaraciones..." value={form.notas} onChange={e => update('notas', e.target.value)} rows={2} />
         </div>
 
-        {!isEdit && (
-          <div className="form-group">
-            <label>Categoría en TiendaNube</label>
-            <select value={tnCategoryId} onChange={e => setTnCategoryId(e.target.value)}>
-              <option value="">Sin categoría (asignar después)</option>
-              {tnCategorias.map(c => (
-                <option key={c.id} value={c.id}>{categoriaLabel(c, tnCategorias)}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="form-group">
+          <label>Categoría en TiendaNube</label>
+          <select value={tnCategoryId} onChange={e => setTnCategoryId(e.target.value)}>
+            <option value="">Sin categoría (asignar después)</option>
+            {tnCategorias.map(c => (
+              <option key={c.id} value={c.id}>{categoriaLabel(c, tnCategorias)}</option>
+            ))}
+          </select>
+        </div>
 
         {/* Talles */}
         <div className="form-section">
