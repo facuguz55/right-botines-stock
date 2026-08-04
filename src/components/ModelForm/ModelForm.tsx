@@ -50,6 +50,7 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const submittingRef = useRef(false)
 
   const [tnCategorias, setTnCategorias] = useState<TNCategory[]>([])
   const [tnCategoryId, setTnCategoryId] = useState<string>('')
@@ -149,11 +150,17 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Guarda contra doble-submit: dos invocaciones muy seguidas (doble click,
+    // doble evento de submit) alcanzan a pasar antes de que React aplique
+    // `disabled={saving}` al botón — sin esto, cada una dispara su propio
+    // push a TiendaNube (variantes/productos duplicados).
+    if (submittingRef.current) return
+    submittingRef.current = true
     setError(null)
-    if (!form.modelo.trim()) return setError('El modelo es obligatorio')
-    if (!form.precio_venta) return setError('El precio de venta es obligatorio')
-    if (!isEdit && photos.length === 0) return setError('Necesitás subir al menos 1 foto')
-    if (!isEdit && activeTalles.length === 0) return setError('Agregá al menos 1 talle')
+    if (!form.modelo.trim()) { submittingRef.current = false; return setError('El modelo es obligatorio') }
+    if (!form.precio_venta) { submittingRef.current = false; return setError('El precio de venta es obligatorio') }
+    if (!isEdit && photos.length === 0) { submittingRef.current = false; return setError('Necesitás subir al menos 1 foto') }
+    if (!isEdit && activeTalles.length === 0) { submittingRef.current = false; return setError('Agregá al menos 1 talle') }
 
     setSaving(true)
     try {
@@ -178,6 +185,7 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
           : msg
       )
     } finally {
+      submittingRef.current = false
       setSaving(false)
     }
   }
