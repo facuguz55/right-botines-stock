@@ -260,11 +260,11 @@ export function filterModelos(modelos: Modelo[], filters: ModeloFilters): Modelo
     const total = m.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
     if (filters.disponibilidad === 'disponible' && total <= 0) return false
     if (filters.disponibilidad === 'agotado' && total > 0) return false
-    if (
-      filters.search &&
-      !m.codigo_base.toLowerCase().includes(filters.search.toLowerCase()) &&
-      !m.modelo.toLowerCase().includes(filters.search.toLowerCase())
-    ) return false
+    if (filters.search) {
+      const haystack = `${m.marca} ${m.modelo} ${m.codigo_base}`.toLowerCase()
+      const palabras = filters.search.toLowerCase().split(/\s+/).filter(Boolean)
+      if (!palabras.every(p => haystack.includes(p))) return false
+    }
     if (filters.talle && !m.modelo_talles.some(t => String(t.talle_arg) === filters.talle)) return false
     return true
   })
