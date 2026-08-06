@@ -251,6 +251,39 @@ export function useModelos() {
   }
 }
 
+// Distancia de edición (Levenshtein) entre dos strings cortos — usada para
+// tolerar errores de tipeo en la búsqueda de Stock (letra de más, de menos,
+// o cambiada), no para textos largos.
+function levenshtein(a: string, b: string): number {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0))
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+    }
+  }
+  return dp[a.length][b.length]
+}
+
+// Tolerancia proporcional al largo de la palabra buscada: cuanto más corta,
+// menos margen de error (para no matchear "rojo" con "rosa", por ejemplo).
+function toleranciaTipeo(len: number): number {
+  if (len <= 4) return 1
+  if (len <= 8) return 2
+  return 3
+}
+
+function palabraAproximada(palabra: string, haystackWords: string[]): boolean {
+  if (haystackWords.some(w => w.includes(palabra))) return true
+  const tolerancia = toleranciaTipeo(palabra.length)
+  return haystackWords.some(w =>
+    Math.abs(w.length - palabra.length) <= tolerancia && levenshtein(palabra, w) <= tolerancia
+  )
+}
+
 export function filterModelos(modelos: Modelo[], filters: ModeloFilters): Modelo[] {
   return modelos.filter(m => {
     if (filters.marca && m.marca.toLowerCase() !== filters.marca.toLowerCase()) return false
@@ -261,9 +294,9 @@ export function filterModelos(modelos: Modelo[], filters: ModeloFilters): Modelo
     if (filters.disponibilidad === 'disponible' && total <= 0) return false
     if (filters.disponibilidad === 'agotado' && total > 0) return false
     if (filters.search) {
-      const haystack = `${m.marca} ${m.modelo} ${m.codigo_base}`.toLowerCase()
+      const haystackWords = `${m.marca} ${m.modelo} ${m.codigo_base}`.toLowerCase().split(/\s+/).filter(Boolean)
       const palabras = filters.search.toLowerCase().split(/\s+/).filter(Boolean)
-      if (!palabras.every(p => haystack.includes(p))) return false
+      if (!palabras.every(p => palabraAproximada(p, haystackWords))) return false
     }
     if (filters.talle && !m.modelo_talles.some(t => String(t.talle_arg) === filters.talle)) return false
     return true
