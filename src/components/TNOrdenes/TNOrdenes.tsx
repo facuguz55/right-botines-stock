@@ -1,15 +1,11 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import { fetchAllTNOrders, paymentStatusLabel, paymentStatusClass, humanizePaymentMethod, formatARS, getTNCredentials, type TNOrder } from '../../services/tiendanubeService'
-import { TNSetup } from '../TNSetup/TNSetup'
 import './TNOrdenes.css'
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'cancelled'
 
 export function TNOrdenes() {
-  const creds = getTNCredentials()
-  const isConfigured = !!creds.storeId && !!creds.token
-
   const [orders, setOrders]       = useState<TNOrder[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState('')
@@ -20,7 +16,6 @@ export function TNOrdenes() {
 
   const load = async (force = false) => {
     const { storeId, token } = getTNCredentials()
-    if (!storeId || !token) return
     setLoading(true)
     setError('')
     setProgress(0)
@@ -34,9 +29,8 @@ export function TNOrdenes() {
     }
   }
 
-  useEffect(() => { if (isConfigured) load() }, [isConfigured])
+  useEffect(() => { load() }, [])
 
-  if (!isConfigured) return <TNSetup onConfigured={() => load()} />
   if (loading) return (
     <div className="tn-loading">
       <div className="spinner" />

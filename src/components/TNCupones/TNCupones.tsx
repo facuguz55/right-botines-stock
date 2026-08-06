@@ -1,13 +1,9 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, Tag } from 'lucide-react'
 import { fetchTNCoupons, getTNCredentials, type TNCoupon } from '../../services/tiendanubeService'
-import { TNSetup } from '../TNSetup/TNSetup'
 import './TNCupones.css'
 
 export function TNCupones() {
-  const creds = getTNCredentials()
-  const isConfigured = !!creds.storeId && !!creds.token
-
   const [coupons, setCoupons] = useState<TNCoupon[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
@@ -15,7 +11,6 @@ export function TNCupones() {
 
   const load = async () => {
     const { storeId, token } = getTNCredentials()
-    if (!storeId || !token) return
     setLoading(true)
     setError('')
     try {
@@ -28,9 +23,8 @@ export function TNCupones() {
     }
   }
 
-  useEffect(() => { if (isConfigured) load() }, [isConfigured])
+  useEffect(() => { load() }, [])
 
-  if (!isConfigured) return <TNSetup onConfigured={load} />
   if (loading) return <div className="tn-loading"><div className="spinner" /><p>Cargando cupones...</p></div>
   if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={load}>Reintentar</button></div>
 

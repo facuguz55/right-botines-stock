@@ -4,14 +4,11 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { useTiendaNube } from '../../hooks/useTiendaNube'
-import { TNSetup } from '../TNSetup/TNSetup'
 import { formatARS } from '../../services/tiendanubeService'
 import './TNAnalytics.css'
 
 export function TNAnalytics() {
-  const { metrics, loading, error, progress, isConfigured, reload } = useTiendaNube()
-
-  if (!isConfigured) return <TNSetup onConfigured={reload} />
+  const { metrics, loading, error, progress, reload } = useTiendaNube()
 
   if (loading) {
     return (

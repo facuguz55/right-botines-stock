@@ -7,12 +7,8 @@ export function useTiendaNube(force = false) {
   const [error, setError]       = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
 
-  const creds = getTNCredentials()
-  const isConfigured = !!creds.storeId && !!creds.token
-
   const load = useCallback(async (forceLoad = false) => {
     const { storeId, token } = getTNCredentials()
-    if (!storeId || !token) { setLoading(false); return }
     setLoading(true)
     setError(null)
     setProgress(0)
@@ -29,5 +25,5 @@ export function useTiendaNube(force = false) {
 
   useEffect(() => { load(force) }, [load, force])
 
-  return { metrics, loading, error, progress, isConfigured, reload: () => load(true) }
+  return { metrics, loading, error, progress, reload: () => load(true) }
 }

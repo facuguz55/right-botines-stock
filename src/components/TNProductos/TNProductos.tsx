@@ -4,7 +4,6 @@ import {
   fetchTNVariants, updateTNVariant, getTNCredentials,
   formatARS, type TNVariantItem,
 } from '../../services/tiendanubeService'
-import { TNSetup } from '../TNSetup/TNSetup'
 import './TNProductos.css'
 
 interface EditingState {
@@ -15,9 +14,6 @@ interface EditingState {
 }
 
 export function TNProductos() {
-  const creds = getTNCredentials()
-  const isConfigured = !!creds.storeId && !!creds.token
-
   const [variants, setVariants]   = useState<TNVariantItem[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState('')
@@ -29,7 +25,6 @@ export function TNProductos() {
 
   const load = async () => {
     const { storeId, token } = getTNCredentials()
-    if (!storeId || !token) return
     setLoading(true)
     setError('')
     try {
@@ -42,7 +37,7 @@ export function TNProductos() {
     }
   }
 
-  useEffect(() => { if (isConfigured) load() }, [isConfigured])
+  useEffect(() => { load() }, [])
 
   const startEdit = (v: TNVariantItem, field: 'stock' | 'price') => {
     setEditing({
@@ -58,7 +53,6 @@ export function TNProductos() {
   const saveEdit = async () => {
     if (!editing) return
     const { storeId, token } = getTNCredentials()
-    if (!storeId || !token) return
     setSaving(true)
     setSaveMsg('')
     try {
@@ -77,7 +71,6 @@ export function TNProductos() {
     }
   }
 
-  if (!isConfigured) return <TNSetup onConfigured={() => load()} />
   if (loading) return <div className="tn-loading"><div className="spinner" /><p>Cargando productos TiendaNube...</p></div>
   if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={load}>Reintentar</button></div>
 

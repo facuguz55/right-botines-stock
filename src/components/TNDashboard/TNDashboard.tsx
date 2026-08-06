@@ -4,16 +4,13 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts'
 import { useTiendaNube } from '../../hooks/useTiendaNube'
-import { TNSetup } from '../TNSetup/TNSetup'
 import { formatARS } from '../../services/tiendanubeService'
 import './TNDashboard.css'
 
 const PIE_COLORS = ['var(--accent)', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899']
 
 export function TNDashboard() {
-  const { metrics, loading, error, progress, isConfigured, reload } = useTiendaNube()
-
-  if (!isConfigured) return <TNSetup onConfigured={reload} />
+  const { metrics, loading, error, progress, reload } = useTiendaNube()
 
   if (loading) {
     return (

@@ -5,13 +5,9 @@ import {
   formatARS, paymentStatusLabel, paymentStatusClass,
   type TNCustomer, type TNOrder,
 } from '../../services/tiendanubeService'
-import { TNSetup } from '../TNSetup/TNSetup'
 import './TNClientes.css'
 
 export function TNClientes() {
-  const creds = getTNCredentials()
-  const isConfigured = !!creds.storeId && !!creds.token
-
   const [customers, setCustomers]   = useState<TNCustomer[]>([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState('')
@@ -22,7 +18,6 @@ export function TNClientes() {
 
   const load = async () => {
     const { storeId, token } = getTNCredentials()
-    if (!storeId || !token) return
     setLoading(true)
     setError('')
     try {
@@ -35,23 +30,20 @@ export function TNClientes() {
     }
   }
 
-  useEffect(() => { if (isConfigured) load() }, [isConfigured])
+  useEffect(() => { load() }, [])
 
   const toggleCustomer = async (id: number) => {
     if (expanded === id) { setExpanded(null); setExpandedOrders([]); return }
     setExpanded(id)
     setLoadingOrders(true)
     const { storeId, token } = getTNCredentials()
-    if (storeId && token) {
-      try {
-        const orders = await fetchTNCustomerOrders(storeId, token, id)
-        setExpandedOrders(orders)
-      } catch { setExpandedOrders([]) }
-    }
+    try {
+      const orders = await fetchTNCustomerOrders(storeId, token, id)
+      setExpandedOrders(orders)
+    } catch { setExpandedOrders([]) }
     setLoadingOrders(false)
   }
 
-  if (!isConfigured) return <TNSetup onConfigured={load} />
   if (loading) return <div className="tn-loading"><div className="spinner" /><p>Cargando clientes...</p></div>
   if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={load}>Reintentar</button></div>
 

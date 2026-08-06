@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Mail, Send, RefreshCw, Inbox, Edit3, X, ExternalLink, MessageSquare } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { TNSetup } from '../TNSetup/TNSetup'
-import { getTNCredentials } from '../../services/tiendanubeService'
 import './TNMails.css'
 
 interface MailMessage {
@@ -17,9 +15,6 @@ interface MailMessage {
 }
 
 export function TNMails() {
-  const creds = getTNCredentials()
-  const isConfigured = !!creds.storeId && !!creds.token
-
   const [messages, setMessages]   = useState<MailMessage[]>([])
   const [selected, setSelected]   = useState<MailMessage | null>(null)
   const [loading, setLoading]     = useState(true)
@@ -79,8 +74,6 @@ export function TNMails() {
       setSending(false)
     }
   }
-
-  if (!isConfigured) return <TNSetup onConfigured={() => {}} />
 
   const unread = messages.filter(m => !m.read).length
 
