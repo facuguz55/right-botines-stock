@@ -264,7 +264,7 @@ function tnHeaders(token: string): HeadersInit {
   return { Authentication: `bearer ${token}`, 'User-Agent': USER_AGENT }
 }
 
-async function handleResponse(res: Response): Promise<{ data: unknown; hasMore: boolean }> {
+async function handleResponse(res: Response): Promise<{ data: unknown; hasMore: boolean; total: number | null }> {
   if (!res.ok) {
     let detail = ''
     try { detail = JSON.stringify(await res.json()) } catch { /* ignore */ }
@@ -274,7 +274,9 @@ async function handleResponse(res: Response): Promise<{ data: unknown; hasMore: 
   }
   const data = await res.json()
   const hasMore = (res.headers.get('Link') ?? '').includes('rel="next"')
-  return { data, hasMore }
+  const totalHeader = res.headers.get('X-Total-Count')
+  const total = totalHeader ? parseInt(totalHeader, 10) : null
+  return { data, hasMore, total: Number.isFinite(total) ? total : null }
 }
 
 async function tnFetch(
@@ -282,7 +284,7 @@ async function tnFetch(
   token: string,
   path: string,
   params: Record<string, string> = {},
-): Promise<{ data: unknown; hasMore: boolean }> {
+): Promise<{ data: unknown; hasMore: boolean; total: number | null }> {
   const qs = new URLSearchParams(params).toString()
 
   // Intento directo (solo si tenemos credenciales locales)
@@ -321,6 +323,54 @@ async function tnFetch(
   return await handleResponse(proxyRes)
 }
 
+// Trae todas las páginas de un recurso paginado. Si la API devuelve el total
+// (header X-Total-Count, reenviado por el proxy), pide el resto de las
+// páginas EN PARALELO en vez de una por una — cada pedido ya tarda varios
+// segundos (más aún si pasa por el proxy sin credenciales locales), ver
+// tnFetch), así que hacerlo secuencial multiplica la espera por página.
+// Si no hay total (algún endpoint que no lo mande), cae al modo secuencial
+// de siempre usando `hasMore`.
+async function fetchAllPages<T>(
+  storeId: string,
+  token: string,
+  path: string,
+  extraParams: Record<string, string>,
+  maxPages: number,
+  onProgress?: (n: number) => void,
+  perPage = 200,
+): Promise<T[]> {
+  const first = await tnFetch(storeId, token, path, { ...extraParams, per_page: String(perPage), page: '1' })
+  const pages: T[][] = [first.data as T[]]
+  onProgress?.(pages[0].length)
+
+  if (first.total != null) {
+    const totalPages = Math.min(Math.ceil(first.total / perPage), maxPages)
+    if (totalPages > 1) {
+      const rest = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, i) => i + 2).map(page =>
+          tnFetch(storeId, token, path, { ...extraParams, per_page: String(perPage), page: String(page) })
+        )
+      )
+      for (const r of rest) pages.push(r.data as T[])
+      onProgress?.(pages.reduce((s, p) => s + p.length, 0))
+    }
+    return pages.flat()
+  }
+
+  // Fallback secuencial (sin X-Total-Count no sabemos cuántas páginas hay)
+  let more = first.hasMore
+  let page = 2
+  const all = pages[0].slice()
+  while (more && page <= maxPages) {
+    const res = await tnFetch(storeId, token, path, { ...extraParams, per_page: String(perPage), page: String(page) })
+    all.push(...(res.data as T[]))
+    onProgress?.(all.length)
+    more = res.hasMore
+    page++
+  }
+  return all
+}
+
 // ── Orders ────────────────────────────────────────────────────────────────────
 
 const ALL_ORDERS_KEY = 'rb_tn_orders'
@@ -342,16 +392,7 @@ export async function fetchAllTNOrders(
     } catch { /* ignore */ }
   }
 
-  const all: TNOrder[] = []
-  for (let page = 1; page <= 25; page++) {
-    const { data, hasMore } = await tnFetch(storeId, token, 'orders', {
-      per_page: '200',
-      page: String(page),
-    })
-    all.push(...(data as TNOrder[]))
-    onProgress?.(all.length)
-    if (!hasMore) break
-  }
+  const all = await fetchAllPages<TNOrder>(storeId, token, 'orders', {}, 25, onProgress)
 
   try { localStorage.setItem(ALL_ORDERS_KEY, JSON.stringify({ data: all, ts: Date.now() })) } catch { /* ignore */ }
   return all
@@ -360,16 +401,7 @@ export async function fetchAllTNOrders(
 // ── Products ──────────────────────────────────────────────────────────────────
 
 export async function fetchTNRawProducts(storeId: string, token: string): Promise<TNRawProduct[]> {
-  const all: TNRawProduct[] = []
-  for (let page = 1; page <= 10; page++) {
-    const { data, hasMore } = await tnFetch(storeId, token, 'products', {
-      per_page: '200',
-      page: String(page),
-    })
-    all.push(...(data as TNRawProduct[]))
-    if (!hasMore) break
-  }
-  return all
+  return fetchAllPages<TNRawProduct>(storeId, token, 'products', {}, 10)
 }
 
 export async function fetchTNProduct(storeId: string, token: string, productId: number): Promise<TNRawProduct> {
@@ -699,15 +731,7 @@ export async function createTNWebhook(storeId: string, token: string, event: str
 // ── Customers ─────────────────────────────────────────────────────────────────
 
 export async function fetchTNCustomers(storeId: string, token: string): Promise<TNCustomer[]> {
-  const all: TNCustomer[] = []
-  for (let page = 1; page <= 10; page++) {
-    const { data, hasMore } = await tnFetch(storeId, token, 'customers', {
-      per_page: '200',
-      page: String(page),
-    })
-    all.push(...(data as TNCustomer[]))
-    if (!hasMore) break
-  }
+  const all = await fetchAllPages<TNCustomer>(storeId, token, 'customers', {}, 10)
   return all.sort((a, b) => parseAmount(b.total_spent) - parseAmount(a.total_spent))
 }
 
@@ -716,31 +740,16 @@ export async function fetchTNCustomerOrders(
   token: string,
   customerId: number,
 ): Promise<TNOrder[]> {
-  const all: TNOrder[] = []
-  for (let page = 1; page <= 5; page++) {
-    const { data, hasMore } = await tnFetch(storeId, token, 'orders', {
-      customer_id: String(customerId),
-      per_page: '50',
-      page: String(page),
-    })
-    all.push(...(data as TNOrder[]))
-    if (!hasMore) break
-  }
+  const all = await fetchAllPages<TNOrder>(
+    storeId, token, 'orders', { customer_id: String(customerId) }, 5, undefined, 50
+  )
   return all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 }
 
 // ── Coupons ───────────────────────────────────────────────────────────────────
 
 export async function fetchTNCoupons(storeId: string, token: string): Promise<TNCoupon[]> {
-  const all: TNCoupon[] = []
-  for (let page = 1; page <= 5; page++) {
-    const { data, hasMore } = await tnFetch(storeId, token, 'coupons', {
-      per_page: '200',
-      page: String(page),
-    })
-    all.push(...(data as TNCoupon[]))
-    if (!hasMore) break
-  }
+  const all = await fetchAllPages<TNCoupon>(storeId, token, 'coupons', {}, 5)
   return all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 }
 
