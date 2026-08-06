@@ -1,28 +1,28 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import {
-  fetchTNCustomers, fetchTNCustomerOrders, getTNCredentials,
   formatARS, paymentStatusLabel, paymentStatusClass,
   type TNCustomer, type TNOrder,
 } from '../../services/tiendanubeService'
+import { fetchLocalTNClientes, fetchLocalTNOrdenes, syncTNClientes } from '../../services/tnOrdersSync'
 import './TNClientes.css'
 
 export function TNClientes() {
   const [customers, setCustomers]   = useState<TNCustomer[]>([])
+  const [allOrders, setAllOrders]   = useState<TNOrder[]>([])
   const [loading, setLoading]       = useState(true)
+  const [syncing, setSyncing]       = useState(false)
   const [error, setError]           = useState('')
   const [expanded, setExpanded]     = useState<number | null>(null)
-  const [expandedOrders, setExpandedOrders] = useState<TNOrder[]>([])
-  const [loadingOrders, setLoadingOrders]   = useState(false)
   const [search, setSearch]         = useState('')
 
   const load = async () => {
-    const { storeId, token } = getTNCredentials()
     setLoading(true)
     setError('')
     try {
-      const data = await fetchTNCustomers(storeId, token)
-      setCustomers(data)
+      const [customersData, ordersData] = await Promise.all([fetchLocalTNClientes(), fetchLocalTNOrdenes()])
+      setCustomers(customersData)
+      setAllOrders(ordersData)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar clientes')
     } finally {
@@ -30,22 +30,26 @@ export function TNClientes() {
     }
   }
 
+  const refresh = async () => {
+    setSyncing(true)
+    try {
+      await syncTNClientes()
+      await load()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al sincronizar clientes')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   useEffect(() => { load() }, [])
 
-  const toggleCustomer = async (id: number) => {
-    if (expanded === id) { setExpanded(null); setExpandedOrders([]); return }
-    setExpanded(id)
-    setLoadingOrders(true)
-    const { storeId, token } = getTNCredentials()
-    try {
-      const orders = await fetchTNCustomerOrders(storeId, token, id)
-      setExpandedOrders(orders)
-    } catch { setExpandedOrders([]) }
-    setLoadingOrders(false)
+  const toggleCustomer = (id: number) => {
+    setExpanded(expanded === id ? null : id)
   }
 
   if (loading) return <div className="tn-loading"><div className="spinner" /><p>Cargando clientes...</p></div>
-  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={load}>Reintentar</button></div>
+  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={() => load()}>Reintentar</button></div>
 
   const filtered = customers.filter(c => {
     if (!search) return true
@@ -60,8 +64,8 @@ export function TNClientes() {
           <h1 className="page-title">Clientes</h1>
           <p className="page-subtitle">{customers.length} clientes registrados</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={load}>
-          <RefreshCw size={13} /> Actualizar
+        <button className="btn btn-secondary btn-sm" onClick={refresh} disabled={syncing}>
+          <RefreshCw size={13} /> {syncing ? 'Sincronizando...' : 'Actualizar'}
         </button>
       </div>
 
@@ -148,13 +152,14 @@ export function TNClientes() {
                 {expanded === c.id && (
                   <tr key={`${c.id}-detail`} className="tn-order-detail-row">
                     <td colSpan={6}>
-                      {loadingOrders ? (
-                        <div style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '.875rem' }}>Cargando órdenes...</div>
-                      ) : expandedOrders.length === 0 ? (
-                        <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '.875rem' }}>Sin órdenes registradas.</div>
-                      ) : (
+                      {(() => {
+                        const clientOrders = allOrders.filter(o => o.customer?.id === c.id)
+                        if (clientOrders.length === 0) {
+                          return <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '.875rem' }}>Sin órdenes registradas.</div>
+                        }
+                        return (
                         <div className="tn-client-orders">
-                          {expandedOrders.map(o => (
+                          {clientOrders.map(o => (
                             <div key={o.id} className="tn-client-order-row">
                               <span className="tn-order-num">#{o.number}</span>
                               <span style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>
@@ -170,7 +175,8 @@ export function TNClientes() {
                             </div>
                           ))}
                         </div>
-                      )}
+                        )
+                      })()}
                     </td>
                   </tr>
                 )}

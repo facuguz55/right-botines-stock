@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, Tag } from 'lucide-react'
-import { fetchTNCoupons, getTNCredentials, type TNCoupon } from '../../services/tiendanubeService'
+import { type TNCoupon } from '../../services/tiendanubeService'
+import { fetchLocalTNCupones, syncTNCupones } from '../../services/tnOrdersSync'
 import './TNCupones.css'
 
 export function TNCupones() {
   const [coupons, setCoupons] = useState<TNCoupon[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [error, setError]     = useState('')
   const [filter, setFilter]   = useState<'all' | 'active' | 'expired'>('all')
 
   const load = async () => {
-    const { storeId, token } = getTNCredentials()
     setLoading(true)
     setError('')
     try {
-      const data = await fetchTNCoupons(storeId, token)
+      const data = await fetchLocalTNCupones()
       setCoupons(data)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar cupones')
@@ -23,10 +24,22 @@ export function TNCupones() {
     }
   }
 
+  const refresh = async () => {
+    setSyncing(true)
+    try {
+      await syncTNCupones()
+      await load()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al sincronizar cupones')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   useEffect(() => { load() }, [])
 
   if (loading) return <div className="tn-loading"><div className="spinner" /><p>Cargando cupones...</p></div>
-  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={load}>Reintentar</button></div>
+  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={() => load()}>Reintentar</button></div>
 
   const now = new Date()
 
@@ -58,8 +71,8 @@ export function TNCupones() {
           <h1 className="page-title">Cupones</h1>
           <p className="page-subtitle">{coupons.length} cupones en total · {totalUses} usos</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={load}>
-          <RefreshCw size={13} /> Actualizar
+        <button className="btn btn-secondary btn-sm" onClick={refresh} disabled={syncing}>
+          <RefreshCw size={13} /> {syncing ? 'Sincronizando...' : 'Actualizar'}
         </button>
       </div>
 

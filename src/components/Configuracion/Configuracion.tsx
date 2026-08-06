@@ -105,7 +105,11 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
   const [registrandoWebhooks, setRegistrandoWebhooks] = useState(false)
   const [webhookMsg, setWebhookMsg] = useState<{ ok: boolean; msg: string } | null>(null)
 
-  const REQUIRED_TN_EVENTS = ['order/paid', 'product/created', 'product/updated', 'product/deleted']
+  const REQUIRED_TN_EVENTS = [
+    'order/created', 'order/updated', 'order/paid', 'order/cancelled',
+    'product/created', 'product/updated', 'product/deleted',
+    'customer/created', 'customer/updated', 'customer/deleted',
+  ]
 
   const handleRegisterWebhooks = async () => {
     setRegistrandoWebhooks(true)

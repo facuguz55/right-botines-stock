@@ -1,29 +1,39 @@
 import { useState, useEffect, useCallback } from 'react'
-import { fetchTNMetrics, getTNCredentials, type TNMetrics } from '../services/tiendanubeService'
+import { buildTNMetrics, type TNMetrics } from '../services/tiendanubeService'
+import { fetchLocalTNOrdenes, syncTNOrdenes } from '../services/tnOrdersSync'
 
-export function useTiendaNube(force = false) {
-  const [metrics, setMetrics]   = useState<TNMetrics | null>(null)
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState<string | null>(null)
-  const [progress, setProgress] = useState(0)
+// Progreso siempre 0: la lectura es local (Supabase), ya no pagina contra la
+// API de TN. Se mantiene el campo para no tocar la UI de TNDashboard/TNAnalytics.
+const progress = 0
 
-  const load = useCallback(async (forceLoad = false) => {
-    const { storeId, token } = getTNCredentials()
+export function useTiendaNube() {
+  const [metrics, setMetrics] = useState<TNMetrics | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
+
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    setProgress(0)
     try {
-      const data = await fetchTNMetrics(storeId, token, n => setProgress(n), forceLoad)
-      setMetrics(data)
+      const orders = await fetchLocalTNOrdenes()
+      setMetrics(buildTNMetrics(orders))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar datos de TiendaNube')
     } finally {
       setLoading(false)
-      setProgress(0)
     }
   }, [])
 
-  useEffect(() => { load(force) }, [load, force])
+  const reload = useCallback(async () => {
+    try {
+      await syncTNOrdenes()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al sincronizar con TiendaNube')
+    }
+    await load()
+  }, [load])
 
-  return { metrics, loading, error, progress, reload: () => load(true) }
+  useEffect(() => { load() }, [load])
+
+  return { metrics, loading, error, progress, reload }
 }

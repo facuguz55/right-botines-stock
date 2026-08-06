@@ -26,7 +26,6 @@ import { Seguimientos } from './components/Seguimientos/Seguimientos'
 import { TNDashboard } from './components/TNDashboard/TNDashboard'
 import { TNAnalytics } from './components/TNAnalytics/TNAnalytics'
 import { TNOrdenes } from './components/TNOrdenes/TNOrdenes'
-import { TNProductos } from './components/TNProductos/TNProductos'
 import { TNClientes } from './components/TNClientes/TNClientes'
 import { TNCupones } from './components/TNCupones/TNCupones'
 import { TNMails } from './components/TNMails/TNMails'
@@ -185,7 +184,6 @@ export function App() {
       {activePage === 'tn_dashboard' && <TNDashboard />}
       {activePage === 'tn_analytics' && <TNAnalytics />}
       {activePage === 'tn_ordenes'   && <TNOrdenes />}
-      {activePage === 'tn_productos' && <TNProductos />}
       {activePage === 'tn_clientes'  && <TNClientes />}
       {activePage === 'tn_cupones'   && <TNCupones />}
       {activePage === 'tn_mails'     && <TNMails />}

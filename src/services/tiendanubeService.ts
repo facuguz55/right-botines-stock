@@ -21,6 +21,7 @@ export interface TNOrder {
   status: 'open' | 'closed' | 'cancelled'
   payment_status: 'pending' | 'authorized' | 'paid' | 'voided' | 'refunded' | 'unpaid' | 'partially_paid'
   fulfillment_status: 'unfulfilled' | 'fulfilled' | 'partial' | null
+  shipping_status?: string | null // nombre real del campo en la API (fulfillment_status arriba nunca viene)
   total: string
   subtotal: string
   total_shipping: string
@@ -788,23 +789,7 @@ function computeMonthlyStats(orders: TNOrder[]): MonthlyStats[] {
   return Object.values(months)
 }
 
-export async function fetchTNMetrics(
-  storeId: string,
-  token: string,
-  onProgress?: (n: number) => void,
-  force = false,
-): Promise<TNMetrics> {
-  if (!force && memCache && Date.now() - memCache.ts < CACHE_TTL) return memCache.data
-
-  if (!force && !memCache) {
-    const p = loadCache()
-    if (p && Date.now() - p.ts < CACHE_TTL) {
-      memCache = p
-      return p.data
-    }
-  }
-
-  const allOrders = await fetchAllTNOrders(storeId, token, onProgress, force)
+export function buildTNMetrics(allOrders: TNOrder[]): TNMetrics {
   const { todayStart, weekStart, monthStart } = arBoundaries()
 
   let totalFacturado = 0
@@ -915,7 +900,7 @@ export async function fetchTNMetrics(
 
   const ventasPorMes = computeMonthlyStats(allOrders)
 
-  const metrics: TNMetrics = {
+  return {
     orders: allOrders,
     totalFacturado,
     ventasHoy,
@@ -935,6 +920,26 @@ export async function fetchTNMetrics(
     clientesRecurrentes,
     ultimaVenta,
   }
+}
+
+export async function fetchTNMetrics(
+  storeId: string,
+  token: string,
+  onProgress?: (n: number) => void,
+  force = false,
+): Promise<TNMetrics> {
+  if (!force && memCache && Date.now() - memCache.ts < CACHE_TTL) return memCache.data
+
+  if (!force && !memCache) {
+    const p = loadCache()
+    if (p && Date.now() - p.ts < CACHE_TTL) {
+      memCache = p
+      return p.data
+    }
+  }
+
+  const allOrders = await fetchAllTNOrders(storeId, token, onProgress, force)
+  const metrics = buildTNMetrics(allOrders)
 
   memCache = { data: metrics, ts: Date.now() }
   saveCache(memCache)

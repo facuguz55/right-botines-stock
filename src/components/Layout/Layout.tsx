@@ -1,6 +1,6 @@
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
-  ShoppingBag, TrendingUp, ShoppingCart, Box, Users, UserCheck, Tag, MessageCircle, PieChart,
+  ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
   LogOut,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
@@ -44,7 +44,6 @@ const ALL_NAV: NavItem[] = [
   { page: 'tn_dashboard',   label: 'Dashboard',     Icon: ShoppingBag  },
   { page: 'tn_analytics',   label: 'Análisis',      Icon: TrendingUp   },
   { page: 'tn_ordenes',     label: 'Órdenes',       Icon: ShoppingCart },
-  { page: 'tn_productos',   label: 'Productos',     Icon: Box          },
   { page: 'tn_clientes',    label: 'Clientes',      Icon: Users        },
   { page: 'tn_cupones',     label: 'Cupones',       Icon: Tag          },
   { page: 'tn_mails',       label: 'Mensajes',      Icon: MessageCircle},
@@ -92,7 +91,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
           ))}
 
           <p className="nav-group-label">Gestión</p>
-          {(['tn_ordenes', 'tn_productos', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
+          {(['tn_ordenes', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
             <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNavigate(p)} />
           ))}
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { syncTNStock, type SyncResult } from '../services/tnSync'
+import { syncTNOrdenes, syncTNClientes, syncTNCupones } from '../services/tnOrdersSync'
 
 const SYNC_INTERVAL = 60 * 60 * 1000 // 1 hora — red de seguridad de respaldo para webhooks perdidos
 
@@ -20,7 +21,23 @@ export function useTNSync(onSynced?: () => void) {
     setSyncing(true)
     setProgress('Iniciando sincronización...')
     try {
-      const result = await syncTNStock(setProgress)
+      const [stockRes, ordenesRes, clientesRes, cuponesRes] = await Promise.allSettled([
+        syncTNStock(setProgress),
+        syncTNOrdenes(),
+        syncTNClientes(),
+        syncTNCupones(),
+      ])
+
+      const result: SyncResult = stockRes.status === 'fulfilled'
+        ? stockRes.value
+        : { created: 0, updated: 0, imagesAdded: 0, total: 0, errors: [] }
+
+      for (const [label, r] of [['órdenes', ordenesRes], ['clientes', clientesRes], ['cupones', cuponesRes]] as const) {
+        if (r.status === 'rejected') {
+          result.errors.push(`Sync de ${label}: ${(r.reason as Error)?.message ?? 'error desconocido'}`)
+        }
+      }
+
       setLastResult(result)
       setLastSyncAt(new Date())
       if (result.errors.length > 0) console.error('Errores de sync TiendaNube:', result.errors)

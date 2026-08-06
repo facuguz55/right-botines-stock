@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp, Search } from 'lucide-react'
-import { fetchAllTNOrders, paymentStatusLabel, paymentStatusClass, humanizePaymentMethod, formatARS, getTNCredentials, type TNOrder } from '../../services/tiendanubeService'
+import { paymentStatusLabel, paymentStatusClass, humanizePaymentMethod, formatARS, type TNOrder } from '../../services/tiendanubeService'
+import { fetchLocalTNOrdenes, syncTNOrdenes } from '../../services/tnOrdersSync'
 import './TNOrdenes.css'
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'cancelled'
@@ -8,24 +9,34 @@ type StatusFilter = 'all' | 'paid' | 'pending' | 'cancelled'
 export function TNOrdenes() {
   const [orders, setOrders]       = useState<TNOrder[]>([])
   const [loading, setLoading]     = useState(true)
+  const [syncing, setSyncing]     = useState(false)
   const [error, setError]         = useState('')
   const [expanded, setExpanded]   = useState<number | null>(null)
   const [statusFilter, setStatus] = useState<StatusFilter>('all')
   const [search, setSearch]       = useState('')
-  const [progress, setProgress]   = useState(0)
 
-  const load = async (force = false) => {
-    const { storeId, token } = getTNCredentials()
+  const load = async () => {
     setLoading(true)
     setError('')
-    setProgress(0)
     try {
-      const data = await fetchAllTNOrders(storeId, token, n => setProgress(n), force)
-      setOrders([...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+      const data = await fetchLocalTNOrdenes()
+      setOrders(data)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar órdenes')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const refresh = async () => {
+    setSyncing(true)
+    try {
+      await syncTNOrdenes()
+      await load()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al sincronizar órdenes')
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -34,11 +45,10 @@ export function TNOrdenes() {
   if (loading) return (
     <div className="tn-loading">
       <div className="spinner" />
-      <p>Cargando órdenes{progress > 0 ? ` — ${progress}` : '...'}
-      </p>
+      <p>Cargando órdenes...</p>
     </div>
   )
-  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={() => load(true)}>Reintentar</button></div>
+  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={() => load()}>Reintentar</button></div>
 
   const filtered = orders.filter(o => {
     if (statusFilter === 'paid' && o.payment_status !== 'paid' && o.payment_status !== 'authorized') return false
@@ -68,8 +78,8 @@ export function TNOrdenes() {
           <h1 className="page-title">Órdenes</h1>
           <p className="page-subtitle">{orders.length} órdenes en total</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={() => load(true)}>
-          <RefreshCw size={13} /> Actualizar
+        <button className="btn btn-secondary btn-sm" onClick={refresh} disabled={syncing}>
+          <RefreshCw size={13} /> {syncing ? 'Sincronizando...' : 'Actualizar'}
         </button>
       </div>
 
