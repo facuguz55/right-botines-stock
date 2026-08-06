@@ -33,6 +33,7 @@ import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
 import { useModelos } from './hooks/useModelos'
 import { useTNSync } from './hooks/useTNSync'
 import { useCarrito } from './hooks/useCarrito'
+import { useConfigVentas } from './hooks/useConfigVentas'
 import { useClientesLocales } from './hooks/useClientesLocales'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
@@ -85,7 +86,8 @@ export function App() {
     lastSyncAt: tnLastSyncAt,
   } = useTNSync(reload)
 
-  const carrito = useCarrito()
+  const configVentas = useConfigVentas()
+  const carrito = useCarrito(configVentas.descuentoTransferenciaPct)
   const clientesLocales = useClientesLocales()
   const [showCart, setShowCart] = useState(false)
 
@@ -181,7 +183,7 @@ export function App() {
         </div>
       )}
       {activePage === 'configuracion' && role === 'dueno' && (
-        <Configuracion modelos={modelos} onReload={reload} tabInicial={configTabInicial} />
+        <Configuracion modelos={modelos} onReload={reload} tabInicial={configTabInicial} configVentas={configVentas} />
       )}
 
       {activePage === 'tn_dashboard' && <TNDashboard />}
@@ -211,6 +213,7 @@ export function App() {
         isOpen={showCart}
         onClose={() => setShowCart(false)}
         items={carrito.items}
+        descuentoPct={configVentas.descuentoTransferenciaPct}
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
@@ -220,6 +223,8 @@ export function App() {
       <VentaEnCurso
         items={carrito.items}
         subtotal={carrito.subtotal}
+        descuentoPct={configVentas.descuentoTransferenciaPct}
+        onSetUsarPromocional={carrito.setUsarPromocional}
         onAddMore={() => setActivePage('stock')}
         onStartPayment={() => setShowCart(true)}
         onCancelSale={carrito.clear}

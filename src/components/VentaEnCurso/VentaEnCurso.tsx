@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import type { CartItem } from '../../types'
 import { Modal } from '../Modal/Modal'
+import { getPrecioPromocional, getPrecioUnitario } from '../../utils/precios'
 import './VentaEnCurso.css'
 
 interface VentaEnCursoProps {
   items: CartItem[]
   subtotal: number
+  descuentoPct: number | null
+  onSetUsarPromocional: (modeloId: string, talleId: string, value: boolean) => void
   onAddMore: () => void
   onStartPayment: () => void
   onCancelSale: () => void
 }
 
-export function VentaEnCurso({ items, subtotal, onAddMore, onStartPayment, onCancelSale }: VentaEnCursoProps) {
+export function VentaEnCurso({ items, subtotal, descuentoPct, onSetUsarPromocional, onAddMore, onStartPayment, onCancelSale }: VentaEnCursoProps) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   if (items.length === 0) return null
@@ -25,17 +28,41 @@ export function VentaEnCurso({ items, subtotal, onAddMore, onStartPayment, onCan
         </div>
 
         <div className="venta-en-curso-items">
-          {items.map((item, idx) => (
-            <div key={`${item.modelo.id}-${item.talleId}-${idx}`} className="venta-en-curso-item">
-              <span className="venta-en-curso-item-name">{item.modelo.marca} {item.modelo.modelo}</span>
-              <span className="venta-en-curso-item-detail">
-                talle {item.talleArg} × {item.cantidad}
-              </span>
-              <span className="venta-en-curso-item-precio">
-                ${(item.modelo.precio_venta * item.cantidad).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-              </span>
-            </div>
-          ))}
+          {items.map((item, idx) => {
+            const promo = getPrecioPromocional(item.modelo, descuentoPct)
+            const precioUnit = getPrecioUnitario(item.modelo, item.usarPromocional, descuentoPct)
+            return (
+              <div key={`${item.modelo.id}-${item.talleId}-${idx}`} className="venta-en-curso-item">
+                <div className="venta-en-curso-item-row">
+                  <span className="venta-en-curso-item-name">{item.modelo.marca} {item.modelo.modelo}</span>
+                  <span className="venta-en-curso-item-detail">
+                    talle {item.talleArg} × {item.cantidad}
+                  </span>
+                  <span className="venta-en-curso-item-precio">
+                    ${(precioUnit * item.cantidad).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                {promo != null && (
+                  <div className="precio-toggle" role="group" aria-label="Precio a usar">
+                    <button
+                      type="button"
+                      className={`precio-toggle-btn${!item.usarPromocional ? ' active' : ''}`}
+                      onClick={() => onSetUsarPromocional(item.modelo.id, item.talleId, false)}
+                    >
+                      Lista ${item.modelo.precio_venta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                    </button>
+                    <button
+                      type="button"
+                      className={`precio-toggle-btn${item.usarPromocional ? ' active' : ''}`}
+                      onClick={() => onSetUsarPromocional(item.modelo.id, item.talleId, true)}
+                    >
+                      Promo ${promo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
 
         <div className="venta-en-curso-actions">

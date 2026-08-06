@@ -38,13 +38,19 @@
 
 .venta-en-curso-item {
   display: flex;
-  align-items: baseline;
-  gap: .5rem;
+  flex-direction: column;
+  gap: .3rem;
   padding: .5rem 1rem;
   border-bottom: 1px solid var(--border);
   font-size: .8125rem;
 }
 .venta-en-curso-item:last-child { border-bottom: none; }
+
+.venta-en-curso-item-row {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+}
 
 .venta-en-curso-item-name {
   color: var(--text-primary);
@@ -66,6 +72,20 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+.precio-toggle { display: flex; gap: .3rem; flex-wrap: wrap; }
+.precio-toggle-btn {
+  font-size: .6875rem;
+  padding: .15rem .45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all .15s;
+}
+.precio-toggle-btn:hover { border-color: var(--border-light); color: var(--text-primary); }
+.precio-toggle-btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
 
 .venta-en-curso-actions {
   display: flex;

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Modelo, ModeloTalle, MedioPago } from '../types'
+import { getPrecioUnitario, getPrecioPromocional } from '../utils/precios'
 
 type ModeloInput = Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>
 
@@ -81,13 +82,14 @@ export async function deleteTalle(id: string): Promise<void> {
 }
 
 export async function sellCarrito(
-  items: { modelo: Modelo; talleId: string; cantidad: number }[],
+  items: { modelo: Modelo; talleId: string; cantidad: number; usarPromocional: boolean }[],
   medioPago: MedioPago,
-  clienteId: string
+  clienteId: string,
+  descuentoPct: number | null
 ): Promise<void> {
   const ventaGrupoId = crypto.randomUUID()
 
-  for (const { modelo, talleId, cantidad } of items) {
+  for (const { modelo, talleId, cantidad, usarPromocional } of items) {
     const talle = modelo.modelo_talles.find(t => t.id === talleId)
     if (!talle) throw new Error(`Talle no encontrado para ${modelo.modelo}`)
     if (cantidad > talle.cantidad) throw new Error(`No hay stock suficiente de ${modelo.modelo} (talle ${talle.talle_arg})`)
@@ -98,8 +100,10 @@ export async function sellCarrito(
       .eq('id', talleId)
     if (upErr) throw upErr
 
-    const recargo = medioPago === 'Tarjeta' ? modelo.precio_venta * 0.1 : null
-    const precioFinal = medioPago === 'Tarjeta' ? modelo.precio_venta * 1.1 : modelo.precio_venta
+    const precioBase = getPrecioUnitario(modelo, usarPromocional, descuentoPct)
+    const recargo = medioPago === 'Tarjeta' ? precioBase * 0.1 : null
+    const precioFinal = medioPago === 'Tarjeta' ? precioBase * 1.1 : precioBase
+    const usoPromo = usarPromocional && getPrecioPromocional(modelo, descuentoPct) != null
 
     const filas = Array.from({ length: cantidad }, () => ({
       modelo_id: modelo.id,
@@ -110,6 +114,8 @@ export async function sellCarrito(
       ganancia: precioFinal - modelo.precio_costo,
       cliente_id: clienteId,
       venta_grupo_id: ventaGrupoId,
+      precio_tipo: usoPromo ? 'promocional' : 'lista',
+      descuento_pct_aplicado: usoPromo ? descuentoPct : null,
     }))
 
     const { error: ventaErr } = await supabase.from('ventas').insert(filas)

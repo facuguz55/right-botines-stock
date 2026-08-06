@@ -2,21 +2,23 @@ import { useState } from 'react'
 import type { CartItem, ClienteLocal, MedioPago } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { filterClientes } from '../../hooks/useClientesLocales'
+import { getPrecioUnitario } from '../../utils/precios'
 import './CartModal.css'
 
 interface CartModalProps {
   isOpen: boolean
   onClose: () => void
   items: CartItem[]
+  descuentoPct: number | null
   clear: () => void
   clientes: ClienteLocal[]
   addCliente: (input: { nombre: string; telefono: string | null; email: string | null; notas: string | null }) => Promise<ClienteLocal>
-  onSell: (items: CartItem[], medioPago: MedioPago, clienteId: string) => Promise<void>
+  onSell: (items: CartItem[], medioPago: MedioPago, clienteId: string, descuentoPct: number | null) => Promise<void>
 }
 
 const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta']
 
-export function CartModal({ isOpen, onClose, items, clear, clientes, addCliente, onSell }: CartModalProps) {
+export function CartModal({ isOpen, onClose, items, descuentoPct, clear, clientes, addCliente, onSell }: CartModalProps) {
   const [step, setStep] = useState<'pago' | 'cliente'>('pago')
   const [medioPago, setMedioPago] = useState<MedioPago>('Efectivo')
   const [search, setSearch] = useState('')
@@ -30,11 +32,12 @@ export function CartModal({ isOpen, onClose, items, clear, clientes, addCliente,
   const [error, setError] = useState<string | null>(null)
 
   const esTarjeta = medioPago === 'Tarjeta'
-  const subtotal = items.reduce((s, i) => s + i.modelo.precio_venta * i.cantidad, 0)
+  const subtotal = items.reduce((s, i) => s + getPrecioUnitario(i.modelo, i.usarPromocional, descuentoPct) * i.cantidad, 0)
   const recargo = esTarjeta ? subtotal * 0.1 : 0
   const total = subtotal + recargo
   const ganancia = items.reduce((s, i) => {
-    const precioFinal = esTarjeta ? i.modelo.precio_venta * 1.1 : i.modelo.precio_venta
+    const base = getPrecioUnitario(i.modelo, i.usarPromocional, descuentoPct)
+    const precioFinal = esTarjeta ? base * 1.1 : base
     return s + (precioFinal - i.modelo.precio_costo) * i.cantidad
   }, 0)
 
@@ -75,7 +78,7 @@ export function CartModal({ isOpen, onClose, items, clear, clientes, addCliente,
         })
         clienteId = nuevo.id
       }
-      await onSell(items, medioPago, clienteId)
+      await onSell(items, medioPago, clienteId, descuentoPct)
       clear()
       handleClose()
     } catch (e) {

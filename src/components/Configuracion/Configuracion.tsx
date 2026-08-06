@@ -4,6 +4,7 @@ import type { Modelo, AjustePrecioConfig, AjusteTipo, AjusteOperacion } from '..
 import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
 import { getTNCredentials, saveTNCredentials, clearTNCredentials, listTNWebhooks, createTNWebhook } from '../../services/tiendanubeService'
 import { setOwnerPin } from '../../services/auth'
+import type { useConfigVentas } from '../../hooks/useConfigVentas'
 import { CostosTab } from './CostosTab'
 import './Configuracion.css'
 
@@ -47,6 +48,7 @@ interface ConfiguracionProps {
   modelos: Modelo[]
   onReload: () => void
   tabInicial?: ConfigTab
+  configVentas: ReturnType<typeof useConfigVentas>
 }
 
 const DEFAULT_CONFIG: AjustePrecioConfig = {
@@ -56,13 +58,58 @@ const DEFAULT_CONFIG: AjustePrecioConfig = {
   filtros: { gama: '', marca: '', categoria: '' },
 }
 
-export function Configuracion({ modelos, onReload, tabInicial }: ConfiguracionProps) {
+export function Configuracion({ modelos, onReload, tabInicial, configVentas }: ConfiguracionProps) {
   const [tab, setTab] = useState<ConfigTab>(tabInicial ?? 'general')
   const [config, setConfig] = useState<AjustePrecioConfig>(DEFAULT_CONFIG)
   const [mostrarPreview, setMostrarPreview] = useState(false)
   const [aplicando, setAplicando] = useState(false)
   const [resultado, setResultado] = useState<{ ok: boolean; msg: string } | null>(null)
   const [accentColor, setAccentColor] = useState(getSavedAccent)
+
+  // Descuento por transferencia (precio promocional en ventas del local)
+  const [pctInput, setPctInput] = useState('')
+  const [descuentoMsg, setDescuentoMsg] = useState('')
+  const [detectando, setDetectando] = useState(false)
+  const [guardandoPct, setGuardandoPct] = useState(false)
+
+  const pctActual = configVentas.descuentoTransferenciaPct
+  const pctMostrado = pctInput || (pctActual != null ? String(pctActual) : '')
+
+  const handleDetectarPct = async () => {
+    setDetectando(true)
+    setDescuentoMsg('')
+    try {
+      const detectado = await configVentas.detectarAutomatico()
+      if (detectado != null) {
+        setPctInput(String(detectado))
+        setDescuentoMsg(`✓ Detectado y guardado: ${detectado}%`)
+      } else {
+        setDescuentoMsg('No se encontraron órdenes de TiendaNube con descuento por transferencia todavía.')
+      }
+    } catch (e) {
+      setDescuentoMsg((e as Error).message ?? 'Error al detectar el descuento.')
+    } finally {
+      setDetectando(false)
+    }
+  }
+
+  const handleGuardarPct = async () => {
+    const n = Number(pctInput)
+    if (!pctInput || Number.isNaN(n) || n < 0 || n > 100) {
+      setDescuentoMsg('Ingresá un porcentaje válido entre 0 y 100.')
+      return
+    }
+    setGuardandoPct(true)
+    setDescuentoMsg('')
+    try {
+      await configVentas.guardarPct(n)
+      setDescuentoMsg('✓ Guardado')
+    } catch (e) {
+      setDescuentoMsg((e as Error).message ?? 'Error al guardar.')
+    } finally {
+      setGuardandoPct(false)
+    }
+  }
 
   // PIN de acceso dueño
   const [nuevoPin, setNuevoPin] = useState('')
@@ -201,6 +248,44 @@ export function Configuracion({ modelos, onReload, tabInicial }: ConfiguracionPr
       </div>
 
       {tab === 'general' && <div className="config-tab-panel">
+
+      {/* ── Descuento por transferencia ── */}
+      <section className="config-section">
+        <div className="config-section-header">
+          <Percent size={16} />
+          <h2 className="config-section-title">Descuento por transferencia</h2>
+        </div>
+        <p className="config-section-desc">
+          El % que TiendaNube aplica en el checkout a pagos por transferencia. Se usa para calcular el "precio promocional"
+          que puede elegir el vendedor al armar una venta en el local, para que la ganancia calculada sea real.
+        </p>
+        <div className="config-card">
+          <div className="config-row">
+            <label className="config-label">Porcentaje (%)</label>
+            <div className="config-input-wrap">
+              <input
+                type="number"
+                className="config-input"
+                min={0}
+                max={100}
+                value={pctMostrado}
+                onChange={e => setPctInput(e.target.value)}
+                placeholder="Ej: 22"
+              />
+              <span className="config-input-suffix">%</span>
+            </div>
+          </div>
+          {descuentoMsg && <p style={{ fontSize: '.8125rem', color: descuentoMsg.startsWith('✓') ? 'var(--accent)' : 'var(--text-secondary)' }}>{descuentoMsg}</p>}
+          <div className="config-actions">
+            <button className="btn btn-secondary" onClick={handleDetectarPct} disabled={detectando}>
+              {detectando ? 'Detectando...' : 'Detectar desde TiendaNube'}
+            </button>
+            <button className="btn btn-primary" onClick={handleGuardarPct} disabled={guardandoPct}>
+              <CheckCircle size={14} /> {guardandoPct ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* ── Ajuste de precios ── */}
       <section className="config-section">

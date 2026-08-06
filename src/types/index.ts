@@ -54,6 +54,8 @@ export interface Venta {
   ganancia: number
   cliente_id: string | null
   venta_grupo_id: string | null
+  precio_tipo?: 'lista' | 'promocional' | null
+  descuento_pct_aplicado?: number | null
   modelos?: { modelo: string; marca: string; categoria: string; gama: string } | null
   clientes_locales?: { nombre: string; telefono: string | null; email: string | null } | null
 }
@@ -73,6 +75,7 @@ export interface CartItem {
   talleArg: number
   talleUs: number
   cantidad: number
+  usarPromocional: boolean
 }
 
 export interface TopModelo {
