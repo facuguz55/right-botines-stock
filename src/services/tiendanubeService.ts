@@ -304,9 +304,11 @@ async function tnFetch(
   }
 
   // Sin credenciales locales o CORS: el proxy Vercel usa las credenciales
-  // del servidor si no le mandamos headers.
+  // del servidor si no le mandamos headers. Es más lento que pegarle
+  // directo a la API de TN (hop extra + posible cold start), así que le
+  // damos más margen que al intento directo.
   const ctrl2 = new AbortController()
-  const tid2 = setTimeout(() => ctrl2.abort(), 12000)
+  const tid2 = setTimeout(() => ctrl2.abort(), 25000)
   const proxyParams = new URLSearchParams({ path, ...params })
   const proxyRes = await fetch(`/api/tiendanube?${proxyParams}`, {
     signal: ctrl2.signal,
