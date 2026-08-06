@@ -197,3 +197,56 @@ export interface TalleRow {
   toDelete: boolean
 }
 
+// ── Costos configurables / Rentabilidad ──────────────────────────────────────
+
+export type CostoTipo = 'fijo_mensual' | 'variable_venta'
+export type CostoCanal = 'local' | 'web' | 'ambos'
+export type CostoModoValor = 'monto' | 'porcentaje'
+
+export interface CostoConfig {
+  id: string
+  nombre: string
+  tipo: CostoTipo
+  canal: CostoCanal
+  modo_valor: CostoModoValor
+  valor: number
+  categoria: string | null
+  activo: boolean
+  vigente_desde: string
+  vigente_hasta: string | null
+  prorateo_web_pct: number | null
+  notas: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CostoUnico {
+  id: string
+  nombre: string
+  canal: CostoCanal
+  monto: number
+  categoria: string | null
+  fecha: string
+  notas: string | null
+  created_at: string
+}
+
+export interface RentabilidadCanal {
+  facturado: number
+  costoProductos: number
+  gananciaBruta: number
+  costosFijos: number
+  costosVariables: number
+  costosUnicos: number
+  gananciaNeta: number
+  margenNeto: number
+  sinVincular: number
+}
+
+export interface RentabilidadMes {
+  mes: string
+  local: RentabilidadCanal
+  web: RentabilidadCanal
+  total: { facturado: number; gananciaNeta: number; margenNeto: number }
+}
+

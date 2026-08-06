@@ -62,6 +62,7 @@ function restoreAccent() {
 export function App() {
   const { role, loginEmpleado, loginDueno, logout } = useAuth()
   const [activePage, setActivePage] = useState<ActivePage>('stock')
+  const [configTabInicial, setConfigTabInicial] = useState<'general' | 'tiendanube' | 'seguridad' | 'costos'>('general')
 
   useEffect(() => { restoreAccent() }, [])
 
@@ -179,7 +180,9 @@ export function App() {
           <StockAvanzado modelos={modelos} onReload={reload} />
         </div>
       )}
-      {activePage === 'configuracion' && role === 'dueno' && <Configuracion modelos={modelos} onReload={reload} />}
+      {activePage === 'configuracion' && role === 'dueno' && (
+        <Configuracion modelos={modelos} onReload={reload} tabInicial={configTabInicial} />
+      )}
 
       {activePage === 'tn_dashboard' && <TNDashboard />}
       {activePage === 'tn_analytics' && <TNAnalytics />}
@@ -187,7 +190,9 @@ export function App() {
       {activePage === 'tn_clientes'  && <TNClientes />}
       {activePage === 'tn_cupones'   && <TNCupones />}
       {activePage === 'tn_mails'     && <TNMails />}
-      {activePage === 'rentabilidad' && role === 'dueno' && <Rentabilidad />}
+      {activePage === 'rentabilidad' && role === 'dueno' && (
+        <Rentabilidad onConfigurarCostos={() => { setConfigTabInicial('costos'); setActivePage('configuracion') }} />
+      )}
 
       <ModelForm
         isOpen={showForm}

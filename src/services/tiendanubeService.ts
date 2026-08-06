@@ -2,6 +2,8 @@
 
 export interface TNProduct {
   id: number
+  product_id?: number
+  variant_id?: number
   name: string
   quantity: number
   price: string

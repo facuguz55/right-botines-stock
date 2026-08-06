@@ -1,10 +1,20 @@
 import { useState, useMemo } from 'react'
-import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2, ShieldCheck } from 'lucide-react'
+import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2, ShieldCheck, SlidersHorizontal, Wallet } from 'lucide-react'
 import type { Modelo, AjustePrecioConfig, AjusteTipo, AjusteOperacion } from '../../types'
 import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
 import { getTNCredentials, saveTNCredentials, clearTNCredentials, listTNWebhooks, createTNWebhook } from '../../services/tiendanubeService'
 import { setOwnerPin } from '../../services/auth'
+import { CostosTab } from './CostosTab'
 import './Configuracion.css'
+
+type ConfigTab = 'general' | 'tiendanube' | 'seguridad' | 'costos'
+
+const TABS: { key: ConfigTab; label: string; Icon: typeof SlidersHorizontal }[] = [
+  { key: 'general', label: 'General', Icon: SlidersHorizontal },
+  { key: 'tiendanube', label: 'TiendaNube', Icon: ShoppingBag },
+  { key: 'seguridad', label: 'Seguridad', Icon: ShieldCheck },
+  { key: 'costos', label: 'Costos', Icon: Wallet },
+]
 
 const MARCAS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Mizuno', 'Umbro', 'Under Armour', 'Joma', 'Otra']
 const CATEGORIAS = ['F5', 'F11', 'Futsal', 'Hockey']
@@ -36,6 +46,7 @@ function applyAccent(value: string) {
 interface ConfiguracionProps {
   modelos: Modelo[]
   onReload: () => void
+  tabInicial?: ConfigTab
 }
 
 const DEFAULT_CONFIG: AjustePrecioConfig = {
@@ -45,7 +56,8 @@ const DEFAULT_CONFIG: AjustePrecioConfig = {
   filtros: { gama: '', marca: '', categoria: '' },
 }
 
-export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
+export function Configuracion({ modelos, onReload, tabInicial }: ConfiguracionProps) {
+  const [tab, setTab] = useState<ConfigTab>(tabInicial ?? 'general')
   const [config, setConfig] = useState<AjustePrecioConfig>(DEFAULT_CONFIG)
   const [mostrarPreview, setMostrarPreview] = useState(false)
   const [aplicando, setAplicando] = useState(false)
@@ -175,6 +187,20 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
       <div className="page-header">
         <h1 className="page-title">Configuración</h1>
       </div>
+
+      <div className="config-tabs">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            className={`config-tab${tab === t.key ? ' active' : ''}`}
+            onClick={() => setTab(t.key)}
+          >
+            <t.Icon size={14} /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'general' && <div className="config-tab-panel">
 
       {/* ── Ajuste de precios ── */}
       <section className="config-section">
@@ -368,6 +394,10 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
         )}
       </section>
 
+      </div>}
+
+      {tab === 'tiendanube' && <div className="config-tab-panel">
+
       {/* ── TiendaNube ── */}
       <section className="config-section">
         <div className="config-section-header">
@@ -465,6 +495,10 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
         </div>
       </section>
 
+      </div>}
+
+      {tab === 'seguridad' && <div className="config-tab-panel">
+
       {/* ── Seguridad ── */}
       <section className="config-section">
         <div className="config-section-header">
@@ -518,6 +552,10 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
         </div>
       </section>
 
+      </div>}
+
+      {tab === 'general' && <div className="config-tab-panel">
+
       {/* ── Personalización ── */}
       <section className="config-section">
         <div className="config-section-header">
@@ -546,6 +584,10 @@ export function Configuracion({ modelos, onReload }: ConfiguracionProps) {
           </div>
         </div>
       </section>
+
+      </div>}
+
+      {tab === 'costos' && <CostosTab />}
     </div>
   )
 }
