@@ -159,14 +159,17 @@ export function useModelos() {
     }
   }
 
-  const venderCarrito = async (items: CartItem[], medioPago: MedioPago, clienteId: string, descuentoPct: number | null) => {
+  const venderCarrito = async (
+    items: CartItem[], medioPago: MedioPago, clienteId: string, descuentoPct: number | null,
+    tarjeta: string | null, cuotas: number | null, recargoPct: number,
+  ) => {
     const resolved = items.map(item => {
       const modelo = modelos.find(m => m.id === item.modelo.id)
       if (!modelo) throw new Error(`El modelo ${item.modelo.modelo} ya no existe`)
       return { modelo, talleId: item.talleId, cantidad: item.cantidad, usarPromocional: item.usarPromocional }
     })
 
-    await sellCarrito(resolved, medioPago, clienteId, descuentoPct)
+    await sellCarrito(resolved, medioPago, clienteId, descuentoPct, tarjeta, cuotas, recargoPct)
 
     setModelos(prev => prev.map(m => {
       const afectados = resolved.filter(r => r.modelo.id === m.id)

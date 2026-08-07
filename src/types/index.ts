@@ -56,6 +56,8 @@ export interface Venta {
   venta_grupo_id: string | null
   precio_tipo?: 'lista' | 'promocional' | null
   descuento_pct_aplicado?: number | null
+  tarjeta?: string | null
+  cuotas?: number | null
   modelos?: { modelo: string; marca: string; categoria: string; gama: string } | null
   clientes_locales?: { nombre: string; telefono: string | null; email: string | null } | null
 }
@@ -251,5 +253,14 @@ export interface RentabilidadMes {
   local: RentabilidadCanal
   web: RentabilidadCanal
   total: { facturado: number; gananciaNeta: number; margenNeto: number }
+}
+
+export interface RecargoTarjeta {
+  id: string
+  tarjeta: string
+  cuotas: number
+  porcentaje: number
+  activo: boolean
+  created_at: string
 }
 

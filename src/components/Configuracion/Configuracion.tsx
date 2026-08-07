@@ -5,7 +5,9 @@ import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
 import { getTNCredentials, saveTNCredentials, clearTNCredentials, listTNWebhooks, createTNWebhook } from '../../services/tiendanubeService'
 import { setOwnerPin } from '../../services/auth'
 import type { useConfigVentas } from '../../hooks/useConfigVentas'
+import type { useRecargosTarjeta } from '../../hooks/useRecargosTarjeta'
 import { CostosTab } from './CostosTab'
+import { RecargosTarjetaSection } from './RecargosTarjetaSection'
 import './Configuracion.css'
 
 type ConfigTab = 'general' | 'tiendanube' | 'seguridad' | 'costos'
@@ -49,6 +51,7 @@ interface ConfiguracionProps {
   onReload: () => void
   tabInicial?: ConfigTab
   configVentas: ReturnType<typeof useConfigVentas>
+  recargosTarjeta: ReturnType<typeof useRecargosTarjeta>
 }
 
 const DEFAULT_CONFIG: AjustePrecioConfig = {
@@ -58,7 +61,7 @@ const DEFAULT_CONFIG: AjustePrecioConfig = {
   filtros: { gama: '', marca: '', categoria: '' },
 }
 
-export function Configuracion({ modelos, onReload, tabInicial, configVentas }: ConfiguracionProps) {
+export function Configuracion({ modelos, onReload, tabInicial, configVentas, recargosTarjeta }: ConfiguracionProps) {
   const [tab, setTab] = useState<ConfigTab>(tabInicial ?? 'general')
   const [config, setConfig] = useState<AjustePrecioConfig>(DEFAULT_CONFIG)
   const [mostrarPreview, setMostrarPreview] = useState(false)
@@ -286,6 +289,8 @@ export function Configuracion({ modelos, onReload, tabInicial, configVentas }: C
           </div>
         </div>
       </section>
+
+      <RecargosTarjetaSection recargosTarjeta={recargosTarjeta} />
 
       {/* ── Ajuste de precios ── */}
       <section className="config-section">

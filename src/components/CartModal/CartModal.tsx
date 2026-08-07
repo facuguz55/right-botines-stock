@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import type { CartItem, ClienteLocal, MedioPago } from '../../types'
+import type { CartItem, ClienteLocal, MedioPago, RecargoTarjeta } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { filterClientes } from '../../hooks/useClientesLocales'
-import { getPrecioUnitario } from '../../utils/precios'
+import { getPrecioUnitario, getRecargoPct, tarjetasDisponibles, cuotasDisponibles } from '../../utils/precios'
 import './CartModal.css'
 
 interface CartModalProps {
@@ -10,17 +10,20 @@ interface CartModalProps {
   onClose: () => void
   items: CartItem[]
   descuentoPct: number | null
+  recargos: RecargoTarjeta[]
   clear: () => void
   clientes: ClienteLocal[]
   addCliente: (input: { nombre: string; telefono: string | null; email: string | null; notas: string | null }) => Promise<ClienteLocal>
-  onSell: (items: CartItem[], medioPago: MedioPago, clienteId: string, descuentoPct: number | null) => Promise<void>
+  onSell: (items: CartItem[], medioPago: MedioPago, clienteId: string, descuentoPct: number | null, tarjeta: string | null, cuotas: number | null, recargoPct: number) => Promise<void>
 }
 
 const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta']
 
-export function CartModal({ isOpen, onClose, items, descuentoPct, clear, clientes, addCliente, onSell }: CartModalProps) {
+export function CartModal({ isOpen, onClose, items, descuentoPct, recargos, clear, clientes, addCliente, onSell }: CartModalProps) {
   const [step, setStep] = useState<'pago' | 'cliente'>('pago')
   const [medioPago, setMedioPago] = useState<MedioPago>('Efectivo')
+  const [tarjeta, setTarjeta] = useState<string | null>(null)
+  const [cuotas, setCuotas] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
@@ -32,12 +35,20 @@ export function CartModal({ isOpen, onClose, items, descuentoPct, clear, cliente
   const [error, setError] = useState<string | null>(null)
 
   const esTarjeta = medioPago === 'Tarjeta'
+  const hayRecargosConfigurados = recargos.some(r => r.activo)
+  const tarjetas = tarjetasDisponibles(recargos)
+  const cuotasParaTarjeta = tarjeta ? cuotasDisponibles(recargos, tarjeta) : []
+  // Mientras no haya ningún recargo cargado, se usa el 10% fijo de siempre.
+  // En cuanto haya al menos uno, hace falta elegir tarjeta+cuotas para saber el %.
+  const faltaElegirRecargo = esTarjeta && hayRecargosConfigurados && (!tarjeta || !cuotas)
+  const recargoPct = getRecargoPct(recargos, tarjeta, cuotas)
+
   const subtotal = items.reduce((s, i) => s + getPrecioUnitario(i.modelo, i.usarPromocional, descuentoPct) * i.cantidad, 0)
-  const recargo = esTarjeta ? subtotal * 0.1 : 0
+  const recargo = esTarjeta && !faltaElegirRecargo ? subtotal * (recargoPct / 100) : 0
   const total = subtotal + recargo
   const ganancia = items.reduce((s, i) => {
     const base = getPrecioUnitario(i.modelo, i.usarPromocional, descuentoPct)
-    const precioFinal = esTarjeta ? base * 1.1 : base
+    const precioFinal = esTarjeta && !faltaElegirRecargo ? base * (1 + recargoPct / 100) : base
     return s + (precioFinal - i.modelo.precio_costo) * i.cantidad
   }, 0)
 
@@ -54,8 +65,17 @@ export function CartModal({ isOpen, onClose, items, descuentoPct, clear, cliente
 
   const handleClose = () => {
     setStep('pago')
+    setMedioPago('Efectivo')
+    setTarjeta(null)
+    setCuotas(null)
     resetCliente()
     onClose()
+  }
+
+  const handleMedioPago = (m: MedioPago) => {
+    setMedioPago(m)
+    setTarjeta(null)
+    setCuotas(null)
   }
 
   const handleConfirm = async () => {
@@ -78,7 +98,7 @@ export function CartModal({ isOpen, onClose, items, descuentoPct, clear, cliente
         })
         clienteId = nuevo.id
       }
-      await onSell(items, medioPago, clienteId, descuentoPct)
+      await onSell(items, medioPago, clienteId, descuentoPct, esTarjeta && !faltaElegirRecargo ? tarjeta : null, esTarjeta && !faltaElegirRecargo ? cuotas : null, recargoPct)
       clear()
       handleClose()
     } catch (e) {
@@ -98,16 +118,42 @@ export function CartModal({ isOpen, onClose, items, descuentoPct, clear, cliente
             <p className="sell-label">Medio de pago</p>
             <div className="medio-pago-options">
               {MEDIOS.map(m => (
-                <button key={m} type="button" className={`medio-btn${medioPago === m ? ' active' : ''}`} onClick={() => setMedioPago(m)}>
+                <button key={m} type="button" className={`medio-btn${medioPago === m ? ' active' : ''}`} onClick={() => handleMedioPago(m)}>
                   {m === 'Efectivo' ? '💵 ' : m === 'Transferencia' ? '📲 ' : '💳 '}{m}
                 </button>
               ))}
             </div>
           </div>
 
-          {esTarjeta && (
+          {esTarjeta && hayRecargosConfigurados && (
+            <div className="sell-section">
+              <p className="sell-label">Tarjeta</p>
+              <div className="medio-pago-options">
+                {tarjetas.map(t => (
+                  <button key={t} type="button" className={`medio-btn${tarjeta === t ? ' active' : ''}`}
+                    onClick={() => { setTarjeta(t); setCuotas(null) }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              {tarjeta && (
+                <>
+                  <p className="sell-label" style={{ marginTop: '.75rem' }}>Cuotas</p>
+                  <div className="medio-pago-options">
+                    {cuotasParaTarjeta.map(c => (
+                      <button key={c} type="button" className={`medio-btn${cuotas === c ? ' active' : ''}`} onClick={() => setCuotas(c)}>
+                        {c === 1 ? '1 pago' : `${c} cuotas`}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {esTarjeta && !faltaElegirRecargo && (
             <div className="sell-recargo-notice">
-              <span>+10% recargo tarjeta</span>
+              <span>+{recargoPct}% recargo tarjeta</span>
               <span className="recargo-amount">+${recargo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
             </div>
           )}
@@ -118,9 +164,13 @@ export function CartModal({ isOpen, onClose, items, descuentoPct, clear, cliente
             <div className="sell-stat"><span>Ganancia estimada</span><span className={`sell-stat-val ${ganancia >= 0 ? 'accent' : 'danger'}`}>${ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
           </div>
 
+          {faltaElegirRecargo && (
+            <p style={{ fontSize: '.8125rem', color: 'var(--text-muted)' }}>Elegí tarjeta y cuotas para continuar.</p>
+          )}
+
           <div className="sell-actions">
             <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
-            <button className="btn btn-primary" onClick={() => setStep('cliente')}>
+            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={faltaElegirRecargo}>
               Continuar →
             </button>
           </div>

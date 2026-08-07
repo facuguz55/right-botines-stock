@@ -85,9 +85,13 @@ export async function sellCarrito(
   items: { modelo: Modelo; talleId: string; cantidad: number; usarPromocional: boolean }[],
   medioPago: MedioPago,
   clienteId: string,
-  descuentoPct: number | null
+  descuentoPct: number | null,
+  tarjeta: string | null,
+  cuotas: number | null,
+  recargoPct: number
 ): Promise<void> {
   const ventaGrupoId = crypto.randomUUID()
+  const esTarjeta = medioPago === 'Tarjeta'
 
   for (const { modelo, talleId, cantidad, usarPromocional } of items) {
     const talle = modelo.modelo_talles.find(t => t.id === talleId)
@@ -101,8 +105,8 @@ export async function sellCarrito(
     if (upErr) throw upErr
 
     const precioBase = getPrecioUnitario(modelo, usarPromocional, descuentoPct)
-    const recargo = medioPago === 'Tarjeta' ? precioBase * 0.1 : null
-    const precioFinal = medioPago === 'Tarjeta' ? precioBase * 1.1 : precioBase
+    const recargo = esTarjeta ? precioBase * (recargoPct / 100) : null
+    const precioFinal = esTarjeta ? precioBase * (1 + recargoPct / 100) : precioBase
     const usoPromo = usarPromocional && getPrecioPromocional(modelo, descuentoPct) != null
 
     const filas = Array.from({ length: cantidad }, () => ({
@@ -116,6 +120,8 @@ export async function sellCarrito(
       venta_grupo_id: ventaGrupoId,
       precio_tipo: usoPromo ? 'promocional' : 'lista',
       descuento_pct_aplicado: usoPromo ? descuentoPct : null,
+      tarjeta: esTarjeta ? tarjeta : null,
+      cuotas: esTarjeta ? cuotas : null,
     }))
 
     const { error: ventaErr } = await supabase.from('ventas').insert(filas)

@@ -34,6 +34,7 @@ import { useModelos } from './hooks/useModelos'
 import { useTNSync } from './hooks/useTNSync'
 import { useCarrito } from './hooks/useCarrito'
 import { useConfigVentas } from './hooks/useConfigVentas'
+import { useRecargosTarjeta } from './hooks/useRecargosTarjeta'
 import { useClientesLocales } from './hooks/useClientesLocales'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
@@ -87,6 +88,7 @@ export function App() {
   } = useTNSync(reload)
 
   const configVentas = useConfigVentas()
+  const recargosTarjeta = useRecargosTarjeta()
   const carrito = useCarrito(configVentas.descuentoTransferenciaPct)
   const clientesLocales = useClientesLocales()
   const [showCart, setShowCart] = useState(false)
@@ -183,7 +185,7 @@ export function App() {
         </div>
       )}
       {activePage === 'configuracion' && role === 'dueno' && (
-        <Configuracion modelos={modelos} onReload={reload} tabInicial={configTabInicial} configVentas={configVentas} />
+        <Configuracion modelos={modelos} onReload={reload} tabInicial={configTabInicial} configVentas={configVentas} recargosTarjeta={recargosTarjeta} />
       )}
 
       {activePage === 'tn_dashboard' && <TNDashboard />}
@@ -214,6 +216,7 @@ export function App() {
         onClose={() => setShowCart(false)}
         items={carrito.items}
         descuentoPct={configVentas.descuentoTransferenciaPct}
+        recargos={recargosTarjeta.recargos}
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
