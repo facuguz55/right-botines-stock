@@ -77,7 +77,6 @@ export interface CartItem {
   talleArg: number
   talleUs: number
   cantidad: number
-  usarPromocional: boolean
 }
 
 export interface TopModelo {

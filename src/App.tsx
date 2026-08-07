@@ -227,7 +227,6 @@ export function App() {
         items={carrito.items}
         subtotal={carrito.subtotal}
         descuentoPct={configVentas.descuentoTransferenciaPct}
-        onSetUsarPromocional={carrito.setUsarPromocional}
         onAddMore={() => setActivePage('stock')}
         onStartPayment={() => setShowCart(true)}
         onCancelSale={carrito.clear}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CartItem, ClienteLocal, MedioPago, RecargoTarjeta } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { filterClientes } from '../../hooks/useClientesLocales'
-import { getPrecioUnitario, getRecargoPct, tarjetasDisponibles, cuotasDisponibles } from '../../utils/precios'
+import { getPrecioReal, getRecargoPct, tarjetasDisponibles, cuotasDisponibles } from '../../utils/precios'
 import './CartModal.css'
 
 interface CartModalProps {
@@ -43,11 +43,11 @@ export function CartModal({ isOpen, onClose, items, descuentoPct, recargos, clea
   const faltaElegirRecargo = esTarjeta && hayRecargosConfigurados && (!tarjeta || !cuotas)
   const recargoPct = getRecargoPct(recargos, tarjeta, cuotas)
 
-  const subtotal = items.reduce((s, i) => s + getPrecioUnitario(i.modelo, i.usarPromocional, descuentoPct) * i.cantidad, 0)
+  const subtotal = items.reduce((s, i) => s + getPrecioReal(i.modelo, descuentoPct) * i.cantidad, 0)
   const recargo = esTarjeta && !faltaElegirRecargo ? subtotal * (recargoPct / 100) : 0
   const total = subtotal + recargo
   const ganancia = items.reduce((s, i) => {
-    const base = getPrecioUnitario(i.modelo, i.usarPromocional, descuentoPct)
+    const base = getPrecioReal(i.modelo, descuentoPct)
     const precioFinal = esTarjeta && !faltaElegirRecargo ? base * (1 + recargoPct / 100) : base
     return s + (precioFinal - i.modelo.precio_costo) * i.cantidad
   }, 0)

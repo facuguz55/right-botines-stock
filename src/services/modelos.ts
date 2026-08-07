@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Modelo, ModeloTalle, MedioPago } from '../types'
-import { getPrecioUnitario, getPrecioPromocional } from '../utils/precios'
+import { getPrecioReal, getPrecioPromocional } from '../utils/precios'
 
 type ModeloInput = Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>
 
@@ -82,7 +82,7 @@ export async function deleteTalle(id: string): Promise<void> {
 }
 
 export async function sellCarrito(
-  items: { modelo: Modelo; talleId: string; cantidad: number; usarPromocional: boolean }[],
+  items: { modelo: Modelo; talleId: string; cantidad: number }[],
   medioPago: MedioPago,
   clienteId: string,
   descuentoPct: number | null,
@@ -93,7 +93,7 @@ export async function sellCarrito(
   const ventaGrupoId = crypto.randomUUID()
   const esTarjeta = medioPago === 'Tarjeta'
 
-  for (const { modelo, talleId, cantidad, usarPromocional } of items) {
+  for (const { modelo, talleId, cantidad } of items) {
     const talle = modelo.modelo_talles.find(t => t.id === talleId)
     if (!talle) throw new Error(`Talle no encontrado para ${modelo.modelo}`)
     if (cantidad > talle.cantidad) throw new Error(`No hay stock suficiente de ${modelo.modelo} (talle ${talle.talle_arg})`)
@@ -104,10 +104,10 @@ export async function sellCarrito(
       .eq('id', talleId)
     if (upErr) throw upErr
 
-    const precioBase = getPrecioUnitario(modelo, usarPromocional, descuentoPct)
+    const precioBase = getPrecioReal(modelo, descuentoPct)
     const recargo = esTarjeta ? precioBase * (recargoPct / 100) : null
     const precioFinal = esTarjeta ? precioBase * (1 + recargoPct / 100) : precioBase
-    const usoPromo = usarPromocional && getPrecioPromocional(modelo, descuentoPct) != null
+    const esPromo = getPrecioPromocional(modelo, descuentoPct) != null
 
     const filas = Array.from({ length: cantidad }, () => ({
       modelo_id: modelo.id,
@@ -118,8 +118,8 @@ export async function sellCarrito(
       ganancia: precioFinal - modelo.precio_costo,
       cliente_id: clienteId,
       venta_grupo_id: ventaGrupoId,
-      precio_tipo: usoPromo ? 'promocional' : 'lista',
-      descuento_pct_aplicado: usoPromo ? descuentoPct : null,
+      precio_tipo: esPromo ? 'promocional' : 'lista',
+      descuento_pct_aplicado: esPromo ? descuentoPct : null,
       tarjeta: esTarjeta ? tarjeta : null,
       cuotas: esTarjeta ? cuotas : null,
     }))

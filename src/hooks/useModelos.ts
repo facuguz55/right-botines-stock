@@ -166,7 +166,7 @@ export function useModelos() {
     const resolved = items.map(item => {
       const modelo = modelos.find(m => m.id === item.modelo.id)
       if (!modelo) throw new Error(`El modelo ${item.modelo.modelo} ya no existe`)
-      return { modelo, talleId: item.talleId, cantidad: item.cantidad, usarPromocional: item.usarPromocional }
+      return { modelo, talleId: item.talleId, cantidad: item.cantidad }
     })
 
     await sellCarrito(resolved, medioPago, clienteId, descuentoPct, tarjeta, cuotas, recargoPct)

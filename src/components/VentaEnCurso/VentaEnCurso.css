@@ -73,20 +73,6 @@
   flex-shrink: 0;
 }
 
-.precio-toggle { display: flex; gap: .3rem; flex-wrap: wrap; }
-.precio-toggle-btn {
-  font-size: .6875rem;
-  padding: .15rem .45rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg-surface-2);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all .15s;
-}
-.precio-toggle-btn:hover { border-color: var(--border-light); color: var(--text-primary); }
-.precio-toggle-btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
-
 .venta-en-curso-actions {
   display: flex;
   gap: .5rem;

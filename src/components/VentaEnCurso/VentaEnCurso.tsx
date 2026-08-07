@@ -1,20 +1,19 @@
 import { useState } from 'react'
 import type { CartItem } from '../../types'
 import { Modal } from '../Modal/Modal'
-import { getPrecioPromocional, getPrecioUnitario } from '../../utils/precios'
+import { getPrecioReal } from '../../utils/precios'
 import './VentaEnCurso.css'
 
 interface VentaEnCursoProps {
   items: CartItem[]
   subtotal: number
   descuentoPct: number | null
-  onSetUsarPromocional: (modeloId: string, talleId: string, value: boolean) => void
   onAddMore: () => void
   onStartPayment: () => void
   onCancelSale: () => void
 }
 
-export function VentaEnCurso({ items, subtotal, descuentoPct, onSetUsarPromocional, onAddMore, onStartPayment, onCancelSale }: VentaEnCursoProps) {
+export function VentaEnCurso({ items, subtotal, descuentoPct, onAddMore, onStartPayment, onCancelSale }: VentaEnCursoProps) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   if (items.length === 0) return null
@@ -29,8 +28,7 @@ export function VentaEnCurso({ items, subtotal, descuentoPct, onSetUsarPromocion
 
         <div className="venta-en-curso-items">
           {items.map((item, idx) => {
-            const promo = getPrecioPromocional(item.modelo, descuentoPct)
-            const precioUnit = getPrecioUnitario(item.modelo, item.usarPromocional, descuentoPct)
+            const precioUnit = getPrecioReal(item.modelo, descuentoPct)
             return (
               <div key={`${item.modelo.id}-${item.talleId}-${idx}`} className="venta-en-curso-item">
                 <div className="venta-en-curso-item-row">
@@ -42,24 +40,6 @@ export function VentaEnCurso({ items, subtotal, descuentoPct, onSetUsarPromocion
                     ${(precioUnit * item.cantidad).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                   </span>
                 </div>
-                {promo != null && (
-                  <div className="precio-toggle" role="group" aria-label="Precio a usar">
-                    <button
-                      type="button"
-                      className={`precio-toggle-btn${!item.usarPromocional ? ' active' : ''}`}
-                      onClick={() => onSetUsarPromocional(item.modelo.id, item.talleId, false)}
-                    >
-                      Lista ${item.modelo.precio_venta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                    </button>
-                    <button
-                      type="button"
-                      className={`precio-toggle-btn${item.usarPromocional ? ' active' : ''}`}
-                      onClick={() => onSetUsarPromocional(item.modelo.id, item.talleId, true)}
-                    >
-                      Promo ${promo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                    </button>
-                  </div>
-                )}
               </div>
             )
           })}
