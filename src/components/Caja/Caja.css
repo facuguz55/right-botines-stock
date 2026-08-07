@@ -1,0 +1,52 @@
+.caja-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.caja-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.caja-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.caja-referencia {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.caja-diferencia-preview {
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.caja-diferencia-preview.neutral {
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+}
+
+.caja-diferencia-preview.positive {
+  background: rgba(0, 212, 106, 0.1);
+  color: var(--accent);
+}
+
+.caja-diferencia-preview.negative {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}

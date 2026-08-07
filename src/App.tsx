@@ -30,12 +30,15 @@ import { TNClientes } from './components/TNClientes/TNClientes'
 import { TNCupones } from './components/TNCupones/TNCupones'
 import { TNMails } from './components/TNMails/TNMails'
 import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
+import { Empleados } from './components/Empleados/Empleados'
+import { Caja } from './components/Caja/Caja'
 import { useModelos } from './hooks/useModelos'
 import { useTNSync } from './hooks/useTNSync'
 import { useCarrito } from './hooks/useCarrito'
 import { useConfigVentas } from './hooks/useConfigVentas'
 import { useRecargosTarjeta } from './hooks/useRecargosTarjeta'
 import { useClientesLocales } from './hooks/useClientesLocales'
+import { useEmpleados } from './hooks/useEmpleados'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
 
@@ -62,7 +65,7 @@ function restoreAccent() {
 }
 
 export function App() {
-  const { role, loginEmpleado, loginDueno, logout } = useAuth()
+  const { role, empleadoId, empleadoNombre, loginEmpleado, loginDueno, logout } = useAuth()
   const [activePage, setActivePage] = useState<ActivePage>('stock')
   const [configTabInicial, setConfigTabInicial] = useState<'general' | 'tiendanube' | 'seguridad' | 'costos'>('general')
 
@@ -91,6 +94,7 @@ export function App() {
   const recargosTarjeta = useRecargosTarjeta()
   const carrito = useCarrito(configVentas.descuentoTransferenciaPct)
   const clientesLocales = useClientesLocales()
+  const empleadosHook = useEmpleados()
   const [showCart, setShowCart] = useState(false)
 
   const [showForm, setShowForm] = useState(false)
@@ -124,7 +128,14 @@ export function App() {
   }
 
   if (!role) {
-    return <Login onLoginEmpleado={loginEmpleado} onLoginDueno={loginDueno} />
+    return (
+      <Login
+        empleados={empleadosHook.empleados.filter(e => e.activo)}
+        loadingEmpleados={empleadosHook.loading}
+        onLoginEmpleado={loginEmpleado}
+        onLoginDueno={loginDueno}
+      />
+    )
   }
 
   return (
@@ -188,6 +199,12 @@ export function App() {
       {activePage === 'configuracion' && role === 'dueno' && (
         <Configuracion modelos={modelos} onReload={reload} tabInicial={configTabInicial} configVentas={configVentas} recargosTarjeta={recargosTarjeta} />
       )}
+      {activePage === 'empleados' && role === 'dueno' && (
+        <Empleados empleadosHook={empleadosHook} />
+      )}
+      {activePage === 'caja' && (
+        <Caja empleadoId={empleadoId} empleadoNombre={empleadoNombre} role={role} />
+      )}
 
       {activePage === 'tn_dashboard' && <TNDashboard />}
       {activePage === 'tn_analytics' && <TNAnalytics />}
@@ -222,7 +239,8 @@ export function App() {
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
-        onSell={venderCarrito}
+        onSell={(items, medioPago, clienteId, descuentoPct, tarjeta, cuotas, recargoPct) =>
+          venderCarrito(items, medioPago, clienteId, descuentoPct, tarjeta, cuotas, recargoPct, empleadoId)}
       />
 
       <VentaEnCurso

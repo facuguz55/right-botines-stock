@@ -1,0 +1,42 @@
+.empleados-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.empleado-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+
+.empleado-badge.activo {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.empleado-badge.inactivo {
+  color: var(--text-muted);
+  border-color: var(--border);
+  background: var(--bg-surface-2);
+}
+
+.empleado-badge.en-curso {
+  color: var(--warning);
+  border-color: var(--warning);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.empleados-datetime {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-2);
+  padding: 0.5rem 0.625rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+}

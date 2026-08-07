@@ -88,7 +88,8 @@ export async function sellCarrito(
   descuentoPct: number | null,
   tarjeta: string | null,
   cuotas: number | null,
-  recargoPct: number
+  recargoPct: number,
+  empleadoId: string | null
 ): Promise<void> {
   const ventaGrupoId = crypto.randomUUID()
   const esTarjeta = medioPago === 'Tarjeta'
@@ -122,6 +123,7 @@ export async function sellCarrito(
       descuento_pct_aplicado: esPromo ? descuentoPct : null,
       tarjeta: esTarjeta ? tarjeta : null,
       cuotas: esTarjeta ? cuotas : null,
+      empleado_id: empleadoId,
     }))
 
     const { error: ventaErr } = await supabase.from('ventas').insert(filas)

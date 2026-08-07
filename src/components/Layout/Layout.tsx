@@ -1,7 +1,7 @@
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut,
+  LogOut, Banknote, UserCog,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -16,7 +16,7 @@ interface LayoutProps {
 }
 
 // Páginas visibles solo para el dueño
-export const SOLO_DUENO: ActivePage[] = ['configuracion', 'rentabilidad']
+export const SOLO_DUENO: ActivePage[] = ['configuracion', 'rentabilidad', 'empleados']
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
 
@@ -40,6 +40,8 @@ const ALL_NAV: NavItem[] = [
   { page: 'ventas',         label: 'Ventas',        Icon: DollarSign   },
   { page: 'stock_avanzado', label: 'Avanzado',      Icon: List         },
   { page: 'clientes_locales', label: 'Clientes',    Icon: UserCheck    },
+  { page: 'caja',           label: 'Caja',          Icon: Banknote     },
+  { page: 'empleados',      label: 'Empleados',     Icon: UserCog      },
   { page: 'configuracion',  label: 'Ajustes',       Icon: Settings     },
   { page: 'tn_dashboard',   label: 'Dashboard',     Icon: ShoppingBag  },
   { page: 'tn_analytics',   label: 'Análisis',      Icon: TrendingUp   },
@@ -73,6 +75,12 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
           {(['stock', 'carpetas', 'ventas', 'stock_avanzado', 'clientes_locales'] as ActivePage[]).map(p => (
             <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNavigate(p)} />
           ))}
+
+          <p className="nav-group-label">Personal</p>
+          <NavBtn item={nav('caja')} active={activePage === 'caja'} onClick={() => onNavigate('caja')} />
+          {esDueno && (
+            <NavBtn item={nav('empleados')} active={activePage === 'empleados'} onClick={() => onNavigate('empleados')} />
+          )}
 
           {esDueno && (
             <>
@@ -123,7 +131,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
 
       {/* Bottom nav mobile */}
       <nav className="bottom-nav">
-        {(['stock', 'dashboard', 'seguimientos', 'tn_ordenes', 'tn_dashboard'] as ActivePage[]).map(p => {
+        {(['stock', 'dashboard', 'seguimientos', 'caja', 'tn_ordenes', 'tn_dashboard'] as ActivePage[]).map(p => {
           const item = nav(p)
           return (
             <button

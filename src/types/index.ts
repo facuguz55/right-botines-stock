@@ -58,8 +58,10 @@ export interface Venta {
   descuento_pct_aplicado?: number | null
   tarjeta?: string | null
   cuotas?: number | null
+  empleado_id?: string | null
   modelos?: { modelo: string; marca: string; categoria: string; gama: string } | null
   clientes_locales?: { nombre: string; telefono: string | null; email: string | null } | null
+  empleados?: { nombre: string } | null
 }
 
 export interface ClienteLocal {
@@ -109,6 +111,7 @@ export type ActivePage =
   | 'clientes_locales'
   | 'tn_dashboard' | 'tn_analytics' | 'tn_ordenes' | 'tn_clientes' | 'tn_cupones' | 'tn_mails'
   | 'rentabilidad'
+  | 'empleados' | 'caja'
 
 // Para importación TiendaNube
 export interface TiendaNubeModelo {
@@ -261,5 +264,49 @@ export interface RecargoTarjeta {
   porcentaje: number
   activo: boolean
   created_at: string
+}
+
+// ── Empleados / Fichajes / Caja ──────────────────────────────────────────
+
+export interface Empleado {
+  id: string
+  nombre: string
+  activo: boolean
+  created_at: string
+}
+
+export interface Fichaje {
+  id: string
+  empleado_id: string
+  hora_entrada: string
+  hora_salida: string | null
+  created_at: string
+  empleados?: { nombre: string } | null
+}
+
+export type CajaEstado = 'abierta' | 'cerrada'
+
+export interface CajaDia {
+  id: string
+  fecha: string
+  monto_apertura: number
+  abierta_por: string | null
+  abierta_at: string | null
+  estado: CajaEstado
+  monto_cierre_contado: number | null
+  monto_esperado_snapshot: number | null
+  diferencia: number | null
+  cerrada_por: string | null
+  cerrada_at: string | null
+  notas: string | null
+  created_at: string
+  empleado_apertura?: { nombre: string } | null
+  empleado_cierre?: { nombre: string } | null
+}
+
+export interface TotalesEfectivoDia {
+  efectivo: number
+  transferencia: number
+  tarjeta: number
 }
 

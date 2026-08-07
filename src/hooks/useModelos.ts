@@ -161,7 +161,7 @@ export function useModelos() {
 
   const venderCarrito = async (
     items: CartItem[], medioPago: MedioPago, clienteId: string, descuentoPct: number | null,
-    tarjeta: string | null, cuotas: number | null, recargoPct: number,
+    tarjeta: string | null, cuotas: number | null, recargoPct: number, empleadoId: string | null,
   ) => {
     const resolved = items.map(item => {
       const modelo = modelos.find(m => m.id === item.modelo.id)
@@ -169,7 +169,7 @@ export function useModelos() {
       return { modelo, talleId: item.talleId, cantidad: item.cantidad }
     })
 
-    await sellCarrito(resolved, medioPago, clienteId, descuentoPct, tarjeta, cuotas, recargoPct)
+    await sellCarrito(resolved, medioPago, clienteId, descuentoPct, tarjeta, cuotas, recargoPct, empleadoId)
 
     setModelos(prev => prev.map(m => {
       const afectados = resolved.filter(r => r.modelo.id === m.id)

@@ -1,24 +1,31 @@
 import { useEffect, useState } from 'react'
-import { Briefcase, ShieldCheck, Delete, AlertTriangle } from 'lucide-react'
+import { Briefcase, ShieldCheck, Delete, AlertTriangle, User, ArrowLeft } from 'lucide-react'
+import type { Empleado } from '../../types'
 import './Login.css'
 
 interface LoginProps {
-  onLoginEmpleado: () => void
+  empleados: Empleado[]
+  loadingEmpleados: boolean
+  onLoginEmpleado: (empleado: Empleado) => Promise<void>
   onLoginDueno: (pin: string) => Promise<boolean>
 }
 
 const PIN_LENGTH = 4
 
-export function Login({ onLoginEmpleado, onLoginDueno }: LoginProps) {
-  const [modo, setModo] = useState<'select' | 'pin'>('select')
+export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDueno }: LoginProps) {
+  const [modo, setModo] = useState<'select' | 'empleado' | 'pin'>('select')
   const [pin, setPin] = useState('')
   const [error, setError] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [empleadoError, setEmpleadoError] = useState<string | null>(null)
+  const [entrandoId, setEntrandoId] = useState<string | null>(null)
 
   const volver = () => {
     setModo('select')
     setPin('')
     setError(false)
+    setEmpleadoError(null)
+    setEntrandoId(null)
   }
 
   const presionar = async (digito: string) => {
@@ -39,6 +46,18 @@ export function Login({ onLoginEmpleado, onLoginDueno }: LoginProps) {
 
   const borrar = () => setPin(p => p.slice(0, -1))
 
+  const elegirEmpleado = async (empleado: Empleado) => {
+    if (entrandoId) return
+    setEmpleadoError(null)
+    setEntrandoId(empleado.id)
+    try {
+      await onLoginEmpleado(empleado)
+    } catch {
+      setEmpleadoError('No se pudo registrar el ingreso, probá de nuevo.')
+      setEntrandoId(null)
+    }
+  }
+
   // Permite ingresar el PIN con el teclado físico, no solo tocando el teclado numérico.
   useEffect(() => {
     if (modo !== 'pin') return
@@ -55,9 +74,9 @@ export function Login({ onLoginEmpleado, onLoginDueno }: LoginProps) {
     <div className="login-screen">
       <img src="/logo.png" alt="Right Botines" className="login-logo" />
 
-      {modo === 'select' ? (
+      {modo === 'select' && (
         <div className="login-select">
-          <button className="login-card" onClick={onLoginEmpleado}>
+          <button className="login-card" onClick={() => setModo('empleado')}>
             <Briefcase size={28} />
             <span>Acceso empleado</span>
             <small>Entrá sin contraseña</small>
@@ -68,7 +87,45 @@ export function Login({ onLoginEmpleado, onLoginDueno }: LoginProps) {
             <small>Requiere PIN</small>
           </button>
         </div>
-      ) : (
+      )}
+
+      {modo === 'empleado' && (
+        <div className="login-empleados">
+          <p className="login-pin-title">¿Quién sos?</p>
+
+          {loadingEmpleados ? (
+            <p className="login-empleados-empty">Cargando...</p>
+          ) : empleados.length === 0 ? (
+            <p className="login-empleados-empty">
+              No hay empleados cargados. Pedile al dueño que los agregue en Empleados.
+            </p>
+          ) : (
+            <div className="login-empleados-list">
+              {empleados.map(emp => (
+                <button
+                  key={emp.id}
+                  className="login-empleado-btn"
+                  onClick={() => elegirEmpleado(emp)}
+                  disabled={!!entrandoId}
+                >
+                  <User size={16} />
+                  <span>{emp.nombre}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {empleadoError && (
+            <p className="login-pin-error"><AlertTriangle size={13} /> {empleadoError}</p>
+          )}
+
+          <button className="login-key-ghost login-volver" onClick={volver} disabled={!!entrandoId}>
+            <ArrowLeft size={14} /> Volver
+          </button>
+        </div>
+      )}
+
+      {modo === 'pin' && (
         <div className="login-pin">
           <p className="login-pin-title">Ingresá el PIN</p>
 
