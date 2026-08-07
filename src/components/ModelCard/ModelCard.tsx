@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import type { Modelo } from '../../types'
+import { getPrecioReal } from '../../utils/precios'
 import './ModelCard.css'
 
 interface ModelCardProps {
   modelo: Modelo
+  descuentoPct: number | null
   onSell: (modelo: Modelo) => void
   onEdit: (modelo: Modelo) => void
   onDelete: (modelo: Modelo) => void
@@ -12,7 +14,7 @@ interface ModelCardProps {
   onPriceHistory: (modelo: Modelo) => void
 }
 
-export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
+export function ModelCard({ modelo, descuentoPct, onSell, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
   const totalPares = modelo.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
   const agotado = totalPares === 0
   const ultimoPar = !agotado && totalPares === 1
@@ -72,7 +74,7 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
         </div>
 
         <div className="card-meta">
-          <span className="card-precio">${modelo.precio_venta.toLocaleString('es-AR')}</span>
+          <span className="card-precio">${getPrecioReal(modelo, descuentoPct).toLocaleString('es-AR')}</span>
           <span className={`card-total-pares${agotado ? ' zero' : ''}`}>
             {totalPares} par{totalPares !== 1 ? 'es' : ''}
           </span>

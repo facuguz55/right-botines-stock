@@ -143,6 +143,7 @@ export function App() {
           <ModelGrid
             modelos={modelos}
             loading={loading}
+            descuentoPct={configVentas.descuentoTransferenciaPct}
             onSell={setSellTarget}
             onEdit={handleEdit}
             onDelete={setDeleteTarget}
@@ -207,6 +208,7 @@ export function App() {
 
       <SellModal
         modelo={sellTarget}
+        descuentoPct={configVentas.descuentoTransferenciaPct}
         onClose={() => setSellTarget(null)}
         onAdd={(modelo, talle, cantidad) => carrito.addItem(modelo, talle, cantidad)}
       />

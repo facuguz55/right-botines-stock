@@ -11,6 +11,7 @@ import './ModelGrid.css'
 interface ModelGridProps {
   modelos: Modelo[]
   loading: boolean
+  descuentoPct: number | null
   onSell: (m: Modelo) => void
   onEdit: (m: Modelo) => void
   onDelete: (m: Modelo) => void
@@ -34,7 +35,7 @@ const DEFAULT_FILTERS: ModeloFilters = {
 }
 
 export function ModelGrid({
-  modelos, loading,
+  modelos, loading, descuentoPct,
   onSell, onEdit, onDelete, onIngreso, onPriceHistory,
   onAdd, onPhotoSearch, onImport, onImportFotos, onImportExcel, onClearAll,
   onSyncTN, syncingTN, tnProgress, tnLastResult, tnLastSyncAt,
@@ -168,6 +169,7 @@ export function ModelGrid({
             <ModelCard
               key={m.id}
               modelo={m}
+              descuentoPct={descuentoPct}
               onSell={onSell}
               onEdit={onEdit}
               onDelete={onDelete}
