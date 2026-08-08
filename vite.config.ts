@@ -7,6 +7,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registro manual (src/pwaUpdate.ts) en vez del script mínimo por
+      // defecto: necesitamos la lógica de workbox-window que detecta una
+      // nueva versión y recarga la página sola, no solo el registro.
+      injectRegister: false,
       // Solo se precachean los assets del build (JS/CSS/HTML/íconos). Las
       // llamadas a Supabase y al proxy de TiendaNube nunca se cachean, para
       // no mostrar stock ni órdenes desactualizados.
