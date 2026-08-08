@@ -38,6 +38,10 @@ export async function upsertModeloFromTNProduct(
   const gama = detectGama(name, catNames)
   const { marca, modelo } = extractMarcaModelo(prod)
   const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
+  // El precio "Promocional" de TN es el precio real que cobra el local —
+  // un campo propio por producto, no un % fijo (ver precio_promocional_tn.sql).
+  const promoRaw = prod.variants[0]?.promotional_price
+  const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
   const variantTalles = prod.variants
@@ -55,6 +59,7 @@ export async function upsertModeloFromTNProduct(
     await updateModelo(existing.id, {
       marca, modelo, categoria, gama,
       precio_venta,
+      precio_promocional,
       precio_costo: existing.precio_costo,
       codigo_base: existing.codigo_base,
       notas: existing.notas,
@@ -99,6 +104,7 @@ export async function upsertModeloFromTNProduct(
   const newModelo = await createModelo({
     marca, modelo, categoria, gama,
     precio_venta,
+    precio_promocional,
     precio_costo: 0,
     codigo_base: `tn_${prod.id}`,
     notas: null,

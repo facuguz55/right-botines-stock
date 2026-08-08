@@ -13,7 +13,7 @@ function loadInitial(): CartItem[] {
   }
 }
 
-export function useCarrito(descuentoPct: number | null = null) {
+export function useCarrito() {
   const [items, setItems] = useState<CartItem[]>(loadInitial)
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export function useCarrito(descuentoPct: number | null = null) {
   const clear = useCallback(() => setItems([]), [])
 
   const count = items.reduce((s, i) => s + i.cantidad, 0)
-  const subtotal = items.reduce((s, i) => s + getPrecioReal(i.modelo, descuentoPct) * i.cantidad, 0)
+  const subtotal = items.reduce((s, i) => s + getPrecioReal(i.modelo) * i.cantidad, 0)
 
   return { items, addItem, clear, count, subtotal }
 }

@@ -7,13 +7,12 @@ import './VentaEnCurso.css'
 interface VentaEnCursoProps {
   items: CartItem[]
   subtotal: number
-  descuentoPct: number | null
   onAddMore: () => void
   onStartPayment: () => void
   onCancelSale: () => void
 }
 
-export function VentaEnCurso({ items, subtotal, descuentoPct, onAddMore, onStartPayment, onCancelSale }: VentaEnCursoProps) {
+export function VentaEnCurso({ items, subtotal, onAddMore, onStartPayment, onCancelSale }: VentaEnCursoProps) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   if (items.length === 0) return null
@@ -28,7 +27,7 @@ export function VentaEnCurso({ items, subtotal, descuentoPct, onAddMore, onStart
 
         <div className="venta-en-curso-items">
           {items.map((item, idx) => {
-            const precioUnit = getPrecioReal(item.modelo, descuentoPct)
+            const precioUnit = getPrecioReal(item.modelo)
             return (
               <div key={`${item.modelo.id}-${item.talleId}-${idx}`} className="venta-en-curso-item">
                 <div className="venta-en-curso-item-row">

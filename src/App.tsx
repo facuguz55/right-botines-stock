@@ -35,7 +35,6 @@ import { Caja } from './components/Caja/Caja'
 import { useModelos } from './hooks/useModelos'
 import { useTNSync } from './hooks/useTNSync'
 import { useCarrito } from './hooks/useCarrito'
-import { useConfigVentas } from './hooks/useConfigVentas'
 import { useRecargosTarjeta } from './hooks/useRecargosTarjeta'
 import { useClientesLocales } from './hooks/useClientesLocales'
 import { useEmpleados } from './hooks/useEmpleados'
@@ -90,9 +89,8 @@ export function App() {
     lastSyncAt: tnLastSyncAt,
   } = useTNSync(reload)
 
-  const configVentas = useConfigVentas()
   const recargosTarjeta = useRecargosTarjeta()
-  const carrito = useCarrito(configVentas.descuentoTransferenciaPct)
+  const carrito = useCarrito()
   const clientesLocales = useClientesLocales()
   const empleadosHook = useEmpleados()
   const [showCart, setShowCart] = useState(false)
@@ -154,7 +152,6 @@ export function App() {
           <ModelGrid
             modelos={modelos}
             loading={loading}
-            descuentoPct={configVentas.descuentoTransferenciaPct}
             onSell={setSellTarget}
             onEdit={handleEdit}
             onDelete={setDeleteTarget}
@@ -197,7 +194,7 @@ export function App() {
         </div>
       )}
       {activePage === 'configuracion' && role === 'dueno' && (
-        <Configuracion modelos={modelos} onReload={reload} tabInicial={configTabInicial} configVentas={configVentas} recargosTarjeta={recargosTarjeta} />
+        <Configuracion modelos={modelos} onReload={reload} tabInicial={configTabInicial} recargosTarjeta={recargosTarjeta} />
       )}
       {activePage === 'empleados' && role === 'dueno' && (
         <Empleados empleadosHook={empleadosHook} />
@@ -225,7 +222,6 @@ export function App() {
 
       <SellModal
         modelo={sellTarget}
-        descuentoPct={configVentas.descuentoTransferenciaPct}
         onClose={() => setSellTarget(null)}
         onAdd={(modelo, talle, cantidad) => carrito.addItem(modelo, talle, cantidad)}
       />
@@ -234,19 +230,17 @@ export function App() {
         isOpen={showCart}
         onClose={() => setShowCart(false)}
         items={carrito.items}
-        descuentoPct={configVentas.descuentoTransferenciaPct}
         recargos={recargosTarjeta.recargos}
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
-        onSell={(items, medioPago, clienteId, descuentoPct, tarjeta, cuotas, recargoPct) =>
-          venderCarrito(items, medioPago, clienteId, descuentoPct, tarjeta, cuotas, recargoPct, empleadoId)}
+        onSell={(items, medioPago, clienteId, tarjeta, cuotas, recargoPct) =>
+          venderCarrito(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId)}
       />
 
       <VentaEnCurso
         items={carrito.items}
         subtotal={carrito.subtotal}
-        descuentoPct={configVentas.descuentoTransferenciaPct}
         onAddMore={() => setActivePage('stock')}
         onStartPayment={() => setShowCart(true)}
         onCancelSale={carrito.clear}

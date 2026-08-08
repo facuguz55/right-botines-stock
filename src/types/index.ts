@@ -24,6 +24,7 @@ export interface Modelo {
   gama: string
   precio_costo: number
   precio_venta: number
+  precio_promocional: number | null
   codigo_base: string
   notas: string | null
   created_at: string

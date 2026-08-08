@@ -57,6 +57,7 @@ export interface TNRawProduct {
     id: number
     sku: string | null
     price: string
+    promotional_price: string | null
     stock: number | null
     values: { es?: string; en?: string; [k: string]: string | undefined }[]
     updated_at: string

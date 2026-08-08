@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Modelo, ModeloTalle, MedioPago } from '../types'
-import { getPrecioReal, getPrecioPromocional } from '../utils/precios'
+import { getPrecioReal, tieneDescuentoPromocional } from '../utils/precios'
 
 type ModeloInput = Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>
 
@@ -85,7 +85,6 @@ export async function sellCarrito(
   items: { modelo: Modelo; talleId: string; cantidad: number }[],
   medioPago: MedioPago,
   clienteId: string,
-  descuentoPct: number | null,
   tarjeta: string | null,
   cuotas: number | null,
   recargoPct: number,
@@ -105,10 +104,13 @@ export async function sellCarrito(
       .eq('id', talleId)
     if (upErr) throw upErr
 
-    const precioBase = getPrecioReal(modelo, descuentoPct)
+    const precioBase = getPrecioReal(modelo)
     const recargo = esTarjeta ? precioBase * (recargoPct / 100) : null
     const precioFinal = esTarjeta ? precioBase * (1 + recargoPct / 100) : precioBase
-    const esPromo = getPrecioPromocional(modelo, descuentoPct) != null
+    const esPromo = tieneDescuentoPromocional(modelo)
+    const descuentoPctAplicado = esPromo
+      ? Math.round((1 - modelo.precio_promocional! / modelo.precio_venta) * 1000) / 10
+      : null
 
     const filas = Array.from({ length: cantidad }, () => ({
       modelo_id: modelo.id,
@@ -120,7 +122,7 @@ export async function sellCarrito(
       cliente_id: clienteId,
       venta_grupo_id: ventaGrupoId,
       precio_tipo: esPromo ? 'promocional' : 'lista',
-      descuento_pct_aplicado: esPromo ? descuentoPct : null,
+      descuento_pct_aplicado: descuentoPctAplicado,
       tarjeta: esTarjeta ? tarjeta : null,
       cuotas: esTarjeta ? cuotas : null,
       empleado_id: empleadoId,

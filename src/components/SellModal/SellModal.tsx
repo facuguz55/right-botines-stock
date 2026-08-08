@@ -6,19 +6,18 @@ import './SellModal.css'
 
 interface SellModalProps {
   modelo: Modelo | null
-  descuentoPct: number | null
   onClose: () => void
   onAdd: (modelo: Modelo, talle: ModeloTalle, cantidad: number) => void
 }
 
-export function SellModal({ modelo, descuentoPct, onClose, onAdd }: SellModalProps) {
+export function SellModal({ modelo, onClose, onAdd }: SellModalProps) {
   const [selectedTalleId, setSelectedTalleId] = useState<string>('')
   const [cantidad, setCantidad] = useState(1)
   const [error, setError] = useState<string | null>(null)
 
   if (!modelo) return null
 
-  const precioReal = getPrecioReal(modelo, descuentoPct)
+  const precioReal = getPrecioReal(modelo)
   const disponibles = modelo.modelo_talles
   const selectedTalle = modelo.modelo_talles.find(t => t.id === selectedTalleId)
   const mainFoto = modelo.modelo_fotos[0]?.foto_url ?? null

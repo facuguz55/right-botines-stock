@@ -52,6 +52,7 @@ interface TNRawProductMinimal {
     id: number
     sku: string | null
     price: string
+    promotional_price: string | null
     stock: number | null
     values: { es?: string; en?: string; [k: string]: string | undefined }[]
   }[]
@@ -88,6 +89,8 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   const gama = detectGama(name, catNames)
   const { marca, modelo } = extractMarcaModelo(prod)
   const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
+  const promoRaw = prod.variants[0]?.promotional_price
+  const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
   const variantTalles = prod.variants
@@ -114,7 +117,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
     modeloId = existing.id
     await sbFetch(`modelos?id=eq.${modeloId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, tn_category_id, tn_product_id: prod.id }),
+      body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, precio_promocional, tn_category_id, tn_product_id: prod.id }),
     })
   } else {
     // Insert directo (no sbFetch) para poder detectar un choque de unique
@@ -128,7 +131,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
         'Content-Type': 'application/json', Prefer: 'return=representation',
       },
       body: JSON.stringify({
-        marca, modelo, categoria, gama, precio_venta,
+        marca, modelo, categoria, gama, precio_venta, precio_promocional,
         precio_costo: 0,
         codigo_base: `tn_${prod.id}`,
         notas: null,
@@ -145,7 +148,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
       modeloId = conflict.id
       await sbFetch(`modelos?id=eq.${modeloId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, tn_category_id, tn_product_id: prod.id }),
+        body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, precio_promocional, tn_category_id, tn_product_id: prod.id }),
       })
     }
   }

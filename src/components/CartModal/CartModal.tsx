@@ -9,17 +9,16 @@ interface CartModalProps {
   isOpen: boolean
   onClose: () => void
   items: CartItem[]
-  descuentoPct: number | null
   recargos: RecargoTarjeta[]
   clear: () => void
   clientes: ClienteLocal[]
   addCliente: (input: { nombre: string; telefono: string | null; email: string | null; notas: string | null }) => Promise<ClienteLocal>
-  onSell: (items: CartItem[], medioPago: MedioPago, clienteId: string, descuentoPct: number | null, tarjeta: string | null, cuotas: number | null, recargoPct: number) => Promise<void>
+  onSell: (items: CartItem[], medioPago: MedioPago, clienteId: string, tarjeta: string | null, cuotas: number | null, recargoPct: number) => Promise<void>
 }
 
 const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta']
 
-export function CartModal({ isOpen, onClose, items, descuentoPct, recargos, clear, clientes, addCliente, onSell }: CartModalProps) {
+export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, addCliente, onSell }: CartModalProps) {
   const [step, setStep] = useState<'pago' | 'cliente'>('pago')
   const [medioPago, setMedioPago] = useState<MedioPago>('Efectivo')
   const [tarjeta, setTarjeta] = useState<string | null>(null)
@@ -43,11 +42,11 @@ export function CartModal({ isOpen, onClose, items, descuentoPct, recargos, clea
   const faltaElegirRecargo = esTarjeta && hayRecargosConfigurados && (!tarjeta || !cuotas)
   const recargoPct = getRecargoPct(recargos, tarjeta, cuotas)
 
-  const subtotal = items.reduce((s, i) => s + getPrecioReal(i.modelo, descuentoPct) * i.cantidad, 0)
+  const subtotal = items.reduce((s, i) => s + getPrecioReal(i.modelo) * i.cantidad, 0)
   const recargo = esTarjeta && !faltaElegirRecargo ? subtotal * (recargoPct / 100) : 0
   const total = subtotal + recargo
   const ganancia = items.reduce((s, i) => {
-    const base = getPrecioReal(i.modelo, descuentoPct)
+    const base = getPrecioReal(i.modelo)
     const precioFinal = esTarjeta && !faltaElegirRecargo ? base * (1 + recargoPct / 100) : base
     return s + (precioFinal - i.modelo.precio_costo) * i.cantidad
   }, 0)
@@ -98,7 +97,7 @@ export function CartModal({ isOpen, onClose, items, descuentoPct, recargos, clea
         })
         clienteId = nuevo.id
       }
-      await onSell(items, medioPago, clienteId, descuentoPct, esTarjeta && !faltaElegirRecargo ? tarjeta : null, esTarjeta && !faltaElegirRecargo ? cuotas : null, recargoPct)
+      await onSell(items, medioPago, clienteId, esTarjeta && !faltaElegirRecargo ? tarjeta : null, esTarjeta && !faltaElegirRecargo ? cuotas : null, recargoPct)
       clear()
       handleClose()
     } catch (e) {

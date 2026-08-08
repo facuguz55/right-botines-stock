@@ -110,7 +110,7 @@ export function TiendaNubeImport({ isOpen, onClose, onImported }: TiendaNubeImpo
         const codigoBase = await getUniqueCodigoBase(base)
         const newModelo = await createModelo({
           marca: g.marca, modelo: g.modelo, categoria: g.categoria, gama: g.gama,
-          precio_costo: g.precio_costo, precio_venta: g.precio_venta,
+          precio_costo: g.precio_costo, precio_venta: g.precio_venta, precio_promocional: null,
           codigo_base: codigoBase, notas: g.notas.trim() || null,
         })
         for (const t of g.talles) {
