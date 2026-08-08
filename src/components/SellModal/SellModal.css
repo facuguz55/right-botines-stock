@@ -45,6 +45,12 @@
 .sell-error { background: var(--danger-dim); border: 1px solid var(--danger); border-radius: var(--radius-sm); color: var(--danger); padding: .5rem .75rem; font-size: .8125rem; }
 .sell-actions { display: flex; justify-content: flex-end; gap: .75rem; padding-top: .25rem; }
 
+@media (max-width: 768px) {
+  .sell-actions { flex-wrap: wrap; }
+  .sell-actions .btn { flex: 1 1 45%; justify-content: center; }
+  .medio-pago-options { flex-wrap: wrap; }
+}
+
 /* Cantidad stepper */
 .cantidad-stepper { display: flex; align-items: center; gap: .875rem; }
 .cantidad-btn {
@@ -54,3 +60,7 @@
 }
 .cantidad-btn:hover { border-color: var(--accent); color: var(--accent); }
 .cantidad-val { font-size: 1rem; font-weight: 700; color: var(--text-primary); min-width: 1.5rem; text-align: center; }
+
+@media (max-width: 768px) {
+  .cantidad-btn { width: 40px; height: 40px; }
+}

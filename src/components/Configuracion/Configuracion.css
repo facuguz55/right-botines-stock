@@ -110,6 +110,10 @@
 .icon-btn:hover { color: var(--text-primary); border-color: var(--border-light); }
 .icon-btn.danger:hover { color: var(--danger); border-color: rgba(239,68,68,.4); }
 
+@media (max-width: 768px) {
+  .icon-btn { width: 40px; height: 40px; }
+}
+
 .config-section {
   display: flex;
   flex-direction: column;

@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut, Banknote, UserCog,
+  LogOut, Banknote, UserCog, Menu, X,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -55,6 +56,66 @@ const ALL_NAV: NavItem[] = [
 export function Layout({ activePage, onNavigate, role, onLogout, children }: LayoutProps) {
   const nav = (page: ActivePage) => ALL_NAV.find(n => n.page === page)!
   const esDueno = role === 'dueno'
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const renderNavGroups = (onNav: (page: ActivePage) => void) => (
+    <>
+      {/* ── LOCAL ── */}
+      <p className="nav-universe-label">Local</p>
+
+      <p className="nav-group-label">Análisis</p>
+      <NavBtn item={nav('dashboard')} active={activePage === 'dashboard'} onClick={() => onNav('dashboard')} />
+      <NavBtn item={nav('seguimientos')} active={activePage === 'seguimientos'} onClick={() => onNav('seguimientos')} />
+
+      <p className="nav-group-label">Gestión</p>
+      {(['stock', 'carpetas', 'ventas', 'stock_avanzado', 'clientes_locales'] as ActivePage[]).map(p => (
+        <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
+      ))}
+
+      <p className="nav-group-label">Personal</p>
+      <NavBtn item={nav('caja')} active={activePage === 'caja'} onClick={() => onNav('caja')} />
+      {esDueno && (
+        <NavBtn item={nav('empleados')} active={activePage === 'empleados'} onClick={() => onNav('empleados')} />
+      )}
+
+      {esDueno && (
+        <>
+          <div className="nav-gap" />
+          <NavBtn item={nav('configuracion')} active={activePage === 'configuracion'} onClick={() => onNav('configuracion')} />
+        </>
+      )}
+
+      {/* ── TIENDA ONLINE ── */}
+      <div className="nav-divider" />
+      <p className="nav-universe-label">Tienda Online</p>
+
+      <p className="nav-group-label">Análisis</p>
+      {(['tn_dashboard', 'tn_analytics'] as ActivePage[]).map(p => (
+        <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
+      ))}
+
+      <p className="nav-group-label">Gestión</p>
+      {(['tn_ordenes', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
+        <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
+      ))}
+
+      <p className="nav-group-label">Mensajes</p>
+      <NavBtn item={nav('tn_mails')} active={activePage === 'tn_mails'} onClick={() => onNav('tn_mails')} />
+
+      {/* ── RENTABILIDAD ── */}
+      {esDueno && (
+        <>
+          <div className="nav-divider" />
+          <NavBtn item={nav('rentabilidad')} active={activePage === 'rentabilidad'} onClick={() => onNav('rentabilidad')} />
+        </>
+      )}
+    </>
+  )
+
+  const handleMobileNav = (page: ActivePage) => {
+    onNavigate(page)
+    setMenuOpen(false)
+  }
 
   return (
     <div className="layout">
@@ -63,57 +124,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
           <img src="/logo.png" alt="Right Botines" className="brand-logo" onClick={() => window.location.reload()} />
         </div>
         <nav className="sidebar-nav">
-
-          {/* ── LOCAL ── */}
-          <p className="nav-universe-label">Local</p>
-
-          <p className="nav-group-label">Análisis</p>
-          <NavBtn item={nav('dashboard')} active={activePage === 'dashboard'} onClick={() => onNavigate('dashboard')} />
-          <NavBtn item={nav('seguimientos')} active={activePage === 'seguimientos'} onClick={() => onNavigate('seguimientos')} />
-
-          <p className="nav-group-label">Gestión</p>
-          {(['stock', 'carpetas', 'ventas', 'stock_avanzado', 'clientes_locales'] as ActivePage[]).map(p => (
-            <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNavigate(p)} />
-          ))}
-
-          <p className="nav-group-label">Personal</p>
-          <NavBtn item={nav('caja')} active={activePage === 'caja'} onClick={() => onNavigate('caja')} />
-          {esDueno && (
-            <NavBtn item={nav('empleados')} active={activePage === 'empleados'} onClick={() => onNavigate('empleados')} />
-          )}
-
-          {esDueno && (
-            <>
-              <div className="nav-gap" />
-              <NavBtn item={nav('configuracion')} active={activePage === 'configuracion'} onClick={() => onNavigate('configuracion')} />
-            </>
-          )}
-
-          {/* ── TIENDA ONLINE ── */}
-          <div className="nav-divider" />
-          <p className="nav-universe-label">Tienda Online</p>
-
-          <p className="nav-group-label">Análisis</p>
-          {(['tn_dashboard', 'tn_analytics'] as ActivePage[]).map(p => (
-            <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNavigate(p)} />
-          ))}
-
-          <p className="nav-group-label">Gestión</p>
-          {(['tn_ordenes', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
-            <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNavigate(p)} />
-          ))}
-
-          <p className="nav-group-label">Mensajes</p>
-          <NavBtn item={nav('tn_mails')} active={activePage === 'tn_mails'} onClick={() => onNavigate('tn_mails')} />
-
-          {/* ── RENTABILIDAD ── */}
-          {esDueno && (
-            <>
-              <div className="nav-divider" />
-              <NavBtn item={nav('rentabilidad')} active={activePage === 'rentabilidad'} onClick={() => onNavigate('rentabilidad')} />
-            </>
-          )}
-
+          {renderNavGroups(onNavigate)}
         </nav>
 
         <div className="sidebar-footer">
@@ -131,7 +142,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
 
       {/* Bottom nav mobile */}
       <nav className="bottom-nav">
-        {(['stock', 'dashboard', 'seguimientos', 'caja', 'tn_ordenes', 'tn_dashboard'] as ActivePage[]).map(p => {
+        {(['stock', 'caja', 'dashboard', 'seguimientos'] as ActivePage[]).map(p => {
           const item = nav(p)
           return (
             <button
@@ -144,7 +155,37 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
             </button>
           )
         })}
+        <button
+          className={`bottom-nav-item${menuOpen ? ' active' : ''}`}
+          onClick={() => setMenuOpen(true)}
+        >
+          <Menu size={20} />
+          <span>Más</span>
+        </button>
       </nav>
+
+      {/* Drawer mobile con todo el menú */}
+      {menuOpen && (
+        <div className="nav-drawer-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="nav-drawer" onClick={e => e.stopPropagation()}>
+            <div className="nav-drawer-header">
+              <span>Menú</span>
+              <button className="nav-drawer-close" onClick={() => setMenuOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <nav className="sidebar-nav nav-drawer-nav">
+              {renderNavGroups(handleMobileNav)}
+            </nav>
+            <div className="sidebar-footer">
+              <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
+                <LogOut size={15} />
+                <span>{esDueno ? 'Dueño' : 'Empleado'} · Salir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

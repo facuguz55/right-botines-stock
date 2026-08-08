@@ -171,3 +171,7 @@
   border-top: 1px solid var(--border);
 }
 .icon-btn { padding: .3125rem .5rem; }
+
+@media (max-width: 768px) {
+  .icon-btn { min-width: 40px; min-height: 40px; }
+}

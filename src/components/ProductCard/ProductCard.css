@@ -210,3 +210,7 @@
 .icon-btn {
   padding: 0.35rem 0.6rem;
 }
+
+@media (max-width: 768px) {
+  .icon-btn { min-width: 40px; min-height: 40px; }
+}
