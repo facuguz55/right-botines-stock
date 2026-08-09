@@ -41,12 +41,15 @@ export async function upsertModeloFromTNProduct(
   const { marca, modelo } = extractMarcaModelo(prod)
   const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
   // El "Promocional" de TN es el precio CON TARJETA de cada producto (campo
-  // propio, no un % fijo — ver precio_promocional_tn.sql). El precio real de
-  // efectivo/transferencia se deriva dividiendo por el recargo de Crédito 3
-  // cuotas vigente (ver precio_efectivo.sql).
+  // propio, no un % fijo — ver precio_promocional_tn.sql). Cuando ese campo
+  // viene vacío, "Precio" (precio_venta) pasa a ser directamente el precio
+  // con tarjeta — TN no lo trata como precio de vidriera en ese caso (confirmado
+  // contra la web pública: producto sin Promocional pero con TRANSF/Tarjeta
+  // igual mostrados, usando el valor de "Precio"). El precio real de
+  // efectivo/transferencia se deriva de ese valor (ver precio_efectivo.sql).
   const promoRaw = prod.variants[0]?.promotional_price
   const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
-  const precio_efectivo = computePrecioEfectivo(precio_promocional, recargoCredito3CuotasPct)
+  const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, recargoCredito3CuotasPct)
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
   const variantTalles = prod.variants

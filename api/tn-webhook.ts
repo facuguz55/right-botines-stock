@@ -98,7 +98,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
   const promoRaw = prod.variants[0]?.promotional_price
   const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
-  const precio_efectivo = computePrecioEfectivo(precio_promocional, await fetchRecargoCredito3Cuotas())
+  const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, await fetchRecargoCredito3Cuotas())
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
   const variantTalles = prod.variants
