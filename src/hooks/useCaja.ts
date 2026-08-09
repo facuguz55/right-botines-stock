@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { CajaDia, TotalesEfectivoDia } from '../types'
+import type { CajaDia, CajaGasto, TotalesEfectivoDia } from '../types'
 import {
   fetchCajaAbierta, abrirCaja, cerrarCaja, fetchTotalesEfectivoDia, fetchCajasCerradas,
+  fetchGastosCaja, registrarGastoCaja,
 } from '../services/caja'
 
 const POLL_MS = 30000
@@ -9,6 +10,7 @@ const POLL_MS = 30000
 export function useCaja(startDate?: string, endDate?: string) {
   const [cajaAbierta, setCajaAbierta] = useState<CajaDia | null>(null)
   const [totalesDia, setTotalesDia] = useState<TotalesEfectivoDia>({ efectivo: 0, transferencia: 0, tarjeta: 0 })
+  const [gastos, setGastos] = useState<CajaGasto[]>([])
   const [cerradas, setCerradas] = useState<CajaDia[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -17,7 +19,13 @@ export function useCaja(startDate?: string, endDate?: string) {
     try {
       const caja = await fetchCajaAbierta()
       setCajaAbierta(caja)
-      if (caja) setTotalesDia(await fetchTotalesEfectivoDia(caja.fecha))
+      if (caja) {
+        const [tot, gas] = await Promise.all([fetchTotalesEfectivoDia(caja.fecha), fetchGastosCaja(caja.id)])
+        setTotalesDia(tot)
+        setGastos(gas)
+      } else {
+        setGastos([])
+      }
     } catch (e) {
       setError((e as Error).message)
     }
@@ -57,5 +65,11 @@ export function useCaja(startDate?: string, endDate?: string) {
     await loadAll()
   }
 
-  return { cajaAbierta, totalesDia, cerradas, loading, error, abrir, cerrar, reload: loadAll }
+  const registrarGasto = async (monto: number, motivo: string, empleadoId: string | null) => {
+    if (!cajaAbierta) throw new Error('No hay caja abierta')
+    await registrarGastoCaja(cajaAbierta.id, monto, motivo, empleadoId)
+    await loadAbierta()
+  }
+
+  return { cajaAbierta, totalesDia, gastos, cerradas, loading, error, abrir, cerrar, registrarGasto, reload: loadAll }
 }

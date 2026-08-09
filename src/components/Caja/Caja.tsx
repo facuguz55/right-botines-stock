@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Wallet, Lock, Unlock, AlertTriangle } from 'lucide-react'
+import { Wallet, Lock, Unlock, AlertTriangle, Receipt, MinusCircle } from 'lucide-react'
 import type { Role } from '../../types'
 import { useCaja } from '../../hooks/useCaja'
 import { Modal } from '../Modal/Modal'
@@ -52,7 +52,7 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
   const [endDate, setEndDate] = useState(initial.end)
   const [activePreset, setActivePreset] = useState('mes')
 
-  const { cajaAbierta, totalesDia, cerradas, loading, error, abrir, cerrar } = useCaja(startDate, endDate)
+  const { cajaAbierta, totalesDia, gastos, cerradas, loading, error, abrir, cerrar, registrarGasto } = useCaja(startDate, endDate)
 
   const [montoApertura, setMontoApertura] = useState('')
   const [abriendo, setAbriendo] = useState(false)
@@ -61,6 +61,12 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
   const [montoContado, setMontoContado] = useState('')
   const [notas, setNotas] = useState('')
   const [cerrando, setCerrando] = useState(false)
+
+  const [showGasto, setShowGasto] = useState(false)
+  const [montoGasto, setMontoGasto] = useState('')
+  const [motivoGasto, setMotivoGasto] = useState('')
+  const [gastoError, setGastoError] = useState<string | null>(null)
+  const [registrandoGasto, setRegistrandoGasto] = useState(false)
 
   const quienSoy = role === 'dueno' ? 'Dueño' : empleadoNombre
 
@@ -83,9 +89,28 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
     }
   }
 
-  const esperado = cajaAbierta ? cajaAbierta.monto_apertura + totalesDia.efectivo : 0
+  const totalGastos = gastos.reduce((s, g) => s + g.monto, 0)
+  const esperado = cajaAbierta ? cajaAbierta.monto_apertura + totalesDia.efectivo - totalGastos : 0
   const contadoNum = montoContado ? Number(montoContado) : null
   const diferenciaPreview = contadoNum != null ? contadoNum - esperado : null
+
+  const handleRegistrarGasto = async () => {
+    setGastoError(null)
+    const monto = Number(montoGasto)
+    if (!(monto > 0)) return setGastoError('Ingresá un monto válido')
+    if (!motivoGasto.trim()) return setGastoError('Ingresá el motivo del gasto')
+    setRegistrandoGasto(true)
+    try {
+      await registrarGasto(monto, motivoGasto.trim(), empleadoId)
+      setShowGasto(false)
+      setMontoGasto('')
+      setMotivoGasto('')
+    } catch (e) {
+      setGastoError((e as Error).message)
+    } finally {
+      setRegistrandoGasto(false)
+    }
+  }
 
   const handleCerrar = async () => {
     if (contadoNum == null) return
@@ -151,12 +176,40 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
             <div className="sell-stat"><span>Apertura</span><span className="sell-stat-val">${cajaAbierta.monto_apertura.toLocaleString('es-AR')}</span></div>
             <div className="sell-stat"><span>Abierta por</span><span className="sell-stat-val">{cajaAbierta.empleado_apertura?.nombre ?? 'Dueño'}</span></div>
             <div className="sell-stat"><span>Efectivo vendido hoy</span><span className="sell-stat-val">${totalesDia.efectivo.toLocaleString('es-AR')}</span></div>
+            <div className="sell-stat"><span>Gastos</span><span className="sell-stat-val">-${totalGastos.toLocaleString('es-AR')}</span></div>
             <div className="sell-stat"><span>Efectivo esperado</span><span className="sell-stat-val accent">${esperado.toLocaleString('es-AR')}</span></div>
           </div>
 
           <p className="caja-referencia">
             Referencia (no afecta el arqueo): Transferencia ${totalesDia.transferencia.toLocaleString('es-AR')} · Tarjeta ${totalesDia.tarjeta.toLocaleString('es-AR')}
           </p>
+
+          <div className="caja-gastos-header">
+            <div className="config-section-header"><Receipt size={16} /><h3 className="config-section-title">Gastos de hoy</h3></div>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowGasto(true)}><MinusCircle size={14} /> Registrar gasto</button>
+          </div>
+
+          {gastos.length === 0 ? (
+            <p className="caja-referencia">Sin gastos registrados hoy.</p>
+          ) : (
+            <div className="caja-gastos-list">
+              {gastos.map(g => (
+                <div key={g.id} className="caja-gasto-row">
+                  <div>
+                    <span className="caja-gasto-motivo">{g.motivo}</span>
+                    <span className="caja-gasto-meta">
+                      {g.empleados?.nombre ?? 'Dueño'} · {new Date(g.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <span className="caja-gasto-monto">-${g.monto.toLocaleString('es-AR')}</span>
+                </div>
+              ))}
+              <div className="caja-gasto-row caja-gasto-total">
+                <span>Total gastos</span>
+                <span className="caja-gasto-monto">-${totalGastos.toLocaleString('es-AR')}</span>
+              </div>
+            </div>
+          )}
 
           <div className="config-actions">
             <button className="btn btn-primary" onClick={() => setShowCerrar(true)}><Lock size={14} /> Cerrar caja</button>
@@ -195,7 +248,7 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
         ) : (
           <div className="ventas-table-wrap">
             <table className="ventas-table">
-              <thead><tr><th>Fecha</th><th>Apertura</th><th>Contado</th><th>Esperado</th><th>Diferencia</th><th>Abierta / Cerrada por</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Apertura</th><th>Gastos</th><th>Contado</th><th>Esperado</th><th>Diferencia</th><th>Abierta / Cerrada por</th></tr></thead>
               <tbody>
                 {cerradas.map(c => {
                   const dif = c.diferencia ?? 0
@@ -203,6 +256,7 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
                     <tr key={c.id}>
                       <td>{new Date(c.fecha + 'T00:00:00').toLocaleDateString('es-AR')}</td>
                       <td>${c.monto_apertura.toLocaleString('es-AR')}</td>
+                      <td>${(c.total_gastos_snapshot ?? 0).toLocaleString('es-AR')}</td>
                       <td>${(c.monto_cierre_contado ?? 0).toLocaleString('es-AR')}</td>
                       <td>${(c.monto_esperado_snapshot ?? 0).toLocaleString('es-AR')}</td>
                       <td className={`ganancia-cell ${dif >= 0 ? 'positive' : 'negative'}`}>
@@ -257,6 +311,42 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
             <button className="btn btn-secondary" onClick={() => setShowCerrar(false)} disabled={cerrando}>Cancelar</button>
             <button className="btn btn-primary" disabled={!montoContado || cerrando} onClick={handleCerrar}>
               {cerrando ? 'Cerrando...' : 'Confirmar cierre'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showGasto} onClose={() => !registrandoGasto && setShowGasto(false)} title="Registrar gasto" maxWidth="420px">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="config-row">
+            <label className="config-label">Monto</label>
+            <div className="config-input-wrap">
+              <input
+                type="number" className="config-input" min={0}
+                value={montoGasto} onChange={e => setMontoGasto(e.target.value)}
+                placeholder="0" autoFocus
+              />
+              <span className="config-input-suffix">ARS</span>
+            </div>
+          </div>
+
+          <div className="config-row config-row-col">
+            <label className="config-label">Motivo</label>
+            <div className="config-input-wrap" style={{ width: '100%' }}>
+              <input
+                className="config-input" style={{ fontWeight: 400, fontSize: '.875rem' }}
+                value={motivoGasto} onChange={e => setMotivoGasto(e.target.value)}
+                placeholder="Ej: compra de bolsas, flete, etc."
+              />
+            </div>
+          </div>
+
+          {gastoError && <p className="sell-error">{gastoError}</p>}
+
+          <div className="sell-actions">
+            <button className="btn btn-secondary" onClick={() => setShowGasto(false)} disabled={registrandoGasto}>Cancelar</button>
+            <button className="btn btn-primary" disabled={!montoGasto || !motivoGasto.trim() || registrandoGasto} onClick={handleRegistrarGasto}>
+              {registrandoGasto ? 'Registrando...' : 'Registrar gasto'}
             </button>
           </div>
         </div>

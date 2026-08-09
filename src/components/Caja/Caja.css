@@ -50,3 +50,60 @@
   background: rgba(239, 68, 68, 0.1);
   color: var(--danger);
 }
+
+.caja-gastos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.caja-gastos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.caja-gasto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+}
+
+.caja-gasto-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.caja-gasto-motivo {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.caja-gasto-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.caja-gasto-monto {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--danger);
+  white-space: nowrap;
+}
+
+.caja-gasto-total {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  padding-top: 0.75rem;
+  font-weight: 600;
+}

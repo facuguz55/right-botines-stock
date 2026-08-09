@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { CajaDia, TotalesEfectivoDia } from '../types'
+import type { CajaDia, CajaGasto, TotalesEfectivoDia } from '../types'
 
 const SELECT_CON_EMPLEADOS =
   '*, empleado_apertura:empleados!caja_dias_abierta_por_fkey(nombre), empleado_cierre:empleados!caja_dias_cerrada_por_fkey(nombre)'
@@ -34,6 +34,37 @@ export async function abrirCaja(montoApertura: number, empleadoId: string | null
   return data as CajaDia
 }
 
+export async function fetchGastosCaja(cajaDiaId: string): Promise<CajaGasto[]> {
+  const { data, error } = await supabase
+    .from('caja_gastos')
+    .select('*, empleados(nombre)')
+    .eq('caja_dia_id', cajaDiaId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []) as CajaGasto[]
+}
+
+export async function registrarGastoCaja(
+  cajaDiaId: string, monto: number, motivo: string, empleadoId: string | null,
+): Promise<CajaGasto> {
+  const { data, error } = await supabase
+    .from('caja_gastos')
+    .insert([{ caja_dia_id: cajaDiaId, monto, motivo, empleado_id: empleadoId }])
+    .select('*, empleados(nombre)')
+    .single()
+  if (error) throw error
+  return data as CajaGasto
+}
+
+async function fetchTotalGastos(cajaDiaId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('caja_gastos')
+    .select('monto')
+    .eq('caja_dia_id', cajaDiaId)
+  if (error) throw error
+  return (data || []).reduce((s, g) => s + Number(g.monto), 0)
+}
+
 export async function fetchTotalesEfectivoDia(fecha: string): Promise<TotalesEfectivoDia> {
   const { data, error } = await supabase
     .from('ventas')
@@ -60,8 +91,11 @@ export async function cerrarCaja(
   empleadoId: string | null,
   notas: string | null
 ): Promise<CajaDia> {
-  const totales = await fetchTotalesEfectivoDia(fecha)
-  const esperado = montoApertura + totales.efectivo
+  const [totales, totalGastos] = await Promise.all([
+    fetchTotalesEfectivoDia(fecha),
+    fetchTotalGastos(cajaId),
+  ])
+  const esperado = montoApertura + totales.efectivo - totalGastos
   const diferencia = montoContado - esperado
 
   const { data, error } = await supabase
@@ -70,6 +104,7 @@ export async function cerrarCaja(
       estado: 'cerrada',
       monto_cierre_contado: montoContado,
       monto_esperado_snapshot: esperado,
+      total_gastos_snapshot: totalGastos,
       diferencia,
       cerrada_por: empleadoId,
       cerrada_at: new Date().toISOString(),

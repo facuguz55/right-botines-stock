@@ -301,9 +301,20 @@ export interface CajaDia {
   cerrada_por: string | null
   cerrada_at: string | null
   notas: string | null
+  total_gastos_snapshot: number | null
   created_at: string
   empleado_apertura?: { nombre: string } | null
   empleado_cierre?: { nombre: string } | null
+}
+
+export interface CajaGasto {
+  id: string
+  caja_dia_id: string
+  monto: number
+  motivo: string
+  empleado_id: string | null
+  created_at: string
+  empleados?: { nombre: string } | null
 }
 
 export interface TotalesEfectivoDia {
