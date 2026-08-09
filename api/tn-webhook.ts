@@ -8,10 +8,10 @@ import {
 // Usa service role key (nunca el anon key) para escrituras privilegiadas server-side
 const SB_URL = process.env.SUPABASE_URL ?? ''
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
-const EXPECTED_STORE = process.env.TN_STORE_ID ?? ''
-const TN_TOKEN = process.env.TN_TOKEN ?? ''
+export const EXPECTED_STORE = process.env.TN_STORE_ID ?? ''
+export const TN_TOKEN = process.env.TN_TOKEN ?? ''
 
-async function sbFetch(path: string, options: RequestInit = {}) {
+export async function sbFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
     ...options,
     headers: {
@@ -44,7 +44,7 @@ async function verifyHmac(req: Request, rawBody: string): Promise<boolean> {
 
 // ── Producto TN (fetch server-side, los webhooks de TN mandan payload mínimo) ─
 
-interface TNRawProductMinimal {
+export interface TNRawProductMinimal {
   id: number
   name: Record<string, string>
   brand: string | null
@@ -97,7 +97,7 @@ async function findExistingModeloByTNProduct(productId: number): Promise<{ id: s
 // Misma lógica que upsertModeloFromTNProduct en src/services/tnSync.ts, pero
 // vía sbFetch (Edge runtime no puede usar el cliente supabase-js del browser).
 
-async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise<void> {
+export async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise<void> {
   const name = prod.name.es ?? prod.name.en ?? Object.values(prod.name)[0] ?? `Producto ${prod.id}`
   const catNames = (prod.categories ?? []).map(c => c.name?.es ?? c.name?.en ?? '')
   const categoria = detectCategoria(name, catNames)
