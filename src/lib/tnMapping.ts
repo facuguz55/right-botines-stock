@@ -69,15 +69,32 @@ export function detectGama(name: string, catNames: string[]): string {
 }
 
 // ── Precio efectivo/transferencia a partir del "Promocional" de TN ──────────
-// El promotional_price de TN es el precio CON TARJETA, no el de efectivo
-// (confirmado por el dueño contra la lista real de precios efectivo→tarjeta
-// ya cargada en recargos_tarjeta). Se calcula dividiendo por el recargo de
-// Crédito 3 cuotas vigente al momento del sync.
+// El promotional_price de TN es el precio CON TARJETA, no el de efectivo.
+// TN no expone el precio real de efectivo/transferencia por API: son tiers
+// redondos fijos por categoría que solo se ven en la web pública
+// (right.com.ar/productos). Tabla relevada a mano el 2026-08-09 recorriendo
+// las 8 páginas del catálogo público — cubre el 100% de los precios
+// promocionales presentes en la base al momento del relevamiento.
+// Si aparece un precio promocional nuevo que no está en la tabla (producto
+// nuevo en TN todavía no relevado), se usa como respaldo la fórmula anterior
+// (÷ recargo de Crédito 3 cuotas), que da un valor aproximado (~0.5% más alto).
+export const TIERS_EFECTIVO_POR_TARJETA: Record<number, number> = {
+  77500: 60000,
+  135500: 105000,
+  137380: 106000,
+  166500: 129000,
+  174300: 135000,
+  174340: 135000,
+  186300: 144000,
+}
 
 export function computePrecioEfectivo(
   precioPromocional: number | null, recargoCredito3CuotasPct: number | null,
 ): number | null {
-  if (precioPromocional == null || recargoCredito3CuotasPct == null || recargoCredito3CuotasPct <= 0) return null
+  if (precioPromocional == null) return null
+  const tier = TIERS_EFECTIVO_POR_TARJETA[precioPromocional]
+  if (tier != null) return tier
+  if (recargoCredito3CuotasPct == null || recargoCredito3CuotasPct <= 0) return null
   return Math.round(precioPromocional / (1 + recargoCredito3CuotasPct / 100))
 }
 
