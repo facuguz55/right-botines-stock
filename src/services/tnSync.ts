@@ -33,6 +33,7 @@ export async function upsertModeloFromTNProduct(
   prod: TNRawProduct,
   existing: Modelo | undefined,
   recargoCredito3CuotasPct: number | null,
+  tiers: Record<number, number>,
 ): Promise<{ created: boolean; imagesAdded: number }> {
   const name = prod.name.es ?? prod.name.en ?? Object.values(prod.name)[0] ?? `Producto ${prod.id}`
   const catNames = (prod.categories ?? []).map(c => c.name?.es ?? c.name?.en ?? '')
@@ -49,7 +50,7 @@ export async function upsertModeloFromTNProduct(
   // efectivo/transferencia se deriva de ese valor (ver precio_efectivo.sql).
   const promoRaw = prod.variants[0]?.promotional_price
   const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
-  const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, recargoCredito3CuotasPct)
+  const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, tiers, recargoCredito3CuotasPct)
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
   const variantTalles = prod.variants
@@ -168,6 +169,11 @@ export async function syncTNStock(
     .eq('activo', true)
     .maybeSingle()
   const recargoCredito3CuotasPct = recargoRow?.porcentaje ?? null
+  const { data: tierRows } = await supabase
+    .from('precio_tiers_tarjeta')
+    .select('precio_tarjeta, precio_efectivo')
+  const tiers: Record<number, number> = {}
+  for (const t of tierRows ?? []) tiers[Number(t.precio_tarjeta)] = Number(t.precio_efectivo)
   // Claves como string: Postgres devuelve las columnas bigint (tn_product_id)
   // como string en algunos casos vía la API REST — comparar como number con
   // Map<number,...> puede fallar silenciosamente por mismatch de tipo.
@@ -180,7 +186,7 @@ export async function syncTNStock(
     onProgress?.(`[${i + 1}/${tnProducts.length}] ${name.slice(0, 40)}`)
 
     try {
-      const { created, imagesAdded } = await upsertModeloFromTNProduct(prod, localByTNId.get(String(prod.id)), recargoCredito3CuotasPct)
+      const { created, imagesAdded } = await upsertModeloFromTNProduct(prod, localByTNId.get(String(prod.id)), recargoCredito3CuotasPct, tiers)
       result[created ? 'created' : 'updated']++
       result.imagesAdded += imagesAdded
     } catch (err) {

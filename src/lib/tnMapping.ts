@@ -72,30 +72,22 @@ export function detectGama(name: string, catNames: string[]): string {
 // El promotional_price de TN es el precio CON TARJETA, no el de efectivo.
 // TN no expone el precio real de efectivo/transferencia por API: son tiers
 // redondos fijos por categoría que solo se ven en la web pública
-// (right.com.ar/productos). Tabla relevada a mano el 2026-08-09 recorriendo
-// las 8 páginas del catálogo público — cubre el 100% de los precios
-// promocionales presentes en la base al momento del relevamiento.
-// Si aparece un precio promocional nuevo que no está en la tabla (producto
+// (right.com.ar/productos). La tabla de tiers vive en la tabla
+// precio_tiers_tarjeta (no hardcodeada acá) para que un bundle de JS viejo
+// en una pestaña abierta nunca pueda pisar estos valores con una tabla
+// desactualizada — quien llama a esta función la trae fresca de la base
+// (ver fetchPrecioTiers en tnSync.ts / tn-webhook.ts).
+// Si aparece un precio de tarjeta nuevo que no está en la tabla (producto
 // nuevo en TN todavía no relevado), se usa como respaldo la fórmula anterior
 // (÷ recargo de Crédito 3 cuotas), que da un valor aproximado (~0.5% más alto).
-export const TIERS_EFECTIVO_POR_TARJETA: Record<number, number> = {
-  77500: 60000,
-  135500: 105000,
-  137380: 106000,
-  166500: 129000,
-  174300: 135000,
-  174340: 135000,
-  186300: 144000,
-}
-
 export function computePrecioEfectivo(
-  precioPromocional: number | null, recargoCredito3CuotasPct: number | null,
+  precioTarjeta: number | null, tiers: Record<number, number>, recargoCredito3CuotasPct: number | null,
 ): number | null {
-  if (precioPromocional == null) return null
-  const tier = TIERS_EFECTIVO_POR_TARJETA[precioPromocional]
+  if (precioTarjeta == null) return null
+  const tier = tiers[precioTarjeta]
   if (tier != null) return tier
   if (recargoCredito3CuotasPct == null || recargoCredito3CuotasPct <= 0) return null
-  return Math.round(precioPromocional / (1 + recargoCredito3CuotasPct / 100))
+  return Math.round(precioTarjeta / (1 + recargoCredito3CuotasPct / 100))
 }
 
 // ── Extracción de marca y modelo ─────────────────────────────────────────────

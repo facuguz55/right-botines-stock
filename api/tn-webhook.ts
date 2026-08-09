@@ -74,6 +74,14 @@ async function fetchRecargoCredito3Cuotas(): Promise<number | null> {
   return rows[0]?.porcentaje ?? null
 }
 
+async function fetchPrecioTiers(): Promise<Record<number, number>> {
+  const res = await sbFetch(`precio_tiers_tarjeta?select=precio_tarjeta,precio_efectivo`)
+  const rows = await res.json() as { precio_tarjeta: number; precio_efectivo: number }[]
+  const tiers: Record<number, number> = {}
+  for (const r of rows) tiers[Number(r.precio_tarjeta)] = Number(r.precio_efectivo)
+  return tiers
+}
+
 async function findExistingModeloByTNProduct(productId: number): Promise<{ id: string } | undefined> {
   const byTnId = await sbFetch(`modelos?tn_product_id=eq.${productId}&select=id&limit=1`)
   const rowsA = await byTnId.json() as { id: string }[]
@@ -98,7 +106,8 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
   const promoRaw = prod.variants[0]?.promotional_price
   const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
-  const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, await fetchRecargoCredito3Cuotas())
+  const [recargoPct, tiers] = await Promise.all([fetchRecargoCredito3Cuotas(), fetchPrecioTiers()])
+  const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, tiers, recargoPct)
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
   const variantTalles = prod.variants
