@@ -5,7 +5,9 @@ import {
   computePrecioEfectivo,
 } from '../src/lib/tnMapping'
 
-// Usa service role key (nunca el anon key) para escrituras privilegiadas server-side
+// SUPABASE_URL/SUPABASE_ANON_KEY (o SUPABASE_SERVICE_ROLE_KEY si se agrega
+// más adelante) para escrituras server-side — no confundir con las VITE_*
+// que usa el cliente. Cargadas en Vercel el 2026-08-09.
 const SB_URL = process.env.SUPABASE_URL ?? ''
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
 export const EXPECTED_STORE = process.env.TN_STORE_ID ?? ''
