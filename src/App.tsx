@@ -182,7 +182,7 @@ export function App() {
           removeCliente={clientesLocales.removeCliente}
         />
       )}
-      {activePage === 'dashboard' && <Dashboard />}
+      {activePage === 'dashboard' && <Dashboard role={role} />}
       {activePage === 'ventas' && <VentasHistory />}
       {activePage === 'seguimientos' && <Seguimientos />}
       {activePage === 'stock_avanzado' && (
@@ -205,7 +205,7 @@ export function App() {
 
       {activePage === 'tn_dashboard' && <TNDashboard />}
       {activePage === 'tn_analytics' && <TNAnalytics />}
-      {activePage === 'tn_ordenes'   && <TNOrdenes />}
+      {activePage === 'tn_ordenes'   && <TNOrdenes empleadoId={empleadoId} />}
       {activePage === 'tn_clientes'  && <TNClientes />}
       {activePage === 'tn_cupones'   && <TNCupones />}
       {activePage === 'tn_mails'     && <TNMails />}

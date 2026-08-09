@@ -46,6 +46,11 @@ export interface TNOrder {
     zipcode: string
     country: string
   } | null
+  // Campo local (no viene de TN): el empleado la marca al preparar el pedido.
+  preparada: boolean
+  preparada_at: string | null
+  preparada_por: string | null
+  preparada_por_nombre?: string | null
 }
 
 export interface TNRawProduct {

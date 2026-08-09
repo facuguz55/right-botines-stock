@@ -18,10 +18,27 @@ import {
 export async function fetchLocalTNOrdenes(): Promise<TNOrder[]> {
   const { data, error } = await supabase
     .from('tn_ordenes')
-    .select('*')
+    .select('*, preparada_por_empleado:empleados!tn_ordenes_preparada_por_fkey(nombre)')
     .order('tn_created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map(orderRowToTNOrder)
+}
+
+// El empleado marca (o desmarca) una orden como preparada al armar el
+// pedido en el local. Es un campo puramente local — nunca se empuja a la
+// API de TiendaNube (no hay endpoint de escritura para esto todavía).
+export async function marcarOrdenPreparada(
+  tnOrderId: number, preparada: boolean, empleadoId: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('tn_ordenes')
+    .update({
+      preparada,
+      preparada_at: preparada ? new Date().toISOString() : null,
+      preparada_por: preparada ? empleadoId : null,
+    })
+    .eq('tn_order_id', tnOrderId)
+  if (error) throw error
 }
 
 export async function fetchLocalTNClientes(): Promise<TNCustomer[]> {
@@ -63,6 +80,10 @@ function orderRowToTNOrder(r: Record<string, unknown>): TNOrder {
     coupon: r.coupon as TNOrder['coupon'],
     note: (r.note as string | null) ?? null,
     shipping_address: r.shipping_address as TNOrder['shipping_address'],
+    preparada: Boolean(r.preparada),
+    preparada_at: (r.preparada_at as string | null) ?? null,
+    preparada_por: (r.preparada_por as string | null) ?? null,
+    preparada_por_nombre: (r.preparada_por_empleado as { nombre: string } | null)?.nombre ?? null,
   }
 }
 

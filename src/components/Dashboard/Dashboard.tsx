@@ -2,10 +2,16 @@ import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useDashboard } from '../../hooks/useDashboard'
+import type { Role } from '../../types'
 import './Dashboard.css'
 
-export function Dashboard() {
+interface DashboardProps {
+  role: Role
+}
+
+export function Dashboard({ role }: DashboardProps) {
   const { data, loading, error } = useDashboard()
+  const esDueno = role === 'dueno'
   const [alertasOpen, setAlertasOpen] = useState(false)
 
   if (loading) return (
@@ -70,20 +76,24 @@ export function Dashboard() {
           <p className="metric-value accent">{data.ventasMes ?? 0}</p>
           <p className="metric-sub">pares vendidos</p>
         </div>
-        <div className="metric-card">
-          <p className="metric-label">Facturado del mes</p>
-          <p className="metric-value accent">
-            ${(data.totalFacturadoMes ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-          </p>
-          <p className="metric-sub">ARS cobrados</p>
-        </div>
-        <div className="metric-card">
-          <p className="metric-label">Ganancia del mes</p>
-          <p className="metric-value accent">
-            ${(data.gananciaMes ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-          </p>
-          <p className="metric-sub">ARS estimados</p>
-        </div>
+        {esDueno && (
+          <>
+            <div className="metric-card">
+              <p className="metric-label">Facturado del mes</p>
+              <p className="metric-value accent">
+                ${(data.totalFacturadoMes ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+              </p>
+              <p className="metric-sub">ARS cobrados</p>
+            </div>
+            <div className="metric-card">
+              <p className="metric-label">Ganancia del mes</p>
+              <p className="metric-value accent">
+                ${(data.gananciaMes ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+              </p>
+              <p className="metric-sub">ARS estimados</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Gráfico + Top modelos ── */}

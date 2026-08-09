@@ -17,7 +17,9 @@ interface LayoutProps {
 }
 
 // Páginas visibles solo para el dueño
-export const SOLO_DUENO: ActivePage[] = ['configuracion', 'rentabilidad', 'empleados']
+export const SOLO_DUENO: ActivePage[] = [
+  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics',
+]
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
 
@@ -65,7 +67,9 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
 
       <p className="nav-group-label">Análisis</p>
       <NavBtn item={nav('dashboard')} active={activePage === 'dashboard'} onClick={() => onNav('dashboard')} />
-      <NavBtn item={nav('seguimientos')} active={activePage === 'seguimientos'} onClick={() => onNav('seguimientos')} />
+      {esDueno && (
+        <NavBtn item={nav('seguimientos')} active={activePage === 'seguimientos'} onClick={() => onNav('seguimientos')} />
+      )}
 
       <p className="nav-group-label">Gestión</p>
       {(['stock', 'carpetas', 'ventas', 'stock_avanzado', 'clientes_locales'] as ActivePage[]).map(p => (
@@ -89,10 +93,14 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
       <div className="nav-divider" />
       <p className="nav-universe-label">Tienda Online</p>
 
-      <p className="nav-group-label">Análisis</p>
-      {(['tn_dashboard', 'tn_analytics'] as ActivePage[]).map(p => (
-        <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
-      ))}
+      {esDueno && (
+        <>
+          <p className="nav-group-label">Análisis</p>
+          {(['tn_dashboard', 'tn_analytics'] as ActivePage[]).map(p => (
+            <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
+          ))}
+        </>
+      )}
 
       <p className="nav-group-label">Gestión</p>
       {(['tn_ordenes', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
@@ -142,7 +150,10 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
 
       {/* Bottom nav mobile */}
       <nav className="bottom-nav">
-        {(['stock', 'caja', 'dashboard', 'seguimientos'] as ActivePage[]).map(p => {
+        {(esDueno
+          ? (['stock', 'caja', 'dashboard', 'seguimientos'] as ActivePage[])
+          : (['stock', 'caja', 'dashboard', 'tn_ordenes'] as ActivePage[])
+        ).map(p => {
           const item = nav(p)
           return (
             <button
