@@ -3,8 +3,8 @@ import { useVentas } from '../../hooks/useVentas'
 import type { Venta } from '../../types'
 import './VentasHistory.css'
 
-const MEDIO_ICONS: Record<string, string> = { Efectivo: '💵', Transferencia: '📲', Tarjeta: '💳' }
-const MEDIOS: Venta['medio_pago'][] = ['Efectivo', 'Transferencia', 'Tarjeta']
+const MEDIO_ICONS: Record<string, string> = { Efectivo: '💵', Transferencia: '📲', Tarjeta: '💳', Mixto: '🔀' }
+const MEDIOS: Venta['medio_pago'][] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Mixto']
 
 function toISO(d: Date) { return d.toISOString().split('T')[0] }
 
@@ -204,6 +204,11 @@ export function VentasHistory() {
                       {MEDIO_ICONS[v.medio_pago] ?? ''} {v.medio_pago}
                       {v.recargo_tarjeta != null && v.recargo_tarjeta > 0 && <span className="recargo-tag">+10%</span>}
                     </span>
+                    {v.medio_pago === 'Mixto' && (
+                      <span className="mixto-detalle">
+                        ${(v.monto_efectivo ?? 0).toLocaleString('es-AR')} efec. + ${(v.monto_transferencia ?? 0).toLocaleString('es-AR')} transf.
+                      </span>
+                    )}
                   </td>
                   <td className="price-cell">${v.precio_venta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
                   <td className={`ganancia-cell ${v.ganancia >= 0 ? 'positive' : 'negative'}`}>${v.ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>

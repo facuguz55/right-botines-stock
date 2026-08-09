@@ -43,7 +43,7 @@ export interface HistorialPrecio {
   fecha: string
 }
 
-export type MedioPago = 'Efectivo' | 'Transferencia' | 'Tarjeta'
+export type MedioPago = 'Efectivo' | 'Transferencia' | 'Tarjeta' | 'Mixto'
 
 export interface Venta {
   id: string
@@ -61,6 +61,8 @@ export interface Venta {
   tarjeta?: string | null
   cuotas?: number | null
   empleado_id?: string | null
+  monto_efectivo?: number | null
+  monto_transferencia?: number | null
   modelos?: { modelo: string; marca: string; categoria: string; gama: string } | null
   clientes_locales?: { nombre: string; telefono: string | null; email: string | null } | null
   empleados?: { nombre: string } | null

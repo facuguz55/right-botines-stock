@@ -88,10 +88,13 @@ export async function sellCarrito(
   tarjeta: string | null,
   cuotas: number | null,
   recargoPct: number,
-  empleadoId: string | null
+  empleadoId: string | null,
+  montoEfectivo: number | null = null,
+  montoTransferencia: number | null = null,
 ): Promise<void> {
   const ventaGrupoId = crypto.randomUUID()
   const esTarjeta = medioPago === 'Tarjeta'
+  const esMixto = medioPago === 'Mixto'
 
   for (const { modelo, talleId, cantidad } of items) {
     const talle = modelo.modelo_talles.find(t => t.id === talleId)
@@ -126,6 +129,8 @@ export async function sellCarrito(
       tarjeta: esTarjeta ? tarjeta : null,
       cuotas: esTarjeta ? cuotas : null,
       empleado_id: empleadoId,
+      monto_efectivo: esMixto ? montoEfectivo : null,
+      monto_transferencia: esMixto ? montoTransferencia : null,
     }))
 
     const { error: ventaErr } = await supabase.from('ventas').insert(filas)

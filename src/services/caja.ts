@@ -68,17 +68,25 @@ async function fetchTotalGastos(cajaDiaId: string): Promise<number> {
 export async function fetchTotalesEfectivoDia(fecha: string): Promise<TotalesEfectivoDia> {
   const { data, error } = await supabase
     .from('ventas')
-    .select('precio_venta, medio_pago')
+    .select('precio_venta, medio_pago, venta_grupo_id, monto_efectivo, monto_transferencia')
     .gte('fecha', fecha)
     .lte('fecha', fecha + 'T23:59:59')
   if (error) throw error
 
   const totales: TotalesEfectivoDia = { efectivo: 0, transferencia: 0, tarjeta: 0 }
+  // Un pago mixto guarda el mismo split en cada fila del grupo (una fila por
+  // unidad vendida) — se dedupea por venta_grupo_id para no contarlo N veces.
+  const mixtoGruposVistos = new Set<string>()
   for (const v of data || []) {
     const monto = Number(v.precio_venta)
     if (v.medio_pago === 'Efectivo') totales.efectivo += monto
     else if (v.medio_pago === 'Transferencia') totales.transferencia += monto
     else if (v.medio_pago === 'Tarjeta') totales.tarjeta += monto
+    else if (v.medio_pago === 'Mixto' && v.venta_grupo_id && !mixtoGruposVistos.has(v.venta_grupo_id)) {
+      mixtoGruposVistos.add(v.venta_grupo_id)
+      totales.efectivo += Number(v.monto_efectivo ?? 0)
+      totales.transferencia += Number(v.monto_transferencia ?? 0)
+    }
   }
   return totales
 }

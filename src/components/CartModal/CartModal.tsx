@@ -13,16 +13,20 @@ interface CartModalProps {
   clear: () => void
   clientes: ClienteLocal[]
   addCliente: (input: { nombre: string; telefono: string | null; email: string | null; notas: string | null }) => Promise<ClienteLocal>
-  onSell: (items: CartItem[], medioPago: MedioPago, clienteId: string, tarjeta: string | null, cuotas: number | null, recargoPct: number) => Promise<void>
+  onSell: (
+    items: CartItem[], medioPago: MedioPago, clienteId: string, tarjeta: string | null, cuotas: number | null,
+    recargoPct: number, montoEfectivo: number | null, montoTransferencia: number | null,
+  ) => Promise<void>
 }
 
-const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta']
+const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Mixto']
 
 export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, addCliente, onSell }: CartModalProps) {
   const [step, setStep] = useState<'pago' | 'cliente'>('pago')
   const [medioPago, setMedioPago] = useState<MedioPago>('Efectivo')
   const [tarjeta, setTarjeta] = useState<string | null>(null)
   const [cuotas, setCuotas] = useState<number | null>(null)
+  const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('')
   const [search, setSearch] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
@@ -34,6 +38,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const [error, setError] = useState<string | null>(null)
 
   const esTarjeta = medioPago === 'Tarjeta'
+  const esMixto = medioPago === 'Mixto'
   const hayRecargosConfigurados = recargos.some(r => r.activo)
   const tarjetas = tarjetasDisponibles(recargos)
   const cuotasParaTarjeta = tarjeta ? cuotasDisponibles(recargos, tarjeta) : []
@@ -43,6 +48,9 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const recargoPct = getRecargoPct(recargos, tarjeta, cuotas)
 
   const subtotal = items.reduce((s, i) => s + getPrecioReal(i.modelo) * i.cantidad, 0)
+  const montoEfectivoMixtoNum = montoEfectivoMixto ? Number(montoEfectivoMixto) : 0
+  const montoTransferenciaMixtoNum = Math.max(0, subtotal - montoEfectivoMixtoNum)
+  const mixtoInvalido = esMixto && (montoEfectivoMixto === '' || montoEfectivoMixtoNum < 0 || montoEfectivoMixtoNum > subtotal)
   const total = esTarjeta && !faltaElegirRecargo
     ? items.reduce((s, i) => s + getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct) * i.cantidad, 0)
     : subtotal
@@ -71,6 +79,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setMedioPago('Efectivo')
     setTarjeta(null)
     setCuotas(null)
+    setMontoEfectivoMixto('')
     resetCliente()
     onClose()
   }
@@ -79,6 +88,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setMedioPago(m)
     setTarjeta(null)
     setCuotas(null)
+    setMontoEfectivoMixto('')
   }
 
   const handleConfirm = async () => {
@@ -101,7 +111,14 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
         })
         clienteId = nuevo.id
       }
-      await onSell(items, medioPago, clienteId, esTarjeta && !faltaElegirRecargo ? tarjeta : null, esTarjeta && !faltaElegirRecargo ? cuotas : null, recargoPct)
+      await onSell(
+        items, medioPago, clienteId,
+        esTarjeta && !faltaElegirRecargo ? tarjeta : null,
+        esTarjeta && !faltaElegirRecargo ? cuotas : null,
+        recargoPct,
+        esMixto ? montoEfectivoMixtoNum : null,
+        esMixto ? montoTransferenciaMixtoNum : null,
+      )
       clear()
       handleClose()
     } catch (e) {
@@ -122,7 +139,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
             <div className="medio-pago-options">
               {MEDIOS.map(m => (
                 <button key={m} type="button" className={`medio-btn${medioPago === m ? ' active' : ''}`} onClick={() => handleMedioPago(m)}>
-                  {m === 'Efectivo' ? '💵 ' : m === 'Transferencia' ? '📲 ' : '💳 '}{m}
+                  {m === 'Efectivo' ? '💵 ' : m === 'Transferencia' ? '📲 ' : m === 'Tarjeta' ? '💳 ' : '🔀 '}{m}
                 </button>
               ))}
             </div>
@@ -161,6 +178,26 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
             </div>
           )}
 
+          {esMixto && (
+            <div className="sell-section">
+              <p className="sell-label">Monto en efectivo</p>
+              <div className="config-input-wrap">
+                <input
+                  type="number" className="config-input" min={0} max={subtotal}
+                  value={montoEfectivoMixto} onChange={e => setMontoEfectivoMixto(e.target.value)}
+                  placeholder="0" autoFocus
+                />
+                <span className="config-input-suffix">ARS</span>
+              </div>
+              <p className="sell-mixto-resto">
+                Resto en transferencia: <strong>${montoTransferenciaMixtoNum.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</strong>
+              </p>
+              {mixtoInvalido && montoEfectivoMixto !== '' && (
+                <p className="sell-error">El monto en efectivo no puede superar el total.</p>
+              )}
+            </div>
+          )}
+
           <div className="sell-stats">
             <div className="sell-stat"><span>Subtotal</span><span className="sell-stat-val">${subtotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
             <div className="sell-stat"><span>Total</span><span className="sell-stat-val accent">${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
@@ -173,7 +210,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
           <div className="sell-actions">
             <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
-            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={faltaElegirRecargo}>
+            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={faltaElegirRecargo || mixtoInvalido}>
               Continuar →
             </button>
           </div>
