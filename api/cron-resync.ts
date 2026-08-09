@@ -7,7 +7,7 @@ export const config = { runtime: 'edge' }
 // con lógica de precios desactualizada y pisaba los valores correctos en la
 // base (pasó dos veces el 2026-08-09). Este cron siempre corre con el
 // código actualmente deployado, sin depender de ningún dispositivo.
-import { upsertModeloFromTNProductREST, EXPECTED_STORE, TN_TOKEN, SB_URL, SB_KEY, type TNRawProductMinimal } from './tn-webhook'
+import { upsertModeloFromTNProductREST, EXPECTED_STORE, TN_TOKEN, type TNRawProductMinimal } from './tn-webhook'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -33,16 +33,6 @@ async function fetchAllTNProductsServerSide(): Promise<TNRawProductMinimal[]> {
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (new URL(req.url).searchParams.get('debug') === '1') {
-    return new Response(JSON.stringify({
-      SB_URL: SB_URL ? `set (${SB_URL.length} chars)` : 'EMPTY',
-      SB_KEY: SB_KEY ? `set (${SB_KEY.length} chars)` : 'EMPTY',
-      EXPECTED_STORE: EXPECTED_STORE ? `set (${EXPECTED_STORE})` : 'EMPTY',
-      TN_TOKEN: TN_TOKEN ? `set (${TN_TOKEN.length} chars)` : 'EMPTY',
-      CRON_SECRET: CRON_SECRET ? 'set' : 'EMPTY',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-  }
-
   // Vercel manda Authorization: Bearer <CRON_SECRET> en las invocaciones
   // reales del cron cuando esa env var está seteada en el proyecto.
   if (CRON_SECRET) {

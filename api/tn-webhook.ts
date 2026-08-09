@@ -6,8 +6,8 @@ import {
 } from '../src/lib/tnMapping'
 
 // Usa service role key (nunca el anon key) para escrituras privilegiadas server-side
-export const SB_URL = process.env.SUPABASE_URL ?? ''
-export const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
+const SB_URL = process.env.SUPABASE_URL ?? ''
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
 export const EXPECTED_STORE = process.env.TN_STORE_ID ?? ''
 export const TN_TOKEN = process.env.TN_TOKEN ?? ''
 
