@@ -68,6 +68,19 @@ export function detectGama(name: string, catNames: string[]): string {
   return 'Alta' // fallback
 }
 
+// ── Precio efectivo/transferencia a partir del "Promocional" de TN ──────────
+// El promotional_price de TN es el precio CON TARJETA, no el de efectivo
+// (confirmado por el dueño contra la lista real de precios efectivo→tarjeta
+// ya cargada en recargos_tarjeta). Se calcula dividiendo por el recargo de
+// Crédito 3 cuotas vigente al momento del sync.
+
+export function computePrecioEfectivo(
+  precioPromocional: number | null, recargoCredito3CuotasPct: number | null,
+): number | null {
+  if (precioPromocional == null || recargoCredito3CuotasPct == null || recargoCredito3CuotasPct <= 0) return null
+  return Math.round(precioPromocional / (1 + recargoCredito3CuotasPct / 100))
+}
+
 // ── Extracción de marca y modelo ─────────────────────────────────────────────
 
 export function extractMarcaModelo(prod: {

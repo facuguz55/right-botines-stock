@@ -1,16 +1,18 @@
 import type { Modelo, RecargoTarjeta } from '../types'
 
 // El precio de lista (modelos.precio_venta) es solo vidriera de marketing en
-// la web. El precio real que cobra el local es el "Promocional" de
-// TiendaNube — un campo propio de cada producto (variants[].promotional_price
-// en la API), sincronizado por tnSync.ts/tn-webhook.ts. No es un % fijo: cada
-// producto puede tener su propio descuento.
+// la web. El "Promocional" de TiendaNube (precio_promocional) resultó ser el
+// precio CON TARJETA, no el de efectivo — confirmado contra la lista real de
+// precios efectivo→tarjeta que ya usa recargos_tarjeta (ej. $105.000 efectivo
+// -> $135.500 con tarjeta 3 cuotas). El precio real de efectivo/transferencia
+// del local (precio_efectivo) se calcula en el sync dividiendo el promocional
+// por ese mismo recargo (ver tnSync.ts / tn-webhook.ts).
 export function getPrecioReal(modelo: Modelo): number {
-  return modelo.precio_promocional ?? modelo.precio_venta
+  return modelo.precio_efectivo ?? modelo.precio_promocional ?? modelo.precio_venta
 }
 
 export function tieneDescuentoPromocional(modelo: Modelo): boolean {
-  return modelo.precio_promocional != null && modelo.precio_promocional < modelo.precio_venta
+  return getPrecioReal(modelo) < modelo.precio_venta
 }
 
 // Recargo fijo usado mientras no haya ningún recargo por tarjeta/cuotas

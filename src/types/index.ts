@@ -25,6 +25,7 @@ export interface Modelo {
   precio_costo: number
   precio_venta: number
   precio_promocional: number | null
+  precio_efectivo: number | null
   codigo_base: string
   notas: string | null
   created_at: string

@@ -12,6 +12,7 @@ import {
 } from './tiendanubeService'
 import {
   parseTalleArg, getUsFromArg, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
+  computePrecioEfectivo,
 } from '../lib/tnMapping'
 import type { Modelo, ModeloTalle } from '../types'
 
@@ -31,6 +32,7 @@ export { parseTalleArg }
 export async function upsertModeloFromTNProduct(
   prod: TNRawProduct,
   existing: Modelo | undefined,
+  recargoCredito3CuotasPct: number | null,
 ): Promise<{ created: boolean; imagesAdded: number }> {
   const name = prod.name.es ?? prod.name.en ?? Object.values(prod.name)[0] ?? `Producto ${prod.id}`
   const catNames = (prod.categories ?? []).map(c => c.name?.es ?? c.name?.en ?? '')
@@ -38,10 +40,13 @@ export async function upsertModeloFromTNProduct(
   const gama = detectGama(name, catNames)
   const { marca, modelo } = extractMarcaModelo(prod)
   const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
-  // El precio "Promocional" de TN es el precio real que cobra el local —
-  // un campo propio por producto, no un % fijo (ver precio_promocional_tn.sql).
+  // El "Promocional" de TN es el precio CON TARJETA de cada producto (campo
+  // propio, no un % fijo — ver precio_promocional_tn.sql). El precio real de
+  // efectivo/transferencia se deriva dividiendo por el recargo de Crédito 3
+  // cuotas vigente (ver precio_efectivo.sql).
   const promoRaw = prod.variants[0]?.promotional_price
   const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
+  const precio_efectivo = computePrecioEfectivo(precio_promocional, recargoCredito3CuotasPct)
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
   const variantTalles = prod.variants
@@ -60,6 +65,7 @@ export async function upsertModeloFromTNProduct(
       marca, modelo, categoria, gama,
       precio_venta,
       precio_promocional,
+      precio_efectivo,
       precio_costo: existing.precio_costo,
       codigo_base: existing.codigo_base,
       notas: existing.notas,
@@ -105,6 +111,7 @@ export async function upsertModeloFromTNProduct(
     marca, modelo, categoria, gama,
     precio_venta,
     precio_promocional,
+    precio_efectivo,
     precio_costo: 0,
     codigo_base: `tn_${prod.id}`,
     notas: null,
@@ -150,6 +157,14 @@ export async function syncTNStock(
 
   onProgress?.('Cargando stock local...')
   const localModelos = await fetchModelos()
+  const { data: recargoRow } = await supabase
+    .from('recargos_tarjeta')
+    .select('porcentaje')
+    .eq('tarjeta', 'Crédito')
+    .eq('cuotas', 3)
+    .eq('activo', true)
+    .maybeSingle()
+  const recargoCredito3CuotasPct = recargoRow?.porcentaje ?? null
   // Claves como string: Postgres devuelve las columnas bigint (tn_product_id)
   // como string en algunos casos vía la API REST — comparar como number con
   // Map<number,...> puede fallar silenciosamente por mismatch de tipo.
@@ -162,7 +177,7 @@ export async function syncTNStock(
     onProgress?.(`[${i + 1}/${tnProducts.length}] ${name.slice(0, 40)}`)
 
     try {
-      const { created, imagesAdded } = await upsertModeloFromTNProduct(prod, localByTNId.get(String(prod.id)))
+      const { created, imagesAdded } = await upsertModeloFromTNProduct(prod, localByTNId.get(String(prod.id)), recargoCredito3CuotasPct)
       result[created ? 'created' : 'updated']++
       result.imagesAdded += imagesAdded
     } catch (err) {

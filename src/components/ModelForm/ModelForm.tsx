@@ -170,8 +170,9 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
           categoria: form.categoria, gama: form.gama,
           precio_costo: parseFloat(form.precio_costo) || 0,
           precio_venta: parseFloat(form.precio_venta),
-          // Se sincroniza desde TiendaNube (tnSync.ts) — no se edita a mano acá.
+          // Se sincronizan desde TiendaNube (tnSync.ts) — no se editan a mano acá.
           precio_promocional: isEdit ? initial!.precio_promocional : null,
+          precio_efectivo: isEdit ? initial!.precio_efectivo : null,
           codigo_base: isEdit ? initial!.codigo_base : previewCodigo,
           notas: form.notas.trim() || null,
         },

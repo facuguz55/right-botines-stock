@@ -2,6 +2,7 @@ export const config = { runtime: 'edge' }
 
 import {
   parseTalleArg, getUsFromArg, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
+  computePrecioEfectivo,
 } from '../src/lib/tnMapping'
 
 // Usa service role key (nunca el anon key) para escrituras privilegiadas server-side
@@ -67,6 +68,12 @@ async function fetchTNProductServerSide(productId: number): Promise<TNRawProduct
   return await res.json()
 }
 
+async function fetchRecargoCredito3Cuotas(): Promise<number | null> {
+  const res = await sbFetch(`recargos_tarjeta?tarjeta=eq.${encodeURIComponent('Crédito')}&cuotas=eq.3&activo=eq.true&select=porcentaje&limit=1`)
+  const rows = await res.json() as { porcentaje: number }[]
+  return rows[0]?.porcentaje ?? null
+}
+
 async function findExistingModeloByTNProduct(productId: number): Promise<{ id: string } | undefined> {
   const byTnId = await sbFetch(`modelos?tn_product_id=eq.${productId}&select=id&limit=1`)
   const rowsA = await byTnId.json() as { id: string }[]
@@ -91,6 +98,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
   const promoRaw = prod.variants[0]?.promotional_price
   const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
+  const precio_efectivo = computePrecioEfectivo(precio_promocional, await fetchRecargoCredito3Cuotas())
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
   const variantTalles = prod.variants
@@ -117,7 +125,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
     modeloId = existing.id
     await sbFetch(`modelos?id=eq.${modeloId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, precio_promocional, tn_category_id, tn_product_id: prod.id }),
+      body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, precio_promocional, precio_efectivo, tn_category_id, tn_product_id: prod.id }),
     })
   } else {
     // Insert directo (no sbFetch) para poder detectar un choque de unique
@@ -131,7 +139,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
         'Content-Type': 'application/json', Prefer: 'return=representation',
       },
       body: JSON.stringify({
-        marca, modelo, categoria, gama, precio_venta, precio_promocional,
+        marca, modelo, categoria, gama, precio_venta, precio_promocional, precio_efectivo,
         precio_costo: 0,
         codigo_base: `tn_${prod.id}`,
         notas: null,
@@ -148,7 +156,7 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
       modeloId = conflict.id
       await sbFetch(`modelos?id=eq.${modeloId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, precio_promocional, tn_category_id, tn_product_id: prod.id }),
+        body: JSON.stringify({ marca, modelo, categoria, gama, precio_venta, precio_promocional, precio_efectivo, tn_category_id, tn_product_id: prod.id }),
       })
     }
   }
