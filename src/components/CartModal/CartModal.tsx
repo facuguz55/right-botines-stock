@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CartItem, ClienteLocal, MedioPago, RecargoTarjeta } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { filterClientes } from '../../hooks/useClientesLocales'
-import { getPrecioReal, getRecargoPct, tarjetasDisponibles, cuotasDisponibles } from '../../utils/precios'
+import { getPrecioReal, getRecargoPct, getPrecioConRecargo, tarjetasDisponibles, cuotasDisponibles } from '../../utils/precios'
 import './CartModal.css'
 
 interface CartModalProps {
@@ -43,11 +43,15 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const recargoPct = getRecargoPct(recargos, tarjeta, cuotas)
 
   const subtotal = items.reduce((s, i) => s + getPrecioReal(i.modelo) * i.cantidad, 0)
-  const recargo = esTarjeta && !faltaElegirRecargo ? subtotal * (recargoPct / 100) : 0
-  const total = subtotal + recargo
+  const total = esTarjeta && !faltaElegirRecargo
+    ? items.reduce((s, i) => s + getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct) * i.cantidad, 0)
+    : subtotal
+  const recargo = total - subtotal
+  // % efectivo mostrado junto al monto: puede diferir un poco del % nominal
+  // configurado cuando el precio viene del real de TiendaNube (Crédito 3 cuotas).
+  const recargoPctMostrado = subtotal > 0 ? (recargo / subtotal) * 100 : recargoPct
   const ganancia = items.reduce((s, i) => {
-    const base = getPrecioReal(i.modelo)
-    const precioFinal = esTarjeta && !faltaElegirRecargo ? base * (1 + recargoPct / 100) : base
+    const precioFinal = esTarjeta && !faltaElegirRecargo ? getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct) : getPrecioReal(i.modelo)
     return s + (precioFinal - i.modelo.precio_costo) * i.cantidad
   }, 0)
 
@@ -152,7 +156,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
           {esTarjeta && !faltaElegirRecargo && (
             <div className="sell-recargo-notice">
-              <span>+{recargoPct}% recargo tarjeta</span>
+              <span>+{recargoPctMostrado.toFixed(2)}% recargo tarjeta</span>
               <span className="recargo-amount">+${recargo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
             </div>
           )}

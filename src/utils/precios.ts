@@ -32,3 +32,16 @@ export function getRecargoPct(recargos: RecargoTarjeta[], tarjeta: string | null
   const match = recargos.find(r => r.activo && r.tarjeta === tarjeta && r.cuotas === cuotas)
   return match ? match.porcentaje : 0
 }
+
+// Crédito 3 cuotas es, casualmente, el mismo recargo que TiendaNube ya aplica
+// online (precio_promocional = precio real con tarjeta). Para ese caso puntual
+// se usa ese precio ya sincronizado en vez del % genérico de recargos_tarjeta,
+// así el local cobra exactamente lo mismo que muestra la web pública.
+export function getPrecioConRecargo(
+  modelo: Modelo, tarjeta: string | null, cuotas: number | null, recargoPct: number,
+): number {
+  if (tarjeta === 'Crédito' && cuotas === 3 && modelo.precio_promocional != null) {
+    return modelo.precio_promocional
+  }
+  return getPrecioReal(modelo) * (1 + recargoPct / 100)
+}

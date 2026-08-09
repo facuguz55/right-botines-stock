@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Modelo, ModeloTalle, MedioPago } from '../types'
-import { getPrecioReal, tieneDescuentoPromocional } from '../utils/precios'
+import { getPrecioReal, tieneDescuentoPromocional, getPrecioConRecargo } from '../utils/precios'
 
 type ModeloInput = Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>
 
@@ -105,8 +105,8 @@ export async function sellCarrito(
     if (upErr) throw upErr
 
     const precioBase = getPrecioReal(modelo)
-    const recargo = esTarjeta ? precioBase * (recargoPct / 100) : null
-    const precioFinal = esTarjeta ? precioBase * (1 + recargoPct / 100) : precioBase
+    const precioFinal = esTarjeta ? getPrecioConRecargo(modelo, tarjeta, cuotas, recargoPct) : precioBase
+    const recargo = esTarjeta ? precioFinal - precioBase : null
     const esPromo = tieneDescuentoPromocional(modelo)
     const descuentoPctAplicado = esPromo
       ? Math.round((1 - modelo.precio_promocional! / modelo.precio_venta) * 1000) / 10
