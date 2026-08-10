@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import type { Modelo } from '../../types'
 import { getPrecioReal } from '../../utils/precios'
+import { ImageLightbox } from '../ImageLightbox/ImageLightbox'
 import './ModelCard.css'
 
 interface ModelCardProps {
@@ -21,6 +22,7 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
   const extraFotos = modelo.modelo_fotos.length - 1
   const [imgError, setImgError] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
 
   return (
     <div className="model-card">
@@ -35,6 +37,7 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
               className="card-image"
               onLoad={() => setImgLoaded(true)}
               onError={() => setImgError(true)}
+              onClick={() => setLightboxOpen(true)}
             />
           </>
         ) : (
@@ -99,6 +102,10 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
           <button className="btn btn-danger btn-sm icon-btn" onClick={() => onDelete(modelo)}><Trash2 size={14} /></button>
         </div>
       </div>
+
+      {lightboxOpen && (
+        <ImageLightbox src={mainFoto} alt={modelo.modelo} onClose={() => setLightboxOpen(false)} />
+      )}
     </div>
   )
 }

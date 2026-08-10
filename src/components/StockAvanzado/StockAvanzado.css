@@ -178,6 +178,7 @@
   border-radius: 6px;
   border: 1px solid var(--border);
   display: block;
+  cursor: zoom-in;
 }
 .sa-thumb-ph {
   width: 36px;

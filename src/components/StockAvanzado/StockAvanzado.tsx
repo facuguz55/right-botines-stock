@@ -7,6 +7,7 @@ import {
 import type { Modelo } from '../../types'
 import { bulkUpdatePrecio, bulkUpdateStockTalles, bulkDeleteModelos, updateModelo } from '../../services/modelos'
 import { supabase } from '../../lib/supabase'
+import { ImageLightbox } from '../ImageLightbox/ImageLightbox'
 import './StockAvanzado.css'
 
 type SortKey = 'marca' | 'modelo' | 'precio_venta' | 'precio_costo' | 'total_pares' | 'gama'
@@ -270,6 +271,7 @@ export function StockAvanzado({ modelos, onReload }: { modelos: Modelo[]; onRelo
   const [inlineEdit, setInlineEdit] = useState<InlineEdit | null>(null)
   const [operando, setOperando] = useState(false)
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [lightboxFoto, setLightboxFoto] = useState<{ src: string; alt: string } | null>(null)
   const inlineRef = useRef<HTMLInputElement>(null)
 
   const marcasDisp = useMemo(() => [...new Set(modelos.map(m => m.marca))].sort(), [modelos])
@@ -512,7 +514,14 @@ export function StockAvanzado({ modelos, onReload }: { modelos: Modelo[]; onRelo
                     </button>
                   </td>
                   <td className="sa-td-foto">
-                    {foto ? <img src={foto} alt="" className="sa-thumb" /> : <div className="sa-thumb-ph">⚽</div>}
+                    {foto ? (
+                      <img
+                        src={foto}
+                        alt=""
+                        className="sa-thumb"
+                        onClick={() => setLightboxFoto({ src: foto, alt: `${m.marca} ${m.modelo}` })}
+                      />
+                    ) : <div className="sa-thumb-ph">⚽</div>}
                   </td>
                   <td className="sa-td-nombre">
                     <p className="sa-marca">{m.marca}</p>
@@ -609,6 +618,10 @@ export function StockAvanzado({ modelos, onReload }: { modelos: Modelo[]; onRelo
           {toast.ok ? <Check size={14} /> : <AlertTriangle size={14} />}
           {toast.msg}
         </div>
+      )}
+
+      {lightboxFoto && (
+        <ImageLightbox src={lightboxFoto.src} alt={lightboxFoto.alt} onClose={() => setLightboxFoto(null)} />
       )}
     </div>
   )
