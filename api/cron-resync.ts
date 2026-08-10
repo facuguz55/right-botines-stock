@@ -10,7 +10,7 @@ export const maxDuration = 120
 // con lógica de precios desactualizada y pisaba los valores correctos en la
 // base (pasó dos veces el 2026-08-09). Este cron siempre corre con el
 // código actualmente deployado, sin depender de ningún dispositivo.
-import { upsertModeloFromTNProductREST, EXPECTED_STORE, TN_TOKEN, type TNRawProductMinimal } from './tn-webhook'
+import { upsertModeloFromTNProductREST, EXPECTED_STORE, TN_TOKEN, type TNRawProductMinimal } from './_shared/tnProductSync'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
