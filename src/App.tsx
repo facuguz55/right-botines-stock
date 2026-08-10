@@ -167,7 +167,7 @@ export function App() {
   }
 
   return (
-    <Layout activePage={activePage} onNavigate={setActivePage} role={role} onLogout={logout} fichajeActual={fichajeActual}>
+    <Layout activePage={activePage} onNavigate={setActivePage} role={role} empleadoNombre={empleadoNombre} onLogout={logout} fichajeActual={fichajeActual}>
       {activePage === 'stock' && (
         ingresoTarget ? (
           <IngresoPage

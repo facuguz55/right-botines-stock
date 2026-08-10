@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw,
+  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -14,6 +14,7 @@ interface LayoutProps {
   activePage: ActivePage
   onNavigate: (page: ActivePage) => void
   role: Role
+  empleadoNombre: string | null
   onLogout: () => void
   fichajeActual: ReturnType<typeof useFichajeActual>
   children: React.ReactNode
@@ -60,9 +61,10 @@ const ALL_NAV: NavItem[] = [
   { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart     },
 ]
 
-export function Layout({ activePage, onNavigate, role, onLogout, fichajeActual, children }: LayoutProps) {
+export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout, fichajeActual, children }: LayoutProps) {
   const nav = (page: ActivePage) => ALL_NAV.find(n => n.page === page)!
   const esDueno = role === 'dueno'
+  const quienSoy = esDueno ? 'Dueño' : (empleadoNombre ?? 'Empleado')
   const [menuOpen, setMenuOpen] = useState(false)
 
   const renderNavGroups = (onNav: (page: ActivePage) => void) => (
@@ -144,6 +146,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, fichajeActual, 
         <div className="sidebar-brand">
           <img src="/logo.png" alt="Right Botines" className="brand-logo" onClick={() => window.location.reload()} />
         </div>
+        <div className="sidebar-user"><User size={13} /> {quienSoy}</div>
         <nav className="sidebar-nav">
           {renderNavGroups(onNavigate)}
         </nav>
@@ -153,7 +156,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, fichajeActual, 
           {esDueno && <AccessAlerts />}
           <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
             <LogOut size={15} />
-            <span>{esDueno ? 'Dueño' : 'Empleado'} · Salir</span>
+            <span>{quienSoy} · Salir</span>
           </button>
         </div>
       </aside>
@@ -194,7 +197,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, fichajeActual, 
         <div className="nav-drawer-overlay" onClick={() => setMenuOpen(false)}>
           <div className="nav-drawer" onClick={e => e.stopPropagation()}>
             <div className="nav-drawer-header">
-              <span>Menú</span>
+              <span className="nav-drawer-quien"><User size={14} /> {quienSoy}</span>
               <button className="nav-drawer-close" onClick={() => setMenuOpen(false)}>
                 <X size={18} />
               </button>
@@ -206,7 +209,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, fichajeActual, 
             <div className="sidebar-footer">
               <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
                 <LogOut size={15} />
-                <span>{esDueno ? 'Dueño' : 'Empleado'} · Salir</span>
+                <span>{quienSoy} · Salir</span>
               </button>
             </div>
           </div>

@@ -27,6 +27,21 @@
   cursor: pointer;
 }
 
+/* Quién está logueado ahora mismo — bien arriba, no solo en el botón
+   chiquito de "Salir" al pie, para que en un dispositivo compartido entre
+   varios empleados siempre quede claro qué perfil está activo. */
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  margin: -0.5rem 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.sidebar-user svg { flex-shrink: 0; }
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -216,6 +231,14 @@
     color: var(--text-primary);
     flex-shrink: 0;
   }
+
+  .nav-drawer-quien {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--accent);
+  }
+  .nav-drawer-quien svg { flex-shrink: 0; }
 
   .nav-drawer-close {
     background: var(--bg-surface-3);
