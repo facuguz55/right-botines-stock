@@ -11,16 +11,71 @@ export const maxDuration = 120
 // base (pasó dos veces el 2026-08-09). Este cron siempre corre con el
 // código actualmente deployado, sin depender de ningún dispositivo.
 //
-// La lógica de upsert está DUPLICADA de api/tn-webhook.ts a propósito, no
-// importada: Vercel no resuelve en runtime un import entre dos archivos de
-// api/ que son ambos rutas propias (confirmado en vivo dos veces —
-// "Cannot find module" aunque compila bien en local — ni una subcarpeta
-// con prefijo "_" lo evita). Si se toca la lógica de precios acá, tocar
-// también tn-webhook.ts.
-import {
-  parseTalleArg, getUsFromArg, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
-  computePrecioEfectivo,
-} from '../src/lib/tnMapping'
+// TODO el archivo es autocontenido a propósito, sin NINGÚN import relativo
+// (ni de otro archivo de api/, ni de src/lib/tnMapping): confirmado en vivo
+// tres veces que el runtime Node.js de Vercel para esta función (handler
+// Request→Response) NO resuelve imports relativos — ni entre rutas de api/,
+// ni hacia src/ — aunque compile perfecto en local y con esbuild --bundle.
+// "Cannot find module" en runtime siempre. Si se toca la lógica de precios
+// acá, tocar también tn-webhook.ts (que si puede importar de src/lib, corre
+// en runtime Edge, con otro bundler que sí resuelve imports relativos).
+const ARG_TO_US: Record<number, number> = {
+  34: 2, 34.5: 2.5, 35: 3, 35.5: 3.5, 36: 4, 36.5: 4.5, 37: 5, 37.5: 5.5,
+  38: 6, 38.5: 6.5, 39: 7, 39.5: 7.5, 40: 8, 40.5: 8.5, 41: 9, 41.5: 9.5,
+  42: 10, 42.5: 10.5, 43: 11, 43.5: 11.5, 44: 12, 44.5: 12.5, 45: 13, 45.5: 13.5,
+  46: 14, 46.5: 14.5, 47: 15,
+}
+function getUsFromArg(arg: number): number {
+  return ARG_TO_US[arg] ?? Math.round((arg - 30.5) * 2) / 2
+}
+function variantLabel(v: { values?: { es?: string; en?: string; [k: string]: string | undefined }[] }): string {
+  return (v.values ?? []).map(val => val.es ?? val.en ?? Object.values(val).find(x => x) ?? '').join(' ')
+}
+function parseTalleArg(label: string): number | null {
+  const cleaned = label.replace(/talle|t\.?\s*/gi, '').trim()
+  const match = cleaned.match(/^(\d{2,3}(?:[.,]\d)?)/)
+  if (!match) return null
+  const n = parseFloat(match[1].replace(',', '.'))
+  if (n < 30 || n > 60) return null
+  return n
+}
+function detectCategoria(name: string, catNames: string[]): string {
+  const all = [name, ...catNames].join(' ').toLowerCase()
+  if (/futsal|f\.?sala|sala/.test(all)) return 'Futsal'
+  if (/hockey/.test(all)) return 'Hockey'
+  if (/\bf5\b|fútbol\s*5|futbol\s*5|cinco/.test(all)) return 'F5'
+  if (/\bf11\b|fútbol\s*11|futbol\s*11|once|eleven/.test(all)) return 'F11'
+  return 'F11'
+}
+function detectGama(name: string, catNames: string[]): string {
+  const all = [name, ...catNames].join(' ').toLowerCase()
+  if (/económica|economica|low|entry|baja/.test(all)) return 'Económica'
+  if (/mixto|mix|dual|campo/.test(all)) return 'Mixto'
+  if (/\bmedia\b|mid\b|intermedia/.test(all)) return 'Media'
+  if (/\balta\b|high|premium|pro\b|top\b|elite/.test(all)) return 'Alta'
+  return 'Alta'
+}
+function computePrecioEfectivo(
+  precioTarjeta: number | null, tiers: Record<number, number>, recargoCredito3CuotasPct: number | null,
+): number | null {
+  if (precioTarjeta == null) return null
+  const tier = tiers[precioTarjeta]
+  if (tier != null) return tier
+  if (recargoCredito3CuotasPct == null || recargoCredito3CuotasPct <= 0) return null
+  return Math.round(precioTarjeta / (1 + recargoCredito3CuotasPct / 100))
+}
+function extractMarcaModelo(prod: { brand?: string | null; name: Record<string, string>; id: number }): { marca: string; modelo: string } {
+  const name = prod.name.es ?? prod.name.en ?? Object.values(prod.name)[0] ?? `Producto ${prod.id}`
+  const brand = (prod.brand ?? '').trim()
+  if (brand) {
+    const modelo = name.toLowerCase().startsWith(brand.toLowerCase())
+      ? name.slice(brand.length).trim().replace(/^[-–—·]\s*/, '')
+      : name
+    return { marca: brand, modelo: modelo || name }
+  }
+  const parts = name.split(' ')
+  return { marca: parts[0] || 'Sin marca', modelo: parts.slice(1).join(' ') || name }
+}
 
 const SB_URL = process.env.SUPABASE_URL ?? ''
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
