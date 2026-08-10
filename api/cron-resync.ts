@@ -1,4 +1,7 @@
-export const config = { runtime: 'edge' }
+// Runtime Node.js (no Edge): recorrer ~340 productos en serie contra la API
+// de TN + Supabase tarda más que el límite corto de Edge Functions (se
+// confirmó en vivo: cortaba a mitad de camino). Node.js soporta hasta 300s.
+export const maxDuration = 120
 
 // Resync de precio/stock corriendo en el servidor (Vercel Cron), no en el
 // navegador de quien tenga la app abierta. Antes el único "resync de
@@ -45,13 +48,16 @@ export default async function handler(req: Request): Promise<Response> {
     let ok = 0
     const errores: string[] = []
 
-    for (const prod of productos) {
-      try {
-        await upsertModeloFromTNProductREST(prod)
-        ok++
-      } catch (err) {
-        errores.push(`producto ${prod.id}: ${err instanceof Error ? err.message : String(err)}`)
-      }
+    // En paralelo de a lotes (no todo junto, para no saturar la API de TN
+    // ni Supabase) — bajó bastante el riesgo de pasarse de maxDuration.
+    const BATCH = 8
+    for (let i = 0; i < productos.length; i += BATCH) {
+      const lote = productos.slice(i, i + BATCH)
+      const resultados = await Promise.allSettled(lote.map(prod => upsertModeloFromTNProductREST(prod)))
+      resultados.forEach((r, idx) => {
+        if (r.status === 'fulfilled') ok++
+        else errores.push(`producto ${lote[idx].id}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`)
+      })
     }
 
     return new Response(JSON.stringify({ ok: true, total: productos.length, actualizados: ok, errores }), {
