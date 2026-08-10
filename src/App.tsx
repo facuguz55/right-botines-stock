@@ -227,7 +227,7 @@ export function App() {
         />
       )}
       {activePage === 'dashboard' && <Dashboard role={role} />}
-      {activePage === 'ventas' && <VentasHistory />}
+      {activePage === 'ventas' && <VentasHistory role={role} />}
       {activePage === 'seguimientos' && <Seguimientos />}
       {activePage === 'stock_avanzado' && (
         <div className="config-page">

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useVentas } from '../../hooks/useVentas'
-import type { Venta } from '../../types'
+import type { Role, Venta } from '../../types'
 import './VentasHistory.css'
 
 const MEDIO_ICONS: Record<string, string> = { Efectivo: '💵', Transferencia: '📲', Tarjeta: '💳', Mixto: '🔀' }
@@ -43,7 +43,15 @@ const PRESETS = [
   { key: 'todo', label: 'Todo' },
 ]
 
-export function VentasHistory() {
+interface VentasHistoryProps {
+  role: Role
+}
+
+export function VentasHistory({ role }: VentasHistoryProps) {
+  // Los empleados ven el detalle de cada venta (para verificar que se
+  // registró bien) pero no la ganancia ni los totales facturados/recaudados
+  // — esa info es solo del dueño.
+  const puedeVerMontos = role === 'dueno'
   const initial = getPreset('mes')
   const [startDate, setStartDate] = useState(initial.start)
   const [endDate, setEndDate] = useState(initial.end)
@@ -158,19 +166,21 @@ export function VentasHistory() {
           <input className="vf-input vf-number" type="number" placeholder="Precio máx" value={filterPrecioMax} onChange={e => setFilterPrecioMax(e.target.value)} />
         </div>
 
-        <div className="vf-range">
-          <input className="vf-input vf-number" type="number" placeholder="Gan. mín" value={filterGananciaMin} onChange={e => setFilterGananciaMin(e.target.value)} />
-          <span className="vf-sep">–</span>
-          <input className="vf-input vf-number" type="number" placeholder="Gan. máx" value={filterGananciaMax} onChange={e => setFilterGananciaMax(e.target.value)} />
-        </div>
+        {puedeVerMontos && (
+          <div className="vf-range">
+            <input className="vf-input vf-number" type="number" placeholder="Gan. mín" value={filterGananciaMin} onChange={e => setFilterGananciaMin(e.target.value)} />
+            <span className="vf-sep">–</span>
+            <input className="vf-input vf-number" type="number" placeholder="Gan. máx" value={filterGananciaMax} onChange={e => setFilterGananciaMax(e.target.value)} />
+          </div>
+        )}
 
         {hasExtraFilters && (
           <button className="btn btn-secondary btn-sm" onClick={clearExtraFilters}>Limpiar</button>
         )}
       </div>
 
-      {/* Summary */}
-      {!loading && filtered.length > 0 && (
+      {/* Summary — recaudado y ganancia son solo del dueño */}
+      {!loading && filtered.length > 0 && puedeVerMontos && (
         <div className="ventas-summary">
           <div className="summary-item"><span>Total facturado</span><strong className="accent">${totalVentas.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</strong></div>
           <div className="summary-item"><span>Ganancia estimada</span><strong className="accent">${totalGanancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</strong></div>
@@ -188,7 +198,7 @@ export function VentasHistory() {
         <div className="ventas-table-wrap">
           <table className="ventas-table">
             <thead>
-              <tr><th>Fecha</th><th>Modelo</th><th>Talle</th><th>Empleado</th><th>Pago</th><th>Precio</th><th>Ganancia</th></tr>
+              <tr><th>Fecha</th><th>Modelo</th><th>Talle</th><th>Empleado</th><th>Pago</th><th>Precio</th>{puedeVerMontos && <th>Ganancia</th>}</tr>
             </thead>
             <tbody>
               {filtered.map(v => (
@@ -212,7 +222,9 @@ export function VentasHistory() {
                     )}
                   </td>
                   <td className="price-cell">${v.precio_venta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
-                  <td className={`ganancia-cell ${v.ganancia >= 0 ? 'positive' : 'negative'}`}>${v.ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
+                  {puedeVerMontos && (
+                    <td className={`ganancia-cell ${v.ganancia >= 0 ? 'positive' : 'negative'}`}>${v.ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
+                  )}
                 </tr>
               ))}
             </tbody>
