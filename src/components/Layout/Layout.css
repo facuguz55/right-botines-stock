@@ -137,7 +137,11 @@
 
 .sidebar-logout:hover { color: var(--text-primary); }
 
-.main-content { flex: 1; overflow-y: auto; padding: 2rem 2.5rem; }
+/* overflow-x: hidden — ninguna página puede arrastrarse de costado aunque
+   algún contenido interno se pase de ancho (ej. un número largo en una
+   grilla); las tablas anchas siguen scrolleando en su propio wrapper con
+   overflow-x propio. */
+.main-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 2rem 2.5rem; }
 
 .bottom-nav { display: none; }
 
