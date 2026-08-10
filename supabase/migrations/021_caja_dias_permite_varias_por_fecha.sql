@@ -1,0 +1,13 @@
+-- La caja ahora se puede abrir/cerrar más de una vez por día: el último
+-- empleado en irse la cierra automáticamente (feature nueva), y si alguien
+-- vuelve a fichar entrada más tarde ese mismo día, hay que poder abrir una
+-- caja nueva para esa fecha. El UNIQUE(fecha) original asumía "se abre una
+-- sola vez a la mañana, se cierra una sola vez a la noche" — con el cierre
+-- automático eso ya no es cierto, y cada segundo intento de abrir el mismo
+-- día rompía con "duplicate key value violates unique constraint
+-- caja_dias_fecha_key".
+--
+-- La invariante que sí importa (nunca dos cajas abiertas al mismo tiempo)
+-- ya está protegida aparte por idx_caja_dias_unica_abierta — esta migración
+-- no la toca.
+ALTER TABLE caja_dias DROP CONSTRAINT IF EXISTS caja_dias_fecha_key;
