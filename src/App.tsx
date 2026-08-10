@@ -41,6 +41,7 @@ import { useRecargosTarjeta } from './hooks/useRecargosTarjeta'
 import { useClientesLocales } from './hooks/useClientesLocales'
 import { useEmpleados } from './hooks/useEmpleados'
 import { useProveedores } from './hooks/useProveedores'
+import { useFichajeActual } from './hooks/useFichajeActual'
 import { fetchConfiguracionFichajes } from './services/configuracionFichajes'
 import { cerrarFichajesVencidos } from './services/fichajes'
 import { AiChat } from './components/AiChat/AiChat'
@@ -109,6 +110,7 @@ export function App() {
   const clientesLocales = useClientesLocales()
   const empleadosHook = useEmpleados()
   const proveedoresHook = useProveedores()
+  const fichajeActual = useFichajeActual(empleadoId)
   const [showCart, setShowCart] = useState(false)
 
   const [showForm, setShowForm] = useState(false)
@@ -153,7 +155,7 @@ export function App() {
   }
 
   return (
-    <Layout activePage={activePage} onNavigate={setActivePage} role={role} onLogout={logout}>
+    <Layout activePage={activePage} onNavigate={setActivePage} role={role} onLogout={logout} fichajeActual={fichajeActual}>
       {activePage === 'stock' && (
         ingresoTarget ? (
           <IngresoPage

@@ -129,6 +129,7 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
 
   const hoy = toISO(new Date())
   const esDeHoy = cajaAbierta?.fecha === hoy
+  const puedeCerrar = role === 'dueno' || (!!cajaAbierta && cajaAbierta.abierta_por === empleadoId)
 
   return (
     <div className="caja-page">
@@ -222,7 +223,13 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
           )}
 
           <div className="config-actions">
-            <button className="btn btn-primary" onClick={() => setShowCerrar(true)}><Lock size={14} /> Cerrar caja</button>
+            {puedeCerrar ? (
+              <button className="btn btn-primary" onClick={() => setShowCerrar(true)}><Lock size={14} /> Cerrar caja</button>
+            ) : (
+              <p className="caja-referencia">
+                Solo {cajaAbierta.empleado_apertura?.nombre ?? 'quien la abrió'} o el dueño pueden cerrar esta caja.
+              </p>
+            )}
           </div>
         </section>
       )}

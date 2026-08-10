@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { Empleado, Role } from '../types'
 import { logFailedOwnerAttempt, verifyOwnerPin } from '../services/auth'
-import { abrirFichaje, cerrarFichajeAbiertoDeEmpleado } from '../services/fichajes'
 
 const ROLE_KEY = 'rb_role'
 const EMPLEADO_ID_KEY = 'rb_empleado_id'
@@ -32,8 +31,10 @@ export function useAuth() {
   const [empleadoId, setEmpleadoId] = useState<string | null>(() => getStoredEmpleado().id)
   const [empleadoNombre, setEmpleadoNombre] = useState<string | null>(() => getStoredEmpleado().nombre)
 
+  // Login = elegir perfil y quedar usando la app. Ya no abre fichaje: fichar
+  // entrada/salida es una acción aparte (ver useFichajeActual), para que
+  // cada empleado se haga cargo de ficharse sin depender de cerrar sesión.
   const loginEmpleado = useCallback(async (empleado: Empleado): Promise<void> => {
-    await abrirFichaje(empleado.id)
     try {
       localStorage.setItem(ROLE_KEY, 'empleado')
       localStorage.setItem(EMPLEADO_ID_KEY, empleado.id)
@@ -56,9 +57,6 @@ export function useAuth() {
   }, [])
 
   const logout = useCallback(async (): Promise<void> => {
-    if (role === 'empleado' && empleadoId) {
-      try { await cerrarFichajeAbiertoDeEmpleado(empleadoId) } catch { /* noop */ }
-    }
     try {
       localStorage.removeItem(ROLE_KEY)
       localStorage.removeItem(EMPLEADO_ID_KEY)
@@ -67,7 +65,7 @@ export function useAuth() {
     setRole(null)
     setEmpleadoId(null)
     setEmpleadoNombre(null)
-  }, [role, empleadoId])
+  }, [])
 
   return { role, empleadoId, empleadoNombre, loginEmpleado, loginDueno, logout }
 }

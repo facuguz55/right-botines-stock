@@ -1,0 +1,50 @@
+.fichaje-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  border-top: 1px solid var(--border);
+}
+
+.fichaje-widget.en-turno {
+  background: var(--accent-dim);
+}
+
+.fichaje-tiempo {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.fichaje-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-3);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.fichaje-btn:disabled { opacity: 0.6; cursor: default; }
+
+.fichaje-btn.entrada {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.fichaje-btn.entrada:hover:not(:disabled) { background: var(--accent-dim); }
+
+.fichaje-btn.salida {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.fichaje-btn.salida:hover:not(:disabled) { background: var(--danger-dim); }
+
+@media (max-width: 768px) {
+  .fichaje-btn { padding: 0.625rem 0.75rem; }
+}

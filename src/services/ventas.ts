@@ -4,7 +4,7 @@ import type { Venta } from '../types'
 export async function fetchVentas(startDate?: string, endDate?: string): Promise<Venta[]> {
   let query = supabase
     .from('ventas')
-    .select('*, modelos(modelo, marca, categoria, gama)')
+    .select('*, modelos(modelo, marca, categoria, gama), empleados(nombre)')
     .order('fecha', { ascending: false })
 
   if (startDate) query = query.gte('fecha', startDate)

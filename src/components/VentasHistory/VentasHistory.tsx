@@ -188,7 +188,7 @@ export function VentasHistory() {
         <div className="ventas-table-wrap">
           <table className="ventas-table">
             <thead>
-              <tr><th>Fecha</th><th>Modelo</th><th>Talle</th><th>Pago</th><th>Precio</th><th>Ganancia</th></tr>
+              <tr><th>Fecha</th><th>Modelo</th><th>Talle</th><th>Empleado</th><th>Pago</th><th>Precio</th><th>Ganancia</th></tr>
             </thead>
             <tbody>
               {filtered.map(v => (
@@ -199,6 +199,7 @@ export function VentasHistory() {
                   </td>
                   <td>{v.modelos ? <span><strong>{v.modelos.marca}</strong> {v.modelos.modelo}</span> : <span className="deleted-product">Eliminado</span>}</td>
                   <td>{v.talle_arg} arg</td>
+                  <td>{v.empleados?.nombre ?? 'Dueño'}</td>
                   <td>
                     <span className="medio-pago-badge">
                       {MEDIO_ICONS[v.medio_pago] ?? ''} {v.medio_pago}

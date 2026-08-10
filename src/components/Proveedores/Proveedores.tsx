@@ -357,7 +357,7 @@ export function Proveedores({ proveedoresHook, modelos, empleadoId }: Proveedore
         ) : (
           <div className="ventas-table-wrap">
             <table className="ventas-table">
-              <thead><tr><th>Proveedor</th><th>Fecha</th><th>Remito</th><th>Total</th><th>Pagado</th><th>Saldo</th><th></th></tr></thead>
+              <thead><tr><th>Proveedor</th><th>Fecha</th><th>Remito</th><th>Registrada por</th><th>Total</th><th>Pagado</th><th>Saldo</th><th></th></tr></thead>
               <tbody>
                 {compras.map(c => {
                   const pagado = (c.compra_pagos ?? []).reduce((s, p) => s + Number(p.monto), 0)
@@ -368,6 +368,7 @@ export function Proveedores({ proveedoresHook, modelos, empleadoId }: Proveedore
                         <td>{c.proveedores?.nombre ?? '—'}</td>
                         <td>{new Date(c.fecha + 'T00:00:00').toLocaleDateString('es-AR')}</td>
                         <td>{c.numero_remito ?? '—'}</td>
+                        <td>{c.empleados?.nombre ?? 'Dueño'}</td>
                         <td className="price-cell">${fmt(c.total)}</td>
                         <td className="price-cell">${fmt(pagado)}</td>
                         <td className={saldo > 0 ? 'price-cell danger' : 'price-cell'}>${fmt(saldo)}</td>
@@ -384,7 +385,7 @@ export function Proveedores({ proveedoresHook, modelos, empleadoId }: Proveedore
                       </tr>
                       {expandedCompraId === c.id && (
                         <tr key={`${c.id}-detail`}>
-                          <td colSpan={7}>
+                          <td colSpan={8}>
                             <div className="compra-detail">
                               <div className="compra-detail-col">
                                 <p className="compra-detail-label">Ítems</p>

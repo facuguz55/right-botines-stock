@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase'
 import type { Compra } from '../types'
 
-const SELECT = '*, proveedores(nombre), compra_items(*, modelos(modelo, marca)), compra_pagos(*, empleados(nombre))'
+const SELECT = '*, proveedores(nombre), empleados(nombre), compra_items(*, modelos(modelo, marca)), compra_pagos(*, empleados(nombre))'
 
 function conSaldo(c: Compra): Compra {
   const pagado = (c.compra_pagos ?? []).reduce((s, p) => s + Number(p.monto), 0)

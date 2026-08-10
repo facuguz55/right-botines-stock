@@ -6,6 +6,8 @@ import {
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
+import { FichajeWidget } from '../FichajeWidget/FichajeWidget'
+import type { useFichajeActual } from '../../hooks/useFichajeActual'
 import './Layout.css'
 
 interface LayoutProps {
@@ -13,6 +15,7 @@ interface LayoutProps {
   onNavigate: (page: ActivePage) => void
   role: Role
   onLogout: () => void
+  fichajeActual: ReturnType<typeof useFichajeActual>
   children: React.ReactNode
 }
 
@@ -57,7 +60,7 @@ const ALL_NAV: NavItem[] = [
   { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart     },
 ]
 
-export function Layout({ activePage, onNavigate, role, onLogout, children }: LayoutProps) {
+export function Layout({ activePage, onNavigate, role, onLogout, fichajeActual, children }: LayoutProps) {
   const nav = (page: ActivePage) => ALL_NAV.find(n => n.page === page)!
   const esDueno = role === 'dueno'
   const [menuOpen, setMenuOpen] = useState(false)
@@ -145,6 +148,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
           {renderNavGroups(onNavigate)}
         </nav>
 
+        {!esDueno && <FichajeWidget fichajeHook={fichajeActual} />}
         <div className="sidebar-footer">
           {esDueno && <AccessAlerts />}
           <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
@@ -198,6 +202,7 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
             <nav className="sidebar-nav nav-drawer-nav">
               {renderNavGroups(handleMobileNav)}
             </nav>
+            {!esDueno && <FichajeWidget fichajeHook={fichajeActual} />}
             <div className="sidebar-footer">
               <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
                 <LogOut size={15} />

@@ -377,6 +377,7 @@ export interface Compra {
   empleado_id: string | null
   created_at: string
   proveedores?: { nombre: string } | null
+  empleados?: { nombre: string } | null
   compra_items?: CompraItem[]
   compra_pagos?: CompraPago[]
   saldo?: number
