@@ -293,12 +293,37 @@ interface VercelRes {
   end(body?: string): void
 }
 
+// Detecta env vars corruptas (p.ej. se pegó el valor enmascarado "••••••"
+// del dashboard de Vercel en vez del valor real) antes de usarlas en un
+// header, donde fetch() tira un TypeError de ByteString poco claro. No se
+// loguea el valor, solo el nombre de la variable y la posición del carácter
+// inválido, para poder diagnosticar sin exponer el secreto.
+function checkHeaderSafe(name: string, value: string): string | null {
+  for (let i = 0; i < value.length; i++) {
+    if (value.charCodeAt(i) > 255) {
+      return `${name} contiene un carácter inválido para un header (posición ${i}, código ${value.charCodeAt(i)}) — revisar en Vercel que no se haya pegado el valor enmascarado en vez del real`
+    }
+  }
+  return null
+}
+
 export default async function handler(req: VercelReq, res: VercelRes): Promise<void> {
   // Vercel manda Authorization: Bearer <CRON_SECRET> en las invocaciones
   // reales del cron cuando esa env var está seteada en el proyecto.
   if (CRON_SECRET) {
     const auth = req.headers['authorization']
     if (auth !== `Bearer ${CRON_SECRET}`) { res.status(401).end('Unauthorized'); return }
+  }
+
+  const envErrors = [
+    checkHeaderSafe('SUPABASE_URL', SB_URL),
+    checkHeaderSafe('SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY', SB_KEY),
+    checkHeaderSafe('TN_TOKEN', TN_TOKEN),
+    checkHeaderSafe('TN_STORE_ID', EXPECTED_STORE),
+  ].filter((e): e is string => e != null)
+  if (envErrors.length > 0) {
+    res.status(500).json({ ok: false, error: 'Variables de entorno inválidas', detalle: envErrors })
+    return
   }
 
   try {
