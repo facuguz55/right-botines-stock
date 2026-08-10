@@ -12,6 +12,8 @@ interface ModelGridProps {
   modelos: Modelo[]
   loading: boolean
   onSell: (m: Modelo) => void
+  puedeVender: boolean
+  motivoBloqueoVenta: string | null
   onEdit: (m: Modelo) => void
   onDelete: (m: Modelo) => void
   onIngreso: (m: Modelo) => void
@@ -35,7 +37,7 @@ const DEFAULT_FILTERS: ModeloFilters = {
 
 export function ModelGrid({
   modelos, loading,
-  onSell, onEdit, onDelete, onIngreso, onPriceHistory,
+  onSell, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory,
   onAdd, onPhotoSearch, onImport, onImportFotos, onImportExcel, onClearAll,
   onSyncTN, syncingTN, tnProgress, tnLastResult, tnLastSyncAt,
 }: ModelGridProps) {
@@ -124,6 +126,10 @@ export function ModelGrid({
         </div>
       </div>
 
+      {!puedeVender && motivoBloqueoVenta && (
+        <div className="venta-bloqueada-banner">⚠ {motivoBloqueoVenta}</div>
+      )}
+
       <Filters filters={filters} onChange={setFilters} modelos={modelos} />
 
       {loading ? (
@@ -169,6 +175,8 @@ export function ModelGrid({
               key={m.id}
               modelo={m}
               onSell={onSell}
+              puedeVender={puedeVender}
+              motivoBloqueoVenta={motivoBloqueoVenta}
               onEdit={onEdit}
               onDelete={onDelete}
               onIngreso={onIngreso}

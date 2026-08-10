@@ -166,6 +166,18 @@ export function App() {
     return <AperturaCajaGate empleadoNombre={empleadoNombre} onConfirm={fichajeActual.abrirCajaYFichar} />
   }
 
+  // El dueño siempre puede vender. Un empleado necesita tener fichada su
+  // propia entrada y que haya una caja abierta — cubre el caso de un
+  // segundo/tercer empleado que entra a la app sin haber fichado todavía
+  // (la caja ya la abrió el primero), y el caso raro de que la caja se haya
+  // cerrado mientras seguía con el fichaje abierto.
+  const puedeVender = role === 'dueno' || (!!fichajeActual.fichaje && !!fichajeActual.cajaAbierta)
+  const motivoBloqueoVenta = puedeVender
+    ? null
+    : !fichajeActual.fichaje
+      ? 'Fichá tu entrada para poder vender.'
+      : 'No hay una caja abierta — abrila desde Caja para poder vender.'
+
   return (
     <Layout activePage={activePage} onNavigate={setActivePage} role={role} empleadoNombre={empleadoNombre} onLogout={logout} fichajeActual={fichajeActual}>
       {activePage === 'stock' && (
@@ -183,6 +195,8 @@ export function App() {
             modelos={modelos}
             loading={loading}
             onSell={setSellTarget}
+            puedeVender={puedeVender}
+            motivoBloqueoVenta={motivoBloqueoVenta}
             onEdit={handleEdit}
             onDelete={setDeleteTarget}
             onIngreso={setIngresoTarget}
@@ -283,6 +297,8 @@ export function App() {
         onAddMore={() => setActivePage('stock')}
         onStartPayment={() => setShowCart(true)}
         onCancelSale={carrito.clear}
+        puedeVender={puedeVender}
+        motivoBloqueoVenta={motivoBloqueoVenta}
       />
 
       <DeleteConfirm

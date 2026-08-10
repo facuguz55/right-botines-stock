@@ -1,5 +1,19 @@
 .model-grid-page { display: flex; flex-direction: column; }
 
+.venta-bloqueada-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  margin-bottom: 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
 /* ── Barra de sincronización TN ── */
 .tn-sync-bar {
   display: flex;

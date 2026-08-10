@@ -8,13 +8,15 @@ import './ModelCard.css'
 interface ModelCardProps {
   modelo: Modelo
   onSell: (modelo: Modelo) => void
+  puedeVender: boolean
+  motivoBloqueoVenta: string | null
   onEdit: (modelo: Modelo) => void
   onDelete: (modelo: Modelo) => void
   onIngreso: (modelo: Modelo) => void
   onPriceHistory: (modelo: Modelo) => void
 }
 
-export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
+export function ModelCard({ modelo, onSell, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
   const totalPares = modelo.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
   const agotado = totalPares === 0
   const ultimoPar = !agotado && totalPares === 1
@@ -92,7 +94,12 @@ export function ModelCard({ modelo, onSell, onEdit, onDelete, onIngreso, onPrice
         )}
 
         <div className="card-actions">
-          <button className="btn btn-primary btn-sm" onClick={() => onSell(modelo)}>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => onSell(modelo)}
+            disabled={!puedeVender}
+            title={puedeVender ? undefined : motivoBloqueoVenta ?? undefined}
+          >
             Vender
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => onIngreso(modelo)}>

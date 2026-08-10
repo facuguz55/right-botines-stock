@@ -10,9 +10,11 @@ interface VentaEnCursoProps {
   onAddMore: () => void
   onStartPayment: () => void
   onCancelSale: () => void
+  puedeVender: boolean
+  motivoBloqueoVenta: string | null
 }
 
-export function VentaEnCurso({ items, subtotal, onAddMore, onStartPayment, onCancelSale }: VentaEnCursoProps) {
+export function VentaEnCurso({ items, subtotal, onAddMore, onStartPayment, onCancelSale, puedeVender, motivoBloqueoVenta }: VentaEnCursoProps) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   if (items.length === 0) return null
@@ -47,8 +49,18 @@ export function VentaEnCurso({ items, subtotal, onAddMore, onStartPayment, onCan
         <div className="venta-en-curso-actions">
           <button className="btn btn-secondary" onClick={onAddMore}>+ Agregar producto</button>
           <button className="btn btn-danger" onClick={() => setShowCancelConfirm(true)}>Cancelar venta</button>
-          <button className="btn btn-primary" onClick={onStartPayment}>Iniciar el pago →</button>
+          <button
+            className="btn btn-primary"
+            onClick={onStartPayment}
+            disabled={!puedeVender}
+            title={puedeVender ? undefined : motivoBloqueoVenta ?? undefined}
+          >
+            Iniciar el pago →
+          </button>
         </div>
+        {!puedeVender && motivoBloqueoVenta && (
+          <p className="venta-en-curso-bloqueo">⚠ {motivoBloqueoVenta}</p>
+        )}
       </div>
 
       <Modal isOpen={showCancelConfirm} onClose={() => setShowCancelConfirm(false)} title="Cancelar venta" maxWidth="380px">

@@ -81,6 +81,13 @@
 }
 .venta-en-curso-actions .btn { flex: 1; justify-content: center; padding: .5rem .625rem; font-size: .75rem; white-space: normal; }
 
+.venta-en-curso-bloqueo {
+  padding: 0 .75rem .75rem;
+  color: var(--warning);
+  font-size: .75rem;
+  font-weight: 500;
+}
+
 @media (max-width: 768px) {
   .venta-en-curso { left: 1rem; right: 1rem; bottom: calc(68px + 1rem); }
   .venta-en-curso-actions { flex-wrap: wrap; }
