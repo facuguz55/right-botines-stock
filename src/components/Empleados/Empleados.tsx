@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { Plus, Power, PauseCircle, UserPlus, Clock, Eye } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, Power, PauseCircle, UserPlus, Clock, Eye, Timer } from 'lucide-react'
 import type { Fichaje, Venta } from '../../types'
 import type { useEmpleados } from '../../hooks/useEmpleados'
 import { useFichajes } from '../../hooks/useFichajes'
 import { fetchVentasPorEmpleadoYRango } from '../../services/ventas'
+import { fetchConfiguracionFichajes, updateHoraLimiteCierre } from '../../services/configuracionFichajes'
 import { Modal } from '../Modal/Modal'
 import './Empleados.css'
 
@@ -78,6 +79,25 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
   const [movimientosTarget, setMovimientosTarget] = useState<Fichaje | null>(null)
   const [movimientos, setMovimientos] = useState<Venta[]>([])
   const [loadingMovs, setLoadingMovs] = useState(false)
+
+  const [horaLimite, setHoraLimite] = useState('20:00')
+  const [loadingHoraLimite, setLoadingHoraLimite] = useState(true)
+  const [savingHoraLimite, setSavingHoraLimite] = useState(false)
+
+  useEffect(() => {
+    fetchConfiguracionFichajes()
+      .then(cfg => setHoraLimite(cfg.hora_limite_cierre.slice(0, 5)))
+      .finally(() => setLoadingHoraLimite(false))
+  }, [])
+
+  const guardarHoraLimite = async () => {
+    setSavingHoraLimite(true)
+    try {
+      await updateHoraLimiteCierre(horaLimite)
+    } finally {
+      setSavingHoraLimite(false)
+    }
+  }
 
   function applyPreset(key: string) {
     const { start, end } = getPreset(key)
@@ -194,6 +214,30 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
             <Plus size={13} /> Agregar empleado
           </button>
         )}
+      </section>
+
+      <section className="config-section">
+        <div className="config-section-header">
+          <Timer size={16} />
+          <h2 className="config-section-title">Cierre automático de fichajes</h2>
+        </div>
+        <p className="config-section-desc">
+          Si un empleado se olvida de hacer logout, su fichaje queda abierto sumando horas indefinidamente.
+          Cada vez que alguien abre la app, se cierran solos los fichajes de días anteriores a esta hora.
+        </p>
+        <div className="config-row">
+          <label className="config-label">Hora límite</label>
+          <div className="config-input-wrap">
+            <input
+              type="time" className="config-input"
+              value={horaLimite} onChange={e => setHoraLimite(e.target.value)}
+              disabled={loadingHoraLimite}
+            />
+          </div>
+          <button className="btn btn-secondary btn-sm" disabled={loadingHoraLimite || savingHoraLimite} onClick={guardarHoraLimite}>
+            {savingHoraLimite ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
       </section>
 
       <section className="config-section">

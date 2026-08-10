@@ -38,6 +38,8 @@ import { useCarrito } from './hooks/useCarrito'
 import { useRecargosTarjeta } from './hooks/useRecargosTarjeta'
 import { useClientesLocales } from './hooks/useClientesLocales'
 import { useEmpleados } from './hooks/useEmpleados'
+import { fetchConfiguracionFichajes } from './services/configuracionFichajes'
+import { cerrarFichajesVencidos } from './services/fichajes'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
 
@@ -69,6 +71,16 @@ export function App() {
   const [configTabInicial, setConfigTabInicial] = useState<'general' | 'tiendanube' | 'seguridad' | 'costos'>('general')
 
   useEffect(() => { restoreAccent() }, [])
+
+  // Barrido de fichajes abandonados de días anteriores (nadie hizo logout).
+  // Corre una sola vez al abrir la app, con la hora límite configurada en
+  // Empleados — no depende de ningún cron ni de que quede una pestaña
+  // abierta a propósito, solo de que alguien entre a la app al otro día.
+  useEffect(() => {
+    fetchConfiguracionFichajes()
+      .then(cfg => cerrarFichajesVencidos(cfg.hora_limite_cierre))
+      .catch(() => { /* no bloquea el arranque de la app si falla */ })
+  }, [])
 
   // Si el rol cambia (ej: se pierde el acceso dueño) y la página activa quedó
   // en una sección restringida, volvemos a stock.

@@ -45,6 +45,45 @@ export async function cerrarFichajeManual(fichajeId: string, horaSalida: string)
   if (error) throw error
 }
 
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Cierra automáticamente los fichajes que quedaron abiertos de un día
+// anterior (alguien se olvidó de hacer logout) a la hora límite configurada
+// — nunca toca el fichaje de HOY, aunque ya esté abierto hace muchas horas.
+// Se llama una vez al abrir la app (App.tsx); no depende de ningún cron.
+export async function cerrarFichajesVencidos(horaLimiteCierre: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('fichajes')
+    .select('id, hora_entrada')
+    .is('hora_salida', null)
+  if (error) throw error
+
+  const hoyKey = localDateKey(new Date())
+  const [hh, mm] = horaLimiteCierre.split(':').map(Number)
+  let cerrados = 0
+
+  for (const f of data ?? []) {
+    const entrada = new Date(f.hora_entrada)
+    if (localDateKey(entrada) === hoyKey) continue // fichaje de hoy, no tocar
+
+    const limite = new Date(entrada)
+    limite.setHours(hh, mm, 0, 0)
+    // Si entró después de la hora límite (turno nocturno), no tiene sentido
+    // cerrarlo "antes" de que entró — se cierra 15 min después de la entrada.
+    const cierre = limite > entrada ? limite : new Date(entrada.getTime() + 15 * 60000)
+
+    const { error: updErr } = await supabase
+      .from('fichajes')
+      .update({ hora_salida: cierre.toISOString() })
+      .eq('id', f.id)
+    if (!updErr) cerrados++
+  }
+
+  return cerrados
+}
+
 export async function fetchFichajes(startDate?: string, endDate?: string): Promise<Fichaje[]> {
   let query = supabase
     .from('fichajes')

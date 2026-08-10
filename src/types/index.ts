@@ -288,6 +288,12 @@ export interface Fichaje {
   empleados?: { nombre: string } | null
 }
 
+export interface ConfiguracionFichajes {
+  id: number
+  hora_limite_cierre: string
+  updated_at: string
+}
+
 export type CajaEstado = 'abierta' | 'cerrada'
 
 export interface CajaDia {
