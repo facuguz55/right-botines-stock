@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Wallet, Lock, Unlock, AlertTriangle, Receipt, MinusCircle } from 'lucide-react'
+import { Wallet, Lock, Unlock, AlertTriangle, Receipt, MinusCircle, ClipboardCheck } from 'lucide-react'
 import type { Role } from '../../types'
 import { useCaja } from '../../hooks/useCaja'
 import { Modal } from '../Modal/Modal'
@@ -53,7 +53,7 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
   const [activePreset, setActivePreset] = useState('mes')
 
   const {
-    cajaAbierta, totalesDia, gastos, netoDevolucionesHoy, cerradas, loading, error, abrir, cerrar, registrarGasto,
+    cajaAbierta, totalesDia, gastos, netoDevolucionesHoy, verificaciones, cerradas, loading, error, abrir, cerrar, registrarGasto,
   } = useCaja(startDate, endDate)
 
   const [montoApertura, setMontoApertura] = useState('')
@@ -220,6 +220,29 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
                 <span className="caja-gasto-monto">-${totalGastos.toLocaleString('es-AR')}</span>
               </div>
             </div>
+          )}
+
+          {verificaciones.length > 0 && (
+            <>
+              <div className="caja-gastos-header">
+                <div className="config-section-header"><ClipboardCheck size={16} /><h3 className="config-section-title">Verificaciones durante el día</h3></div>
+              </div>
+              <div className="caja-gastos-list">
+                {verificaciones.map(v => (
+                  <div key={v.id} className="caja-gasto-row">
+                    <div>
+                      <span className="caja-gasto-motivo">{v.empleados?.nombre ?? 'Empleado'} declaró ${v.monto_declarado.toLocaleString('es-AR')}</span>
+                      <span className="caja-gasto-meta">
+                        Esperado en ese momento: ${v.monto_esperado_en_momento.toLocaleString('es-AR')} · {new Date(v.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <span className={`caja-gasto-monto ${v.diferencia === 0 ? 'neutral' : v.diferencia > 0 ? 'positive' : ''}`}>
+                      {v.diferencia === 0 ? 'Exacto' : `${v.diferencia > 0 ? '+' : ''}$${v.diferencia.toLocaleString('es-AR')}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
 
           <div className="config-actions">

@@ -3,3 +3,12 @@
   justify-content: flex-end;
   margin-bottom: 0.5rem;
 }
+
+/* Pantalla en blanco mientras se resuelve si el empleado necesita el gate
+   de apertura de caja — evita el parpadeo de mostrar la app y taparla. */
+.apertura-gate-loading {
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  background: var(--bg-primary);
+}

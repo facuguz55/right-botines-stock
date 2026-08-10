@@ -1,0 +1,62 @@
+.apertura-gate {
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  background: var(--bg-primary);
+  padding: 1.5rem;
+}
+
+.apertura-gate-logo {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+}
+
+.apertura-gate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  max-width: 340px;
+  padding: 2rem 1.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.apertura-gate-icon { color: var(--accent); }
+
+.apertura-gate-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.apertura-gate-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.apertura-gate-card .form-group {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.apertura-gate-error {
+  font-size: 0.8125rem;
+  color: var(--danger);
+}
+
+.apertura-gate-btn {
+  width: 100%;
+  margin-top: 0.25rem;
+}

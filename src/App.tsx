@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { ActivePage, Modelo, PhotoSlot, TalleRow } from './types'
 import { Layout, SOLO_DUENO } from './components/Layout/Layout'
 import { Login } from './components/Login/Login'
+import { AperturaCajaGate } from './components/AperturaCajaGate/AperturaCajaGate'
 import { useAuth } from './hooks/useAuth'
 import { Modal } from './components/Modal/Modal'
 import { ModelGrid } from './components/ModelGrid/ModelGrid'
@@ -152,6 +153,17 @@ export function App() {
         onLoginDueno={loginDueno}
       />
     )
+  }
+
+  // El dueño no ficha (puede abrir la caja a mano desde Caja en cualquier
+  // momento). Un empleado sin fichaje propio y sin caja abierta es el
+  // primero del día: se bloquea todo hasta que abra la caja y fiche entrada
+  // en un solo paso.
+  if (role === 'empleado' && fichajeActual.loading) {
+    return <div className="apertura-gate-loading" />
+  }
+  if (role === 'empleado' && fichajeActual.requiereApertura) {
+    return <AperturaCajaGate empleadoNombre={empleadoNombre} onConfirm={fichajeActual.abrirCajaYFichar} />
   }
 
   return (

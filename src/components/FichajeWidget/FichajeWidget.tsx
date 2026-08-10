@@ -18,12 +18,12 @@ interface FichajeWidgetProps {
 // sesión — así el empleado puede seguir usando la app sin que eso afecte
 // su fichaje, y es responsable de ficharse él mismo.
 export function FichajeWidget({ fichajeHook }: FichajeWidgetProps) {
-  const { fichaje, loading, ficharEntrada, ficharSalida, cierrePendiente, confirmarSalidaConCierre, cancelarCierrePendiente } = fichajeHook
+  const { fichaje, loading, ficharEntrada, ficharSalida, salidaPendiente, confirmarSalida, cancelarSalidaPendiente } = fichajeHook
   const [saving, setSaving] = useState(false)
   const [, setTick] = useState(0)
   const [montoContado, setMontoContado] = useState('')
   const [notas, setNotas] = useState('')
-  const [cerrando, setCerrando] = useState(false)
+  const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
     if (!fichaje) return
@@ -44,23 +44,24 @@ export function FichajeWidget({ fichajeHook }: FichajeWidgetProps) {
   }
 
   const contadoNum = montoContado ? Number(montoContado) : null
-  const diferencia = cierrePendiente && contadoNum != null ? contadoNum - cierrePendiente.esperado : null
+  const diferencia = salidaPendiente && contadoNum != null ? contadoNum - salidaPendiente.esperado : null
+  const esUltimo = salidaPendiente?.esUltimo ?? false
 
-  const handleCancelarCierre = () => {
-    cancelarCierrePendiente()
+  const handleCancelar = () => {
+    cancelarSalidaPendiente()
     setMontoContado('')
     setNotas('')
   }
 
-  const handleConfirmarCierre = async () => {
+  const handleConfirmar = async () => {
     if (contadoNum == null) return
-    setCerrando(true)
+    setEnviando(true)
     try {
-      await confirmarSalidaConCierre(contadoNum, notas.trim() || null)
+      await confirmarSalida(contadoNum, notas.trim() || null)
       setMontoContado('')
       setNotas('')
     } finally {
-      setCerrando(false)
+      setEnviando(false)
     }
   }
 
@@ -79,10 +80,17 @@ export function FichajeWidget({ fichajeHook }: FichajeWidgetProps) {
         <span>{saving ? 'Guardando...' : fichaje ? 'Fichar salida' : 'Fichar entrada'}</span>
       </button>
 
-      <Modal isOpen={!!cierrePendiente} onClose={() => !cerrando && handleCancelarCierre()} title="Cerrar caja" maxWidth="380px">
+      <Modal
+        isOpen={!!salidaPendiente}
+        onClose={() => !enviando && handleCancelar()}
+        title={esUltimo ? 'Cerrar caja' : 'Verificación de caja'}
+        maxWidth="380px"
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <p className="fichaje-cierre-info">
-            Sos el último en fichar salida hoy — contá el efectivo de la caja para cerrarla.
+            {esUltimo
+              ? 'Sos el último en fichar salida hoy — contá el efectivo de la caja para cerrarla.'
+              : 'Antes de fichar salida, contá el efectivo que hay en la caja ahora. Todavía queda otro empleado trabajando, así que la caja sigue abierta — esto queda registrado para el dueño.'}
           </p>
 
           <div className="form-group">
@@ -104,15 +112,17 @@ export function FichajeWidget({ fichajeHook }: FichajeWidgetProps) {
             </p>
           )}
 
-          <div className="form-group">
-            <label>Notas (opcional)</label>
-            <input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Opcional" />
-          </div>
+          {esUltimo && (
+            <div className="form-group">
+              <label>Notas (opcional)</label>
+              <input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Opcional" />
+            </div>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem' }}>
-            <button className="btn btn-secondary" onClick={handleCancelarCierre} disabled={cerrando}>Cancelar</button>
-            <button className="btn btn-primary" disabled={!montoContado || cerrando} onClick={handleConfirmarCierre}>
-              {cerrando ? 'Cerrando...' : 'Fichar salida y cerrar caja'}
+            <button className="btn btn-secondary" onClick={handleCancelar} disabled={enviando}>Cancelar</button>
+            <button className="btn btn-primary" disabled={!montoContado || enviando} onClick={handleConfirmar}>
+              {enviando ? 'Guardando...' : esUltimo ? 'Fichar salida y cerrar caja' : 'Fichar salida'}
             </button>
           </div>
         </div>

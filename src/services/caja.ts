@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { CajaDia, CajaGasto, TotalesEfectivoDia } from '../types'
+import type { CajaDia, CajaGasto, CajaVerificacion, TotalesEfectivoDia } from '../types'
 
 const SELECT_CON_EMPLEADOS =
   '*, empleado_apertura:empleados!caja_dias_abierta_por_fkey(nombre), empleado_cierre:empleados!caja_dias_cerrada_por_fkey(nombre)'
@@ -103,6 +103,46 @@ export async function fetchNetoDevolucionesEfectivo(fecha: string): Promise<numb
     .lte('fecha', fecha + 'T23:59:59')
   if (error) throw error
   return (data || []).reduce((s, d) => s + Number(d.monto_diferencia), 0)
+}
+
+// Efectivo esperado de una caja en este momento (misma fórmula que usa
+// cerrarCaja) — se usa para mostrar la referencia antes de fichar salida,
+// tanto al que cierra de verdad como al que solo deja una verificación.
+export async function calcularEfectivoEsperado(caja: CajaDia): Promise<number> {
+  const [totales, totalGastos, netoDevoluciones] = await Promise.all([
+    fetchTotalesEfectivoDia(caja.fecha),
+    fetchTotalGastos(caja.id),
+    fetchNetoDevolucionesEfectivo(caja.fecha),
+  ])
+  return caja.monto_apertura + totales.efectivo + netoDevoluciones - totalGastos
+}
+
+export async function registrarVerificacionCaja(
+  cajaDiaId: string, empleadoId: string | null, montoDeclarado: number, montoEsperado: number,
+): Promise<CajaVerificacion> {
+  const { data, error } = await supabase
+    .from('caja_verificaciones')
+    .insert([{
+      caja_dia_id: cajaDiaId,
+      empleado_id: empleadoId,
+      monto_declarado: montoDeclarado,
+      monto_esperado_en_momento: montoEsperado,
+      diferencia: montoDeclarado - montoEsperado,
+    }])
+    .select('*, empleados(nombre)')
+    .single()
+  if (error) throw error
+  return data as CajaVerificacion
+}
+
+export async function fetchVerificacionesCaja(cajaDiaId: string): Promise<CajaVerificacion[]> {
+  const { data, error } = await supabase
+    .from('caja_verificaciones')
+    .select('*, empleados(nombre)')
+    .eq('caja_dia_id', cajaDiaId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []) as CajaVerificacion[]
 }
 
 export async function cerrarCaja(

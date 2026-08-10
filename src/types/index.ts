@@ -332,6 +332,19 @@ export interface TotalesEfectivoDia {
   tarjeta: number
 }
 
+// Declaración de efectivo de un empleado que ficha salida sin ser el
+// último — no cierra la caja, solo queda como checkpoint para comparar.
+export interface CajaVerificacion {
+  id: string
+  caja_dia_id: string
+  empleado_id: string | null
+  monto_declarado: number
+  monto_esperado_en_momento: number
+  diferencia: number
+  created_at: string
+  empleados?: { nombre: string } | null
+}
+
 // ── Proveedores / Compras ─────────────────────────────────────────────────
 
 export interface Proveedor {

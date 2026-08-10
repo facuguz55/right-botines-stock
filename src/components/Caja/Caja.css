@@ -98,6 +98,8 @@
   color: var(--danger);
   white-space: nowrap;
 }
+.caja-gasto-monto.neutral { color: var(--text-secondary); }
+.caja-gasto-monto.positive { color: var(--accent); }
 
 .caja-gasto-total {
   background: transparent;
