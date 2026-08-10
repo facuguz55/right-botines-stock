@@ -277,12 +277,28 @@ async function upsertModeloFromTNProductREST(
   }
 }
 
-export default async function handler(req: Request): Promise<Response> {
+// Firma clásica de Node.js (req, res) — NO Request→Response. Confirmado en
+// vivo vía runtime logs el motivo real de todos los colgados anteriores:
+// "default export returned a `Response`. The default-export signature is
+// `(req, res) => void` — returns are ignored." Este es un proyecto Vite (no
+// Next.js), así que las funciones de api/*.ts usan la convención Node
+// clásica de Vercel — el estilo Request→Response solo aplica con
+// `runtime: 'edge'` (como en tn-webhook.ts) o dentro de Next.js App Router.
+// La función corría bien entera y nunca mandaba la respuesta: quedaba
+// colgada hasta que Vercel mataba la conexión por su cuenta.
+interface VercelReq { headers: Record<string, string | string[] | undefined> }
+interface VercelRes {
+  status(code: number): VercelRes
+  json(body: unknown): void
+  end(body?: string): void
+}
+
+export default async function handler(req: VercelReq, res: VercelRes): Promise<void> {
   // Vercel manda Authorization: Bearer <CRON_SECRET> en las invocaciones
   // reales del cron cuando esa env var está seteada en el proyecto.
   if (CRON_SECRET) {
-    const auth = req.headers.get('authorization')
-    if (auth !== `Bearer ${CRON_SECRET}`) return new Response('Unauthorized', { status: 401 })
+    const auth = req.headers['authorization']
+    if (auth !== `Bearer ${CRON_SECRET}`) { res.status(401).end('Unauthorized'); return }
   }
 
   try {
@@ -313,14 +329,8 @@ export default async function handler(req: Request): Promise<Response> {
       })
     }
 
-    return new Response(JSON.stringify({ ok: true, total: productos.length, actualizados: ok, errores }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    res.status(200).json({ ok: true, total: productos.length, actualizados: ok, errores })
   } catch (err) {
-    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    res.status(500).json({ ok: false, error: String(err) })
   }
 }
