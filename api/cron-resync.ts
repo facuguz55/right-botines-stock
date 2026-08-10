@@ -1,7 +1,12 @@
 // Runtime Node.js (no Edge): recorrer ~340 productos en serie contra la API
 // de TN + Supabase tarda más que el límite corto de Edge Functions (se
-// confirmó en vivo: cortaba a mitad de camino). Node.js soporta hasta 300s.
-export const maxDuration = 120
+// confirmó en vivo: cortaba a mitad de camino). 300s es el techo real de
+// este plan — confirmado en vivo por "Vercel Runtime Timeout Error: Task
+// timed out after 300 seconds" en los runtime logs, pese a haber declarado
+// 120 acá (este handler estilo Request→Response no parece respetar este
+// valor — mismo patrón que el problema de imports relativos documentado
+// más abajo). El fix real fue bajar el trabajo por producto, no subir esto.
+export const maxDuration = 300
 
 // Resync de precio/stock corriendo en el servidor (Vercel Cron), no en el
 // navegador de quien tenga la app abierta. Antes el único "resync de
@@ -161,7 +166,11 @@ async function findExistingModeloByTNProduct(productId: number): Promise<{ id: s
   return rowsB[0]
 }
 
-async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise<void> {
+async function upsertModeloFromTNProductREST(
+  prod: TNRawProductMinimal,
+  recargoPct: number | null,
+  tiers: Record<number, number>,
+): Promise<void> {
   const name = prod.name.es ?? prod.name.en ?? Object.values(prod.name)[0] ?? `Producto ${prod.id}`
   const catNames = (prod.categories ?? []).map(c => c.name?.es ?? c.name?.en ?? '')
   const categoria = detectCategoria(name, catNames)
@@ -170,7 +179,6 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   const precio_venta = parseFloat(prod.variants[0]?.price ?? '0') || 0
   const promoRaw = prod.variants[0]?.promotional_price
   const precio_promocional = promoRaw ? parseFloat(promoRaw) || null : null
-  const [recargoPct, tiers] = await Promise.all([fetchRecargoCredito3Cuotas(), fetchPrecioTiers()])
   const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, tiers, recargoPct)
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
@@ -183,11 +191,11 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
 
-  let existing = await findExistingModeloByTNProduct(prod.id)
-  for (let i = 0; i < 3 && !existing; i++) {
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    existing = await findExistingModeloByTNProduct(prod.id)
-  }
+  // Sin retry-with-delay acá a propósito: eso solo tiene sentido para el
+  // race condition de un webhook de un solo producto disparado antes de que
+  // termine de indexarse — en un resync completo del catálogo no hay nada
+  // que esperar, si no aparece es simplemente un producto nuevo.
+  const existing = await findExistingModeloByTNProduct(prod.id)
 
   let modeloId: string
   if (existing) {
@@ -229,29 +237,35 @@ async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): Promise
   const tallesRes = await sbFetch(`modelo_talles?modelo_id=eq.${modeloId}&select=id,talle_arg,stock_minimo`)
   const existingTalles = await tallesRes.json() as { id: string; talle_arg: number; stock_minimo: number }[]
 
+  // Talles de un mismo producto en paralelo (son independientes entre sí) —
+  // antes iban de a uno secuencial y era el principal cuello de botella:
+  // con ~340 productos × varios talles cada uno, sumaba minutos enteros.
   const seenTalleArgs = new Set<number>()
+  const talleWrites: Promise<unknown>[] = []
   for (const vt of variantTalles) {
     seenTalleArgs.add(vt.talle_arg)
     const existingTalle = existingTalles.find(t => Number(t.talle_arg) === vt.talle_arg)
     if (existingTalle) {
-      await sbFetch(`modelo_talles?id=eq.${existingTalle.id}`, {
+      talleWrites.push(sbFetch(`modelo_talles?id=eq.${existingTalle.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ talle_us: vt.talle_us, talle_arg: vt.talle_arg, cantidad: vt.stock, tn_variant_id: vt.variantId }),
-      })
+      }))
     } else {
-      await sbFetch('modelo_talles', {
+      talleWrites.push(sbFetch('modelo_talles', {
         method: 'POST',
         body: JSON.stringify({
           modelo_id: modeloId, talle_us: vt.talle_us, talle_arg: vt.talle_arg,
           cantidad: vt.stock, stock_minimo: 1, tn_variant_id: vt.variantId,
         }),
-      })
+      }))
     }
   }
-
   for (const t of existingTalles) {
-    if (!seenTalleArgs.has(Number(t.talle_arg))) await sbFetch(`modelo_talles?id=eq.${t.id}`, { method: 'DELETE' })
+    if (!seenTalleArgs.has(Number(t.talle_arg))) {
+      talleWrites.push(sbFetch(`modelo_talles?id=eq.${t.id}`, { method: 'DELETE' }))
+    }
   }
+  await Promise.all(talleWrites)
 
   if (prod.images.length > 0) {
     const fotosRes = await sbFetch(`modelo_fotos?modelo_id=eq.${modeloId}&select=id&limit=1`)
@@ -272,16 +286,27 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const productos = await fetchAllTNProductsServerSide()
+    // recargoPct/tiers son globales (misma config para los ~340 productos) —
+    // se levantan UNA sola vez acá. Antes se pedían de nuevo por cada
+    // producto dentro de upsertModeloFromTNProductREST: 340 productos × 2
+    // llamadas = 680 round-trips a Supabase desperdiciados, la causa
+    // principal de que esto terminara pasándose del límite de tiempo
+    // (confirmado en los runtime logs: "Task timed out after 300 seconds").
+    const [productos, recargoPct, tiers] = await Promise.all([
+      fetchAllTNProductsServerSide(),
+      fetchRecargoCredito3Cuotas(),
+      fetchPrecioTiers(),
+    ])
     let ok = 0
     const errores: string[] = []
 
-    // En paralelo de a lotes (no todo junto, para no saturar la API de TN
-    // ni Supabase) — bajó bastante el riesgo de pasarse de maxDuration.
-    const BATCH = 8
+    // En paralelo de a lotes (no todo junto, para no saturar Supabase).
+    // Subido de 8 a 16 ahora que cada producto pesa mucho menos (talles en
+    // paralelo, sin fetches repetidos ni retries innecesarios).
+    const BATCH = 16
     for (let i = 0; i < productos.length; i += BATCH) {
       const lote = productos.slice(i, i + BATCH)
-      const resultados = await Promise.allSettled(lote.map(prod => upsertModeloFromTNProductREST(prod)))
+      const resultados = await Promise.allSettled(lote.map(prod => upsertModeloFromTNProductREST(prod, recargoPct, tiers)))
       resultados.forEach((r, idx) => {
         if (r.status === 'fulfilled') ok++
         else errores.push(`producto ${lote[idx].id}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`)
