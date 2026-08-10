@@ -37,6 +37,18 @@ export async function cerrarFichajeAbiertoDeEmpleado(empleadoId: string): Promis
   if (error) throw error
 }
 
+// Cuenta cuántos fichajes siguen abiertos en todo el sistema — se usa para
+// detectar si el que está fichando salida es el último que queda (y por lo
+// tanto corresponde ofrecerle cerrar la caja en el mismo paso).
+export async function countFichajesAbiertos(): Promise<number> {
+  const { count, error } = await supabase
+    .from('fichajes')
+    .select('id', { count: 'exact', head: true })
+    .is('hora_salida', null)
+  if (error) throw error
+  return count ?? 0
+}
+
 export async function cerrarFichajeManual(fichajeId: string, horaSalida: string): Promise<void> {
   const { error } = await supabase
     .from('fichajes')
