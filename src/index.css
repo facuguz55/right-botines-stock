@@ -28,7 +28,20 @@
 
 html, body, #root { height: 100%; }
 
+/* App "estática" en mobile/PWA: el body nunca scrollea ni rebota (nada de
+   "gelatina" al arrastrar sobre zonas no scrolleables ni pantalla completa
+   moviéndose). Cada contenedor con scroll propio (.main-content, modales,
+   drawers, tablas) sigue scrolleando normal, pero queda contenido — no se
+   filtra hacia el body al llegar al final. */
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
   font-family: var(--font-body);
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -36,6 +49,10 @@ body {
   font-size: 14px;
   line-height: 1.5;
 }
+
+#root { overflow: hidden; }
+
+* { overscroll-behavior: contain; }
 
 button { cursor: pointer; font-family: inherit; font-size: inherit; }
 input, select, textarea { font-family: inherit; font-size: inherit; }
