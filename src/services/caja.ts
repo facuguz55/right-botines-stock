@@ -91,6 +91,30 @@ export async function fetchTotalesEfectivoDia(fecha: string): Promise<TotalesEfe
   return totales
 }
 
+// Vuelto entregado en efectivo durante el día — solo informativo para el
+// cajero: ya está descontado implícitamente porque `ventas.precio_venta`
+// registra el neto que quedó en el cajón, no lo que entregó el cliente.
+export async function fetchTotalVueltoEntregado(fecha: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('ventas')
+    .select('vuelto_efectivo, venta_grupo_id')
+    .gte('fecha', fecha)
+    .lte('fecha', fecha + 'T23:59:59')
+    .not('vuelto_efectivo', 'is', null)
+  if (error) throw error
+
+  // Igual que el split de pago mixto: el vuelto se guarda repetido en cada
+  // fila del mismo venta_grupo_id, hay que dedupear.
+  const gruposVistos = new Set<string>()
+  let total = 0
+  for (const v of data || []) {
+    if (!v.venta_grupo_id || gruposVistos.has(v.venta_grupo_id)) continue
+    gruposVistos.add(v.venta_grupo_id)
+    total += Number(v.vuelto_efectivo ?? 0)
+  }
+  return total
+}
+
 // Neto en efectivo de devoluciones/cambios del día: positivo si el cliente
 // pagó una diferencia en efectivo (entra plata), negativo si se le devolvió
 // (sale plata). Se suma tal cual al efectivo esperado de la caja.

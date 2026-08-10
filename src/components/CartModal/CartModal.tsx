@@ -16,6 +16,7 @@ interface CartModalProps {
   onSell: (
     items: CartItem[], medioPago: MedioPago, clienteId: string, tarjeta: string | null, cuotas: number | null,
     recargoPct: number, montoEfectivo: number | null, montoTransferencia: number | null,
+    montoRecibidoEfectivo: number | null, vueltoEfectivo: number | null,
   ) => Promise<void>
 }
 
@@ -27,6 +28,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const [tarjeta, setTarjeta] = useState<string | null>(null)
   const [cuotas, setCuotas] = useState<number | null>(null)
   const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('')
+  const [montoRecibidoEfectivo, setMontoRecibidoEfectivo] = useState('')
   const [search, setSearch] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
@@ -58,6 +60,16 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   // % efectivo mostrado junto al monto: puede diferir un poco del % nominal
   // configurado cuando el precio viene del real de TiendaNube (Crédito 3 cuotas).
   const recargoPctMostrado = subtotal > 0 ? (recargo / subtotal) * 100 : recargoPct
+
+  const esEfectivo = medioPago === 'Efectivo'
+  // Base sobre la que se calcula el vuelto: el total de la venta si es
+  // 100% efectivo, o solo la porción en efectivo si es un pago mixto.
+  const baseEfectivo = esEfectivo ? total : esMixto ? montoEfectivoMixtoNum : 0
+  const montoRecibidoEfectivoNum = montoRecibidoEfectivo ? Number(montoRecibidoEfectivo) : 0
+  const hayRecibido = montoRecibidoEfectivo !== ''
+  const vuelto = hayRecibido ? montoRecibidoEfectivoNum - baseEfectivo : 0
+  const recibidoInvalido = hayRecibido && montoRecibidoEfectivoNum < baseEfectivo
+
   const ganancia = items.reduce((s, i) => {
     const precioFinal = esTarjeta && !faltaElegirRecargo ? getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct) : getPrecioReal(i.modelo)
     return s + (precioFinal - i.modelo.precio_costo) * i.cantidad
@@ -80,6 +92,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setTarjeta(null)
     setCuotas(null)
     setMontoEfectivoMixto('')
+    setMontoRecibidoEfectivo('')
     resetCliente()
     onClose()
   }
@@ -89,6 +102,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setTarjeta(null)
     setCuotas(null)
     setMontoEfectivoMixto('')
+    setMontoRecibidoEfectivo('')
   }
 
   const handleConfirm = async () => {
@@ -118,6 +132,8 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
         recargoPct,
         esMixto ? montoEfectivoMixtoNum : null,
         esMixto ? montoTransferenciaMixtoNum : null,
+        (esEfectivo || esMixto) && hayRecibido ? montoRecibidoEfectivoNum : null,
+        (esEfectivo || esMixto) && hayRecibido ? vuelto : null,
       )
       clear()
       handleClose()
@@ -184,7 +200,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
               <div className="config-input-wrap">
                 <input
                   type="number" className="config-input" min={0} max={subtotal}
-                  value={montoEfectivoMixto} onChange={e => setMontoEfectivoMixto(e.target.value)}
+                  value={montoEfectivoMixto} onChange={e => { setMontoEfectivoMixto(e.target.value); setMontoRecibidoEfectivo('') }}
                   placeholder="0" autoFocus
                 />
                 <span className="config-input-suffix">ARS</span>
@@ -195,6 +211,27 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
               {mixtoInvalido && montoEfectivoMixto !== '' && (
                 <p className="sell-error">El monto en efectivo no puede superar el total.</p>
               )}
+            </div>
+          )}
+
+          {(esEfectivo || (esMixto && montoEfectivoMixtoNum > 0)) && (
+            <div className="sell-section">
+              <p className="sell-label">¿Con cuánto paga el cliente? (opcional)</p>
+              <div className="config-input-wrap">
+                <input
+                  type="number" className="config-input" min={baseEfectivo}
+                  value={montoRecibidoEfectivo} onChange={e => setMontoRecibidoEfectivo(e.target.value)}
+                  placeholder={`${baseEfectivo.toLocaleString('es-AR', { maximumFractionDigits: 0 })} (exacto)`}
+                />
+                <span className="config-input-suffix">ARS</span>
+              </div>
+              {recibidoInvalido ? (
+                <p className="sell-error">El monto no puede ser menor a ${baseEfectivo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}.</p>
+              ) : hayRecibido && vuelto > 0 ? (
+                <p className="sell-mixto-resto">
+                  Vuelto a entregar: <strong>${vuelto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</strong>
+                </p>
+              ) : null}
             </div>
           )}
 
@@ -210,7 +247,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
           <div className="sell-actions">
             <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
-            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={faltaElegirRecargo || mixtoInvalido}>
+            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={faltaElegirRecargo || mixtoInvalido || recibidoInvalido}>
               Continuar →
             </button>
           </div>

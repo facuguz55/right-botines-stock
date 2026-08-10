@@ -3,6 +3,7 @@ import type { CajaDia, CajaGasto, CajaVerificacion, TotalesEfectivoDia } from '.
 import {
   fetchCajaAbierta, abrirCaja, cerrarCaja, fetchTotalesEfectivoDia, fetchCajasCerradas,
   fetchGastosCaja, registrarGastoCaja, fetchNetoDevolucionesEfectivo, fetchVerificacionesCaja,
+  fetchTotalVueltoEntregado,
 } from '../services/caja'
 
 const POLL_MS = 30000
@@ -12,6 +13,7 @@ export function useCaja(startDate?: string, endDate?: string) {
   const [totalesDia, setTotalesDia] = useState<TotalesEfectivoDia>({ efectivo: 0, transferencia: 0, tarjeta: 0 })
   const [gastos, setGastos] = useState<CajaGasto[]>([])
   const [netoDevolucionesHoy, setNetoDevolucionesHoy] = useState(0)
+  const [vueltoEntregadoHoy, setVueltoEntregadoHoy] = useState(0)
   const [verificaciones, setVerificaciones] = useState<CajaVerificacion[]>([])
   const [cerradas, setCerradas] = useState<CajaDia[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,18 +24,20 @@ export function useCaja(startDate?: string, endDate?: string) {
       const caja = await fetchCajaAbierta()
       setCajaAbierta(caja)
       if (caja) {
-        const [tot, gas, neto, ver] = await Promise.all([
+        const [tot, gas, neto, ver, vuelto] = await Promise.all([
           fetchTotalesEfectivoDia(caja.fecha), fetchGastosCaja(caja.id), fetchNetoDevolucionesEfectivo(caja.fecha),
-          fetchVerificacionesCaja(caja.id),
+          fetchVerificacionesCaja(caja.id), fetchTotalVueltoEntregado(caja.fecha),
         ])
         setTotalesDia(tot)
         setGastos(gas)
         setNetoDevolucionesHoy(neto)
         setVerificaciones(ver)
+        setVueltoEntregadoHoy(vuelto)
       } else {
         setGastos([])
         setNetoDevolucionesHoy(0)
         setVerificaciones([])
+        setVueltoEntregadoHoy(0)
       }
     } catch (e) {
       setError((e as Error).message)
@@ -81,7 +85,7 @@ export function useCaja(startDate?: string, endDate?: string) {
   }
 
   return {
-    cajaAbierta, totalesDia, gastos, netoDevolucionesHoy, verificaciones, cerradas, loading, error,
+    cajaAbierta, totalesDia, gastos, netoDevolucionesHoy, vueltoEntregadoHoy, verificaciones, cerradas, loading, error,
     abrir, cerrar, registrarGasto, reload: loadAll,
   }
 }

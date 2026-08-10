@@ -270,8 +270,11 @@ export function App() {
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
-        onSell={(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia) =>
-          venderCarrito(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId, montoEfectivo, montoTransferencia)}
+        onSell={(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo) =>
+          venderCarrito(
+            items, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId,
+            montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo,
+          )}
       />
 
       <VentaEnCurso

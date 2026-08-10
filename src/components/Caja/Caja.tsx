@@ -53,7 +53,7 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
   const [activePreset, setActivePreset] = useState('mes')
 
   const {
-    cajaAbierta, totalesDia, gastos, netoDevolucionesHoy, verificaciones, cerradas, loading, error, abrir, cerrar, registrarGasto,
+    cajaAbierta, totalesDia, gastos, netoDevolucionesHoy, vueltoEntregadoHoy, verificaciones, cerradas, loading, error, abrir, cerrar, registrarGasto,
   } = useCaja(startDate, endDate)
 
   const [montoApertura, setMontoApertura] = useState('')
@@ -193,6 +193,7 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
 
           <p className="caja-referencia">
             Referencia (no afecta el arqueo): Transferencia ${totalesDia.transferencia.toLocaleString('es-AR')} · Tarjeta ${totalesDia.tarjeta.toLocaleString('es-AR')}
+            {vueltoEntregadoHoy > 0 && <> · Vuelto entregado ${vueltoEntregadoHoy.toLocaleString('es-AR')}</>}
           </p>
 
           <div className="caja-gastos-header">

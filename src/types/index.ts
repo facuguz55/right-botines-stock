@@ -63,6 +63,8 @@ export interface Venta {
   empleado_id?: string | null
   monto_efectivo?: number | null
   monto_transferencia?: number | null
+  monto_recibido_efectivo?: number | null
+  vuelto_efectivo?: number | null
   modelos?: { modelo: string; marca: string; categoria: string; gama: string } | null
   clientes_locales?: { nombre: string; telefono: string | null; email: string | null } | null
   empleados?: { nombre: string } | null
