@@ -116,6 +116,7 @@ export type ActivePage =
   | 'tn_dashboard' | 'tn_analytics' | 'tn_ordenes' | 'tn_clientes' | 'tn_cupones' | 'tn_mails'
   | 'rentabilidad'
   | 'empleados' | 'caja'
+  | 'proveedores' | 'devoluciones'
 
 // Para importación TiendaNube
 export interface TiendaNubeModelo {
@@ -329,5 +330,79 @@ export interface TotalesEfectivoDia {
   efectivo: number
   transferencia: number
   tarjeta: number
+}
+
+// ── Proveedores / Compras ─────────────────────────────────────────────────
+
+export interface Proveedor {
+  id: string
+  nombre: string
+  contacto: string | null
+  telefono: string | null
+  notas: string | null
+  activo: boolean
+  created_at: string
+}
+
+export interface CompraItem {
+  id: string
+  compra_id: string
+  modelo_id: string | null
+  descripcion: string
+  talle_arg: number | null
+  cantidad: number
+  costo_unitario: number
+  subtotal: number
+  modelos?: { modelo: string; marca: string } | null
+}
+
+export interface CompraPago {
+  id: string
+  compra_id: string
+  monto: number
+  fecha: string
+  notas: string | null
+  empleado_id: string | null
+  created_at: string
+  empleados?: { nombre: string } | null
+}
+
+export interface Compra {
+  id: string
+  proveedor_id: string
+  fecha: string
+  numero_remito: string | null
+  total: number
+  notas: string | null
+  empleado_id: string | null
+  created_at: string
+  proveedores?: { nombre: string } | null
+  compra_items?: CompraItem[]
+  compra_pagos?: CompraPago[]
+  saldo?: number
+}
+
+// ── Devoluciones / Cambios ────────────────────────────────────────────────
+
+export type TipoDevolucionCambio = 'devolucion' | 'cambio'
+
+export interface DevolucionCambio {
+  id: string
+  tipo: TipoDevolucionCambio
+  venta_id: string | null
+  modelo_id_original: string | null
+  talle_arg_original: number | null
+  cantidad: number
+  modelo_id_nuevo: string | null
+  talle_arg_nuevo: number | null
+  monto_diferencia: number
+  medio_pago_diferencia: MedioPago | null
+  motivo: string
+  empleado_id: string | null
+  fecha: string
+  created_at: string
+  modelo_original?: { modelo: string; marca: string } | null
+  modelo_nuevo?: { modelo: string; marca: string } | null
+  empleados?: { nombre: string } | null
 }
 

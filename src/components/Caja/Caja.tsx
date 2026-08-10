@@ -52,7 +52,9 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
   const [endDate, setEndDate] = useState(initial.end)
   const [activePreset, setActivePreset] = useState('mes')
 
-  const { cajaAbierta, totalesDia, gastos, cerradas, loading, error, abrir, cerrar, registrarGasto } = useCaja(startDate, endDate)
+  const {
+    cajaAbierta, totalesDia, gastos, netoDevolucionesHoy, cerradas, loading, error, abrir, cerrar, registrarGasto,
+  } = useCaja(startDate, endDate)
 
   const [montoApertura, setMontoApertura] = useState('')
   const [abriendo, setAbriendo] = useState(false)
@@ -90,7 +92,7 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
   }
 
   const totalGastos = gastos.reduce((s, g) => s + g.monto, 0)
-  const esperado = cajaAbierta ? cajaAbierta.monto_apertura + totalesDia.efectivo - totalGastos : 0
+  const esperado = cajaAbierta ? cajaAbierta.monto_apertura + totalesDia.efectivo + netoDevolucionesHoy - totalGastos : 0
   const contadoNum = montoContado ? Number(montoContado) : null
   const diferenciaPreview = contadoNum != null ? contadoNum - esperado : null
 
@@ -177,6 +179,14 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
             <div className="sell-stat"><span>Abierta por</span><span className="sell-stat-val">{cajaAbierta.empleado_apertura?.nombre ?? 'Dueño'}</span></div>
             <div className="sell-stat"><span>Efectivo vendido hoy</span><span className="sell-stat-val">${totalesDia.efectivo.toLocaleString('es-AR')}</span></div>
             <div className="sell-stat"><span>Gastos</span><span className="sell-stat-val">-${totalGastos.toLocaleString('es-AR')}</span></div>
+            {netoDevolucionesHoy !== 0 && (
+              <div className="sell-stat">
+                <span>Devoluciones/cambios (efectivo)</span>
+                <span className={`sell-stat-val ${netoDevolucionesHoy < 0 ? 'danger' : ''}`}>
+                  {netoDevolucionesHoy > 0 ? '+' : ''}${netoDevolucionesHoy.toLocaleString('es-AR')}
+                </span>
+              </div>
+            )}
             <div className="sell-stat"><span>Efectivo esperado</span><span className="sell-stat-val accent">${esperado.toLocaleString('es-AR')}</span></div>
           </div>
 

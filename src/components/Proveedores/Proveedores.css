@@ -1,0 +1,144 @@
+.proveedores-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.price-cell {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.empleado-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+.empleado-badge.activo { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+.empleado-badge.inactivo { color: var(--text-muted); border-color: var(--border); background: var(--bg-surface-2); }
+.config-table tr.inactive td { opacity: 0.45; }
+
+.price-cell.danger {
+  color: var(--danger);
+}
+
+.compra-items {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin: .75rem 0;
+}
+
+.compra-item-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.compra-item-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.compra-search {
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: .5rem .75rem;
+  width: 100%;
+  outline: none;
+  font-size: .8125rem;
+}
+.compra-search:focus { border-color: var(--accent); }
+
+.compra-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .25rem;
+}
+
+.compra-search-result {
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: .8125rem;
+  padding: .375rem .5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.compra-search-result:hover { background: var(--bg-surface-3); }
+
+.compra-mini-input {
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: .5rem .5rem;
+  width: 80px;
+  outline: none;
+  font-size: .8125rem;
+}
+.compra-mini-input:focus { border-color: var(--accent); }
+
+.compra-item-subtotal {
+  font-size: .8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: right;
+}
+
+.compra-total {
+  font-size: .875rem;
+  color: var(--text-secondary);
+  margin: .5rem 0;
+}
+.compra-total strong { color: var(--text-primary); }
+
+.compra-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: .75rem;
+}
+
+.compra-detail-col {
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: .375rem;
+}
+
+.compra-detail-label {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.compra-detail-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: .8125rem;
+  color: var(--text-secondary);
+}

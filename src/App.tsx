@@ -32,12 +32,15 @@ import { TNMails } from './components/TNMails/TNMails'
 import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
 import { Empleados } from './components/Empleados/Empleados'
 import { Caja } from './components/Caja/Caja'
+import { Proveedores } from './components/Proveedores/Proveedores'
+import { Devoluciones } from './components/Devoluciones/Devoluciones'
 import { useModelos } from './hooks/useModelos'
 import { useTNSync } from './hooks/useTNSync'
 import { useCarrito } from './hooks/useCarrito'
 import { useRecargosTarjeta } from './hooks/useRecargosTarjeta'
 import { useClientesLocales } from './hooks/useClientesLocales'
 import { useEmpleados } from './hooks/useEmpleados'
+import { useProveedores } from './hooks/useProveedores'
 import { fetchConfiguracionFichajes } from './services/configuracionFichajes'
 import { cerrarFichajesVencidos } from './services/fichajes'
 import { AiChat } from './components/AiChat/AiChat'
@@ -105,6 +108,7 @@ export function App() {
   const carrito = useCarrito()
   const clientesLocales = useClientesLocales()
   const empleadosHook = useEmpleados()
+  const proveedoresHook = useProveedores()
   const [showCart, setShowCart] = useState(false)
 
   const [showForm, setShowForm] = useState(false)
@@ -213,6 +217,12 @@ export function App() {
       )}
       {activePage === 'caja' && (
         <Caja empleadoId={empleadoId} empleadoNombre={empleadoNombre} role={role} />
+      )}
+      {activePage === 'devoluciones' && (
+        <Devoluciones modelos={modelos} empleadoId={empleadoId} />
+      )}
+      {activePage === 'proveedores' && role === 'dueno' && (
+        <Proveedores proveedoresHook={proveedoresHook} modelos={modelos} empleadoId={empleadoId} />
       )}
 
       {activePage === 'tn_dashboard' && <TNDashboard />}

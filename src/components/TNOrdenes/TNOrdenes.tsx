@@ -334,7 +334,12 @@ export function TNOrdenes({ empleadoId }: TNOrdenesProps) {
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="tn-empty">No hay órdenes que coincidan con el filtro.</div>
+          <div className="tn-empty">
+            No hay órdenes que coincidan con el filtro.
+            {orders.length > 0 && activePreset === 'hoy' && (
+              <> Tenés {orders.length} en total — probá el preset "Todo" para verlas.</>
+            )}
+          </div>
         )}
       </div>
     </div>

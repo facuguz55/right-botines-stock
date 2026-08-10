@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut, Banknote, UserCog, Menu, X,
+  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -18,7 +18,7 @@ interface LayoutProps {
 
 // Páginas visibles solo para el dueño
 export const SOLO_DUENO: ActivePage[] = [
-  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics',
+  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics', 'proveedores',
 ]
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
@@ -44,7 +44,9 @@ const ALL_NAV: NavItem[] = [
   { page: 'stock_avanzado', label: 'Avanzado',      Icon: List         },
   { page: 'clientes_locales', label: 'Clientes',    Icon: UserCheck    },
   { page: 'caja',           label: 'Caja',          Icon: Banknote     },
+  { page: 'devoluciones',   label: 'Devoluciones',  Icon: RotateCcw    },
   { page: 'empleados',      label: 'Empleados',     Icon: UserCog      },
+  { page: 'proveedores',    label: 'Proveedores',   Icon: Truck        },
   { page: 'configuracion',  label: 'Ajustes',       Icon: Settings     },
   { page: 'tn_dashboard',   label: 'Dashboard',     Icon: ShoppingBag  },
   { page: 'tn_analytics',   label: 'Análisis',      Icon: TrendingUp   },
@@ -78,8 +80,16 @@ export function Layout({ activePage, onNavigate, role, onLogout, children }: Lay
 
       <p className="nav-group-label">Personal</p>
       <NavBtn item={nav('caja')} active={activePage === 'caja'} onClick={() => onNav('caja')} />
+      <NavBtn item={nav('devoluciones')} active={activePage === 'devoluciones'} onClick={() => onNav('devoluciones')} />
       {esDueno && (
         <NavBtn item={nav('empleados')} active={activePage === 'empleados'} onClick={() => onNav('empleados')} />
+      )}
+
+      {esDueno && (
+        <>
+          <p className="nav-group-label">Compras</p>
+          <NavBtn item={nav('proveedores')} active={activePage === 'proveedores'} onClick={() => onNav('proveedores')} />
+        </>
       )}
 
       {esDueno && (

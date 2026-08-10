@@ -138,6 +138,20 @@ export async function sellCarrito(
   }
 }
 
+// Corrección de stock por devolución/cambio (no es un ingreso de mercadería,
+// no se registra en la tabla `ingresos`).
+export async function ajustarStockTalle(
+  talleId: string,
+  cantidadActual: number,
+  delta: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('modelo_talles')
+    .update({ cantidad: cantidadActual + delta })
+    .eq('id', talleId)
+  if (error) throw error
+}
+
 export async function addIngreso(
   modeloId: string,
   talleArg: number,

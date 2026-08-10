@@ -91,6 +91,20 @@ export async function fetchTotalesEfectivoDia(fecha: string): Promise<TotalesEfe
   return totales
 }
 
+// Neto en efectivo de devoluciones/cambios del día: positivo si el cliente
+// pagó una diferencia en efectivo (entra plata), negativo si se le devolvió
+// (sale plata). Se suma tal cual al efectivo esperado de la caja.
+export async function fetchNetoDevolucionesEfectivo(fecha: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('devoluciones_cambios')
+    .select('monto_diferencia')
+    .eq('medio_pago_diferencia', 'Efectivo')
+    .gte('fecha', fecha)
+    .lte('fecha', fecha + 'T23:59:59')
+  if (error) throw error
+  return (data || []).reduce((s, d) => s + Number(d.monto_diferencia), 0)
+}
+
 export async function cerrarCaja(
   cajaId: string,
   fecha: string,
@@ -99,11 +113,12 @@ export async function cerrarCaja(
   empleadoId: string | null,
   notas: string | null
 ): Promise<CajaDia> {
-  const [totales, totalGastos] = await Promise.all([
+  const [totales, totalGastos, netoDevoluciones] = await Promise.all([
     fetchTotalesEfectivoDia(fecha),
     fetchTotalGastos(cajaId),
+    fetchNetoDevolucionesEfectivo(fecha),
   ])
-  const esperado = montoApertura + totales.efectivo - totalGastos
+  const esperado = montoApertura + totales.efectivo + netoDevoluciones - totalGastos
   const diferencia = montoContado - esperado
 
   const { data, error } = await supabase
