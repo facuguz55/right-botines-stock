@@ -60,24 +60,30 @@
 }
 .tn-search-wrap input::placeholder { color: var(--text-muted); }
 
-/* Table */
-.tn-table-wrap {
+/* Table
+   Nombre propio (no "tn-table-wrap"/"tn-table" genérico): esas clases ya las
+   usa TiendaNubeImport.css para un preview chico dentro de un modal, con
+   max-height: 320px + overflow-y: auto. Como el CSS no está scopeado por
+   componente, compartir el nombre pisaba estas reglas y dejaba esta tabla
+   (y las de TNClientes/TNCupones, que reusan esta misma clase) atrapadas en
+   una caja de 320px sin scroll — bug real detectado en producción. */
+.tn-page-table-wrap {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
 
-.tn-table {
+.tn-page-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.tn-table thead tr {
+.tn-page-table thead tr {
   border-bottom: 1px solid var(--border);
 }
 
-.tn-table th {
+.tn-page-table th {
   padding: 0.625rem 1rem;
   text-align: left;
   font-size: 0.6875rem;
@@ -122,7 +128,7 @@
   .tn-preparada-btn { width: 36px; height: 36px; }
 }
 
-.tn-table td {
+.tn-page-table td {
   padding: 0.625rem 1rem;
   font-size: 0.8125rem;
   color: var(--text-primary);

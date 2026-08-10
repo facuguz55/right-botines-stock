@@ -202,8 +202,8 @@ export function TNOrdenes({ empleadoId }: TNOrdenesProps) {
       </div>
 
       {/* Table */}
-      <div className="tn-table-wrap">
-        <table className="tn-table">
+      <div className="tn-page-table-wrap">
+        <table className="tn-page-table">
           <thead>
             <tr>
               <th>#</th>
