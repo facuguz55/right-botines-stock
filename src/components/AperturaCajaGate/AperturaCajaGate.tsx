@@ -5,13 +5,16 @@ import './AperturaCajaGate.css'
 interface AperturaCajaGateProps {
   empleadoNombre: string | null
   onConfirm: (montoApertura: number) => Promise<void>
+  onLogout: () => void
 }
 
 // Pantalla bloqueante para el primer empleado que ficha en el día: no hay
 // caja abierta todavía, así que fichar entrada y abrir caja quedan atados
-// en un solo paso obligatorio — no se puede cancelar ni usar la app antes
-// de cargar el efectivo inicial.
-export function AperturaCajaGate({ empleadoNombre, onConfirm }: AperturaCajaGateProps) {
+// en un solo paso obligatorio — no se puede "cancelar" la apertura en sí
+// (si sos vos, tenés que abrirla para poder usar la app). Pero si alguien
+// entró sin querer o eligió el perfil equivocado, tiene que poder salir de
+// esta pantalla sin fichar ni abrir nada — para eso está "No soy yo".
+export function AperturaCajaGate({ empleadoNombre, onConfirm, onLogout }: AperturaCajaGateProps) {
   const [monto, setMonto] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,6 +65,10 @@ export function AperturaCajaGate({ empleadoNombre, onConfirm }: AperturaCajaGate
           onClick={handleConfirm}
         >
           {loading ? 'Abriendo...' : 'Fichar entrada y abrir caja'}
+        </button>
+
+        <button className="apertura-gate-logout" onClick={onLogout} disabled={loading}>
+          No soy yo — cerrar sesión
         </button>
       </div>
     </div>

@@ -163,7 +163,7 @@ export function App() {
     return <div className="apertura-gate-loading" />
   }
   if (role === 'empleado' && fichajeActual.requiereApertura) {
-    return <AperturaCajaGate empleadoNombre={empleadoNombre} onConfirm={fichajeActual.abrirCajaYFichar} />
+    return <AperturaCajaGate empleadoNombre={empleadoNombre} onConfirm={fichajeActual.abrirCajaYFichar} onLogout={logout} />
   }
 
   // El dueño siempre puede vender. Un empleado necesita tener fichada su

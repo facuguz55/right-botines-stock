@@ -60,3 +60,14 @@
   width: 100%;
   margin-top: 0.25rem;
 }
+
+.apertura-gate-logout {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  padding: 0.25rem;
+}
+.apertura-gate-logout:hover { color: var(--text-secondary); }
+.apertura-gate-logout:disabled { opacity: 0.5; cursor: default; }
