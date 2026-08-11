@@ -83,7 +83,7 @@ export function App() {
   // abierta a propósito, solo de que alguien entre a la app al otro día.
   useEffect(() => {
     fetchConfiguracionFichajes()
-      .then(cfg => cerrarFichajesVencidos(cfg.hora_limite_cierre))
+      .then(cfg => cerrarFichajesVencidos(cfg.hora_limite_cierre, cfg.horas_maximas_turno))
       .catch(() => { /* no bloquea el arranque de la app si falla */ })
   }, [])
 

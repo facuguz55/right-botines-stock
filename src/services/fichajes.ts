@@ -61,11 +61,15 @@ function localDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// Cierra automáticamente los fichajes que quedaron abiertos de un día
-// anterior (alguien se olvidó de hacer logout) a la hora límite configurada
-// — nunca toca el fichaje de HOY, aunque ya esté abierto hace muchas horas.
+// Cierra automáticamente fichajes abandonados (alguien se olvidó de fichar
+// salida). Dos casos:
+// - Días anteriores: se cierran a la hora límite configurada de ESE día.
+// - HOY: antes nunca se tocaba (podía quedar "vivo" toda la jornada); ahora
+//   también se cierra solo si ya pasó horasMaximasTurno desde que entró —
+//   un turno de zapatería no llega a eso, así que si lo supera es casi
+//   seguro un olvido, no un turno real en curso.
 // Se llama una vez al abrir la app (App.tsx); no depende de ningún cron.
-export async function cerrarFichajesVencidos(horaLimiteCierre: string): Promise<number> {
+export async function cerrarFichajesVencidos(horaLimiteCierre: string, horasMaximasTurno: number): Promise<number> {
   const { data, error } = await supabase
     .from('fichajes')
     .select('id, hora_entrada')
@@ -78,13 +82,19 @@ export async function cerrarFichajesVencidos(horaLimiteCierre: string): Promise<
 
   for (const f of data ?? []) {
     const entrada = new Date(f.hora_entrada)
-    if (localDateKey(entrada) === hoyKey) continue // fichaje de hoy, no tocar
+    let cierre: Date
 
-    const limite = new Date(entrada)
-    limite.setHours(hh, mm, 0, 0)
-    // Si entró después de la hora límite (turno nocturno), no tiene sentido
-    // cerrarlo "antes" de que entró — se cierra 15 min después de la entrada.
-    const cierre = limite > entrada ? limite : new Date(entrada.getTime() + 15 * 60000)
+    if (localDateKey(entrada) === hoyKey) {
+      const limiteHoras = new Date(entrada.getTime() + horasMaximasTurno * 3600000)
+      if (limiteHoras > new Date()) continue // todavía no se pasó del máximo, no tocar
+      cierre = limiteHoras
+    } else {
+      const limite = new Date(entrada)
+      limite.setHours(hh, mm, 0, 0)
+      // Si entró después de la hora límite (turno nocturno), no tiene sentido
+      // cerrarlo "antes" de que entró — se cierra 15 min después de la entrada.
+      cierre = limite > entrada ? limite : new Date(entrada.getTime() + 15 * 60000)
+    }
 
     const { error: updErr } = await supabase
       .from('fichajes')

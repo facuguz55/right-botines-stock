@@ -4,7 +4,7 @@ import type { Fichaje, Venta } from '../../types'
 import type { useEmpleados } from '../../hooks/useEmpleados'
 import { useFichajes } from '../../hooks/useFichajes'
 import { fetchVentasPorEmpleadoYRango } from '../../services/ventas'
-import { fetchConfiguracionFichajes, updateHoraLimiteCierre } from '../../services/configuracionFichajes'
+import { fetchConfiguracionFichajes, updateHoraLimiteCierre, updateHorasMaximasTurno } from '../../services/configuracionFichajes'
 import { Modal } from '../Modal/Modal'
 import './Empleados.css'
 
@@ -84,9 +84,15 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
   const [loadingHoraLimite, setLoadingHoraLimite] = useState(true)
   const [savingHoraLimite, setSavingHoraLimite] = useState(false)
 
+  const [horasMaximas, setHorasMaximas] = useState('12')
+  const [savingHorasMaximas, setSavingHorasMaximas] = useState(false)
+
   useEffect(() => {
     fetchConfiguracionFichajes()
-      .then(cfg => setHoraLimite(cfg.hora_limite_cierre.slice(0, 5)))
+      .then(cfg => {
+        setHoraLimite(cfg.hora_limite_cierre.slice(0, 5))
+        setHorasMaximas(String(cfg.horas_maximas_turno))
+      })
       .finally(() => setLoadingHoraLimite(false))
   }, [])
 
@@ -96,6 +102,17 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
       await updateHoraLimiteCierre(horaLimite)
     } finally {
       setSavingHoraLimite(false)
+    }
+  }
+
+  const guardarHorasMaximas = async () => {
+    const n = Number(horasMaximas)
+    if (!(n > 0)) return
+    setSavingHorasMaximas(true)
+    try {
+      await updateHorasMaximasTurno(n)
+    } finally {
+      setSavingHorasMaximas(false)
     }
   }
 
@@ -236,6 +253,23 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
           </div>
           <button className="btn btn-secondary btn-sm" disabled={loadingHoraLimite || savingHoraLimite} onClick={guardarHoraLimite}>
             {savingHoraLimite ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+
+        <p className="config-section-desc">
+          El fichaje de <strong>hoy</strong> normalmente no se toca (podría ser un turno largo real en curso). Pero si pasa este máximo de horas desde que entró, también se cierra solo.
+        </p>
+        <div className="config-row">
+          <label className="config-label">Máximo de horas de turno</label>
+          <div className="config-input-wrap">
+            <input
+              type="number" min={1} step={1} className="config-input"
+              value={horasMaximas} onChange={e => setHorasMaximas(e.target.value)}
+              disabled={loadingHoraLimite}
+            />
+          </div>
+          <button className="btn btn-secondary btn-sm" disabled={loadingHoraLimite || savingHorasMaximas || !horasMaximas} onClick={guardarHorasMaximas}>
+            {savingHorasMaximas ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
       </section>

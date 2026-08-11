@@ -294,6 +294,7 @@ export interface Fichaje {
 export interface ConfiguracionFichajes {
   id: number
   hora_limite_cierre: string
+  horas_maximas_turno: number
   updated_at: string
 }
 

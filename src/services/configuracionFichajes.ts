@@ -18,3 +18,11 @@ export async function updateHoraLimiteCierre(horaLimiteCierre: string): Promise<
     .eq('id', 1)
   if (error) throw error
 }
+
+export async function updateHorasMaximasTurno(horasMaximasTurno: number): Promise<void> {
+  const { error } = await supabase
+    .from('configuracion_fichajes')
+    .update({ horas_maximas_turno: horasMaximasTurno, updated_at: new Date().toISOString() })
+    .eq('id', 1)
+  if (error) throw error
+}
