@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Lock, Unlock, ShieldAlert, Loader2 } from 'lucide-react'
 import { getAppLockStatus, setAppLock, setCreatorPin, verifyCreatorPin } from '../../services/creatorLock'
+import { RichTextEditor } from '../RichTextEditor/RichTextEditor'
+import { sanitizeHtml } from '../../utils/sanitizeHtml'
 import './CreatorLockPanel.css'
 
 // Panel de emergencia para los creadores de right-botines-stock: permite
@@ -60,7 +62,7 @@ export function CreatorLockPanel() {
     setSaving(true)
     setSaveMsg(null)
     try {
-      const ok = await setAppLock(pin, nuevoLocked, mensaje)
+      const ok = await setAppLock(pin, nuevoLocked, sanitizeHtml(mensaje))
       if (ok) {
         setLocked(nuevoLocked)
         setSaveMsg(nuevoLocked ? 'App bloqueada para todos los usuarios.' : 'App desbloqueada.')
@@ -141,11 +143,7 @@ export function CreatorLockPanel() {
 
             <label className="creator-lock-label">
               Mensaje que verán los usuarios bloqueados
-              <textarea
-                value={mensaje}
-                onChange={e => setMensaje(e.target.value)}
-                rows={3}
-              />
+              <RichTextEditor value={mensaje} onChange={setMensaje} />
             </label>
 
             <div className="creator-lock-actions">
