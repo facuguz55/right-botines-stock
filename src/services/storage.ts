@@ -48,6 +48,25 @@ export async function uploadFoto(file: File, codigoRef: string): Promise<string>
   return data.publicUrl
 }
 
+// Trae una foto que vive en otro lado (ej. la CDN de TiendaNube) y la sube
+// comprimida a nuestro storage. Se usa al sincronizar con TN para que las
+// fotos que trae la sync no vuelvan a ser las pesadas de siempre — si no,
+// cada producto nuevo (o cada resync que complete fotos faltantes) volvía
+// a meter fotos sin comprimir en el catálogo.
+// Si por lo que sea no se puede traer/subir (CORS, red, etc.), devuelve la
+// URL original tal cual para no romper la sincronización.
+export async function uploadFotoFromUrl(url: string, codigoRef: string): Promise<string> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return url
+    const blob = await res.blob()
+    const file = new File([blob], 'tn-photo.jpg', { type: blob.type || 'image/jpeg' })
+    return await uploadFoto(file, codigoRef)
+  } catch {
+    return url
+  }
+}
+
 export async function deleteFoto(fotoUrl: string): Promise<void> {
   const parts = fotoUrl.split(`/${BUCKET}/`)
   if (parts.length < 2) return

@@ -5,6 +5,7 @@
 
 import { supabase } from '../lib/supabase'
 import { fetchModelos, createModelo, updateModelo, upsertTalle, deleteTalle } from './modelos'
+import { uploadFotoFromUrl } from './storage'
 import {
   fetchTNRawProducts, fetchTNProduct, updateTNVariant, createTNProduct,
   updateTNProduct, deleteTNProduct, createTNVariant, deleteTNVariant,
@@ -101,9 +102,9 @@ export async function upsertModeloFromTNProduct(
     }
 
     if (existing.modelo_fotos.length === 0 && prod.images.length > 0) {
-      const rows = prod.images.slice(0, 5).map((img, idx) => ({
-        modelo_id: existing.id, foto_url: img.src, orden: idx,
-      }))
+      const imgs = prod.images.slice(0, 5)
+      const urls = await Promise.all(imgs.map(img => uploadFotoFromUrl(img.src, existing.codigo_base)))
+      const rows = urls.map((foto_url, idx) => ({ modelo_id: existing.id, foto_url, orden: idx }))
       const { error } = await supabase.from('modelo_fotos').insert(rows)
       if (!error) imagesAdded = rows.length
     }
@@ -135,9 +136,9 @@ export async function upsertModeloFromTNProduct(
   }
 
   if (prod.images.length > 0) {
-    const rows = prod.images.slice(0, 5).map((img, idx) => ({
-      modelo_id: newModelo.id, foto_url: img.src, orden: idx,
-    }))
+    const imgs = prod.images.slice(0, 5)
+    const urls = await Promise.all(imgs.map(img => uploadFotoFromUrl(img.src, newModelo.codigo_base)))
+    const rows = urls.map((foto_url, idx) => ({ modelo_id: newModelo.id, foto_url, orden: idx }))
     const { error } = await supabase.from('modelo_fotos').insert(rows)
     if (!error) imagesAdded = rows.length
   }
