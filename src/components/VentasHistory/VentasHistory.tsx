@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useVentas } from '../../hooks/useVentas'
+import { deleteVenta } from '../../services/ventas'
+import { Modal } from '../Modal/Modal'
 import type { Role, Venta } from '../../types'
 import './VentasHistory.css'
 
@@ -65,7 +67,37 @@ export function VentasHistory({ role }: VentasHistoryProps) {
   const [filterGananciaMin, setFilterGananciaMin] = useState('')
   const [filterGananciaMax, setFilterGananciaMax] = useState('')
 
-  const { ventas, loading, error } = useVentas(startDate, endDate)
+  const { ventas, loading, error, reload } = useVentas(startDate, endDate)
+
+  const [ventaAEliminar, setVentaAEliminar] = useState<Venta | null>(null)
+  const [pinEliminar, setPinEliminar] = useState('')
+  const [eliminando, setEliminando] = useState(false)
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
+
+  function cerrarModalEliminar() {
+    setVentaAEliminar(null)
+    setPinEliminar('')
+    setErrorEliminar(null)
+  }
+
+  async function confirmarEliminar() {
+    if (!ventaAEliminar || !pinEliminar || eliminando) return
+    setEliminando(true)
+    setErrorEliminar(null)
+    try {
+      const ok = await deleteVenta(pinEliminar, ventaAEliminar)
+      if (ok) {
+        cerrarModalEliminar()
+        await reload()
+      } else {
+        setErrorEliminar('Pin incorrecto.')
+      }
+    } catch (e) {
+      setErrorEliminar((e as Error).message || 'No se pudo eliminar la venta.')
+    } finally {
+      setEliminando(false)
+    }
+  }
 
   const tallesDisponibles = useMemo(
     () => [...new Set(ventas.map(v => v.talle_arg))].sort((a, b) => a - b),
@@ -198,7 +230,7 @@ export function VentasHistory({ role }: VentasHistoryProps) {
         <div className="ventas-table-wrap">
           <table className="ventas-table">
             <thead>
-              <tr><th>Fecha</th><th>Modelo</th><th>Talle</th><th>Empleado</th><th>Pago</th><th>Precio</th>{puedeVerMontos && <th>Ganancia</th>}</tr>
+              <tr><th>Fecha</th><th>Modelo</th><th>Talle</th><th>Empleado</th><th>Pago</th><th>Precio</th>{puedeVerMontos && <th>Ganancia</th>}{puedeVerMontos && <th></th>}</tr>
             </thead>
             <tbody>
               {filtered.map(v => (
@@ -225,12 +257,51 @@ export function VentasHistory({ role }: VentasHistoryProps) {
                   {puedeVerMontos && (
                     <td className={`ganancia-cell ${v.ganancia >= 0 ? 'positive' : 'negative'}`}>${v.ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
                   )}
+                  {puedeVerMontos && (
+                    <td>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        title="Eliminar venta y devolver el stock"
+                        onClick={() => setVentaAEliminar(v)}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <Modal isOpen={!!ventaAEliminar} onClose={cerrarModalEliminar} title="Eliminar venta" maxWidth="380px">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            ¿Seguro que querés eliminar esta venta
+            {ventaAEliminar?.modelos ? <> de <strong style={{ color: 'var(--text-primary)' }}>{ventaAEliminar.modelos.marca} {ventaAEliminar.modelos.modelo}</strong></> : ''}
+            {' '}(talle {ventaAEliminar?.talle_arg})? El stock vendido se devuelve automáticamente. Esta acción no se puede deshacer.
+          </p>
+          <div className="form-group">
+            <label>Pin de dueño</label>
+            <input
+              type="password"
+              autoFocus
+              value={pinEliminar}
+              onChange={e => setPinEliminar(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && confirmarEliminar()}
+              placeholder="Ingresá tu pin"
+            />
+          </div>
+          {errorEliminar && <p style={{ color: 'var(--danger, #e53e3e)', margin: 0 }}>{errorEliminar}</p>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem' }}>
+            <button className="btn btn-secondary" onClick={cerrarModalEliminar}>Cancelar</button>
+            <button className="btn btn-danger" disabled={!pinEliminar || eliminando} onClick={confirmarEliminar}>
+              {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
