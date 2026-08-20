@@ -33,6 +33,7 @@ export function ClientesLocales({ clientes, loading, addCliente, editCliente, re
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
+  const [dni, setDni] = useState('')
   const [notas, setNotas] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -75,13 +76,13 @@ export function ClientesLocales({ clientes, loading, addCliente, editCliente, re
 
   const openNew = () => {
     setEditTarget(null)
-    setNombre(''); setTelefono(''); setEmail(''); setNotas(''); setFormError(null)
+    setNombre(''); setTelefono(''); setEmail(''); setDni(''); setNotas(''); setFormError(null)
     setShowForm(true)
   }
 
   const openEdit = (c: ClienteLocal) => {
     setEditTarget(c)
-    setNombre(c.nombre); setTelefono(c.telefono ?? ''); setEmail(c.email ?? ''); setNotas(c.notas ?? '')
+    setNombre(c.nombre); setTelefono(c.telefono ?? ''); setEmail(c.email ?? ''); setDni(c.dni ?? ''); setNotas(c.notas ?? '')
     setFormError(null)
     setShowForm(true)
   }
@@ -92,7 +93,7 @@ export function ClientesLocales({ clientes, loading, addCliente, editCliente, re
     setSaving(true)
     setFormError(null)
     try {
-      const input = { nombre: nombre.trim(), telefono: telefono.trim() || null, email: email.trim() || null, notas: notas.trim() || null }
+      const input = { nombre: nombre.trim(), telefono: telefono.trim() || null, email: email.trim() || null, dni: dni.trim() || null, notas: notas.trim() || null }
       if (editTarget) await editCliente(editTarget.id, input)
       else await addCliente(input)
       setShowForm(false)
@@ -196,6 +197,10 @@ export function ClientesLocales({ clientes, loading, addCliente, editCliente, re
           <div className="form-group">
             <label>Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@mail.com" />
+          </div>
+          <div className="form-group">
+            <label>DNI (opcional)</label>
+            <input type="text" inputMode="numeric" value={dni} onChange={e => setDni(e.target.value)} placeholder="12345678" />
           </div>
           <div className="form-group">
             <label>Notas</label>

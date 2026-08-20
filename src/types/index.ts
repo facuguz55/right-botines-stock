@@ -75,6 +75,7 @@ export interface ClienteLocal {
   nombre: string
   telefono: string | null
   email: string | null
+  dni: string | null
   notas: string | null
   created_at: string
 }

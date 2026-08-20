@@ -12,7 +12,7 @@ interface CartModalProps {
   recargos: RecargoTarjeta[]
   clear: () => void
   clientes: ClienteLocal[]
-  addCliente: (input: { nombre: string; telefono: string | null; email: string | null; notas: string | null }) => Promise<ClienteLocal>
+  addCliente: (input: { nombre: string; telefono: string | null; email: string | null; dni: string | null; notas: string | null }) => Promise<ClienteLocal>
   onSell: (
     items: CartItem[], medioPago: MedioPago, clienteId: string, tarjeta: string | null, cuotas: number | null,
     recargoPct: number, montoEfectivo: number | null, montoTransferencia: number | null,
@@ -35,6 +35,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
+  const [dni, setDni] = useState('')
   const [notas, setNotas] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -82,6 +83,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setNombre('')
     setTelefono('')
     setEmail('')
+    setDni('')
     setNotas('')
     setError(null)
   }
@@ -121,6 +123,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
           nombre: nombre.trim(),
           telefono: telefono.trim() || null,
           email: email.trim() || null,
+          dni: dni.trim() || null,
           notas: notas.trim() || null,
         })
         clienteId = nuevo.id
@@ -307,6 +310,10 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
               <div className="sell-section">
                 <p className="sell-label">Email</p>
                 <input type="email" className="cliente-input" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@mail.com" />
+              </div>
+              <div className="sell-section">
+                <p className="sell-label">DNI (opcional)</p>
+                <input type="text" inputMode="numeric" className="cliente-input" value={dni} onChange={e => setDni(e.target.value)} placeholder="12345678" />
               </div>
               <div className="sell-section">
                 <p className="sell-label">Notas</p>
