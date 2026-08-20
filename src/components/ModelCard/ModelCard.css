@@ -7,12 +7,6 @@
   flex-direction: column;
   box-shadow: var(--shadow-card);
   transition: border-color 0.2s, box-shadow 0.2s;
-  /* El navegador se salta layout/paint de las cards fuera de pantalla —
-     con catálogos grandes esto es lo que más pesa al scrollear, más que
-     el peso de las fotos en sí. contain-intrinsic-size evita saltos al
-     entrar/salir del viewport. */
-  content-visibility: auto;
-  contain-intrinsic-size: 380px;
 }
 
 .model-card:hover {

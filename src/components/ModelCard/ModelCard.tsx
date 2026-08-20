@@ -37,8 +37,6 @@ export const ModelCard = memo(function ModelCard({ modelo, onSell, puedeVender, 
               src={mainFoto}
               alt={modelo.modelo}
               className="card-image"
-              loading="lazy"
-              decoding="async"
               onLoad={() => setImgLoaded(true)}
               onError={() => setImgError(true)}
               onClick={() => setLightboxOpen(true)}
