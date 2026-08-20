@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import type { Modelo } from '../../types'
 import { getPrecioReal } from '../../utils/precios'
@@ -16,7 +16,7 @@ interface ModelCardProps {
   onPriceHistory: (modelo: Modelo) => void
 }
 
-export function ModelCard({ modelo, onSell, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
+export const ModelCard = memo(function ModelCard({ modelo, onSell, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
   const totalPares = modelo.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
   const agotado = totalPares === 0
   const ultimoPar = !agotado && totalPares === 1
@@ -37,6 +37,8 @@ export function ModelCard({ modelo, onSell, puedeVender, motivoBloqueoVenta, onE
               src={mainFoto}
               alt={modelo.modelo}
               className="card-image"
+              loading="lazy"
+              decoding="async"
               onLoad={() => setImgLoaded(true)}
               onError={() => setImgError(true)}
               onClick={() => setLightboxOpen(true)}
@@ -115,4 +117,4 @@ export function ModelCard({ modelo, onSell, puedeVender, motivoBloqueoVenta, onE
       )}
     </div>
   )
-}
+})

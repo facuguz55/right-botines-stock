@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Camera, Upload, Trash2, Plus, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
 import type { Modelo, ModeloFilters } from '../../types'
 import type { SyncResult } from '../../services/tnSync'
@@ -42,7 +42,7 @@ export function ModelGrid({
   onSyncTN, syncingTN, tnProgress, tnLastResult, tnLastSyncAt,
 }: ModelGridProps) {
   const [filters, setFilters] = useState<ModeloFilters>(DEFAULT_FILTERS)
-  const filtered = filterModelos(modelos, filters)
+  const filtered = useMemo(() => filterModelos(modelos, filters), [modelos, filters])
 
   const hasErrors = (tnLastResult?.errors.length ?? 0) > 0
   const syncLabel = syncingTN
