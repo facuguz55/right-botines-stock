@@ -12,3 +12,22 @@
   width: 100vw;
   background: var(--bg-primary);
 }
+
+/* Mini pantalla de carga mientras se precargan las primeras fotos del
+   catálogo, para que la grilla no aparezca "tirando" las imágenes recién
+   al entrar (que es lo que se siente como que la app se traba). */
+.app-preload-screen {
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+.app-preload-screen p {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}

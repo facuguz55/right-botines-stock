@@ -36,6 +36,7 @@ import { Caja } from './components/Caja/Caja'
 import { Proveedores } from './components/Proveedores/Proveedores'
 import { Devoluciones } from './components/Devoluciones/Devoluciones'
 import { useModelos } from './hooks/useModelos'
+import { usePreloadFirstPhotos } from './hooks/usePreloadFirstPhotos'
 import { useTNSync } from './hooks/useTNSync'
 import { useCarrito } from './hooks/useCarrito'
 import { useRecargosTarjeta } from './hooks/useRecargosTarjeta'
@@ -97,6 +98,8 @@ export function App() {
     modelos, loading, reload,
     addModelo, editModelo, removeModelo, venderCarrito, ingresarStockBatch, clearAll,
   } = useModelos()
+
+  const photosReady = usePreloadFirstPhotos(modelos, loading)
 
   const {
     syncNow: syncTNNow,
@@ -164,6 +167,18 @@ export function App() {
   }
   if (role === 'empleado' && fichajeActual.requiereApertura) {
     return <AperturaCajaGate empleadoNombre={empleadoNombre} onConfirm={fichajeActual.abrirCajaYFichar} onLogout={logout} />
+  }
+
+  // Precarga las primeras fotos del catálogo antes de mostrar la app: así
+  // la grilla no aparece con las imágenes "cargándose" en pantalla, que es
+  // lo que se siente como que la app se traba apenas se entra.
+  if (!photosReady) {
+    return (
+      <div className="app-preload-screen">
+        <div className="spinner" />
+        <p>Cargando catálogo...</p>
+      </div>
+    )
   }
 
   // El dueño siempre puede vender. Un empleado necesita tener fichada su
