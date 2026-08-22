@@ -3,24 +3,29 @@ import { FolderOpen, Folder, ChevronLeft, Search, Share2, CheckSquare, Square, X
 import type { Modelo } from '../../types'
 import './Carpetas.css'
 
-// Descarga directa (sin abrir pestañas, que en mobile suelen bloquearse
-// después de la primera): crea un <a download> temporal por foto.
-function descargarFotos(urls: string[], nombres: string[]) {
-  urls.forEach((url, i) => {
+// Descarga directa a partir de los blobs que ya se trajeron para el share
+// (no la URL de Supabase original): el atributo `download` de un <a> lo
+// ignora el navegador cuando el link apunta a otro dominio — ahí no
+// descarga nada, simplemente navega, y como abríamos en pestaña nueva,
+// terminaba abriendo una pestaña de Chrome por cada foto que había que
+// cerrar a mano. Con un blob: URL (mismo origen siempre) sí descarga.
+function descargarFotos(files: File[]) {
+  files.forEach(file => {
+    const url = URL.createObjectURL(file)
     const a = document.createElement('a')
     a.href = url
-    a.download = nombres[i] || 'botin'
-    a.target = '_blank'
-    a.rel = 'noopener'
+    a.download = file.name
     document.body.appendChild(a)
     a.click()
     a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
   })
 }
 
 async function compartirFotos(urls: string[], nombres: string[]): Promise<'shared' | 'downloaded' | 'error'> {
+  let files: File[]
   try {
-    const files = await Promise.all(
+    files = await Promise.all(
       urls.map(async (url, i) => {
         const res = await fetch(url)
         const blob = await res.blob()
@@ -28,6 +33,15 @@ async function compartirFotos(urls: string[], nombres: string[]): Promise<'share
         return new File([blob], `${nombres[i]}.${ext}`, { type: blob.type })
       })
     )
+  } catch (err) {
+    console.error(err)
+    // Ni siquiera se pudieron traer las fotos (sin red, CORS, etc.) — no
+    // hay blob para descargar, así que como último recurso abrimos la URL.
+    urls.forEach(url => window.open(url, '_blank'))
+    return 'downloaded'
+  }
+
+  try {
     if (navigator.canShare?.({ files })) {
       await navigator.share({ files })
       return 'shared'
@@ -42,7 +56,8 @@ async function compartirFotos(urls: string[], nombres: string[]): Promise<'share
     if (err instanceof Error && err.name === 'AbortError') return 'error' // el usuario canceló el share nativo
     console.error(err)
   }
-  descargarFotos(urls, nombres)
+
+  descargarFotos(files)
   return 'downloaded'
 }
 
