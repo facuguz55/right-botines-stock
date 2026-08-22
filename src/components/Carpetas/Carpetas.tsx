@@ -1,9 +1,24 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type MouseEvent } from 'react'
 import { FolderOpen, Folder, ChevronLeft, Search, Share2, CheckSquare, Square, X } from 'lucide-react'
 import type { Modelo } from '../../types'
 import './Carpetas.css'
 
-async function compartirFotos(urls: string[], nombres: string[]) {
+// Descarga directa (sin abrir pestañas, que en mobile suelen bloquearse
+// después de la primera): crea un <a download> temporal por foto.
+function descargarFotos(urls: string[], nombres: string[]) {
+  urls.forEach((url, i) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = nombres[i] || 'botin'
+    a.target = '_blank'
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  })
+}
+
+async function compartirFotos(urls: string[], nombres: string[]): Promise<'shared' | 'downloaded' | 'error'> {
   try {
     const files = await Promise.all(
       urls.map(async (url, i) => {
@@ -15,12 +30,20 @@ async function compartirFotos(urls: string[], nombres: string[]) {
     )
     if (navigator.canShare?.({ files })) {
       await navigator.share({ files })
-      return
+      return 'shared'
+    }
+    // Sin soporte para compartir archivos: si el navegador al menos sabe
+    // compartir un link, lo usamos para el caso de una sola foto.
+    if (urls.length === 1 && navigator.share) {
+      await navigator.share({ url: urls[0] })
+      return 'shared'
     }
   } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') return 'error' // el usuario canceló el share nativo
     console.error(err)
   }
-  urls.forEach(url => window.open(url, '_blank'))
+  descargarFotos(urls, nombres)
+  return 'downloaded'
 }
 
 interface CarpetasProps {
@@ -51,7 +74,11 @@ export function Carpetas({ modelos }: CarpetasProps) {
   const [talleAbierto, setTalleAbierto] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set())
-  const [compartiendo, setCompartiendo] = useState(false)
+  // Distingue qué acción de compartir está en curso (la de la barra de
+  // selección, la de un modelo entero, o la de una foto puntual) para poder
+  // deshabilitar solo ese botón y no todos a la vez.
+  const [accionEnCurso, setAccionEnCurso] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   // Nivel 1: carpetas
   const carpetas = useMemo(() => {
@@ -115,19 +142,43 @@ export function Carpetas({ modelos }: CarpetasProps) {
     setSeleccion(new Set(todas))
   }
 
-  async function handleCompartir() {
-    if (seleccion.size === 0 || compartiendo) return
-    setCompartiendo(true)
+  function mostrarToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(t => t === msg ? null : t), 2500)
+  }
+
+  async function ejecutarCompartir(urls: string[], nombres: string[], key: string) {
+    if (urls.length === 0 || accionEnCurso) return
+    setAccionEnCurso(key)
     try {
-      const urls = [...seleccion]
-      const nombres = urls.map(url => {
-        const m = modelosEnTalle.find(mo => mo.modelo_fotos.some(f => f.foto_url === url))
-        return m ? `${m.marca}-${m.modelo}` : 'botines'
-      })
-      await compartirFotos(urls, nombres)
+      const resultado = await compartirFotos(urls, nombres)
+      if (resultado === 'downloaded') {
+        mostrarToast(urls.length === 1 ? 'Foto descargada' : `${urls.length} fotos descargadas`)
+      }
     } finally {
-      setCompartiendo(false)
+      setAccionEnCurso(null)
     }
+  }
+
+  function handleCompartir() {
+    const urls = [...seleccion]
+    const nombres = urls.map(url => {
+      const m = modelosEnTalle.find(mo => mo.modelo_fotos.some(f => f.foto_url === url))
+      return m ? `${m.marca}-${m.modelo}` : 'botines'
+    })
+    return ejecutarCompartir(urls, nombres, 'seleccion')
+  }
+
+  function handleCompartirModelo(m: Modelo, e: MouseEvent) {
+    e.stopPropagation()
+    const urls = m.modelo_fotos.map(f => f.foto_url)
+    const nombres = urls.map((_, i) => `${m.marca}-${m.modelo}-${i + 1}`)
+    return ejecutarCompartir(urls, nombres, `modelo-${m.id}`)
+  }
+
+  function handleCompartirFoto(url: string, m: Modelo, e: MouseEvent) {
+    e.stopPropagation()
+    return ejecutarCompartir([url], [`${m.marca}-${m.modelo}`], `foto-${url}`)
   }
 
   // ── Vista nivel 3: fotos del talle ──
@@ -179,6 +230,17 @@ export function Carpetas({ modelos }: CarpetasProps) {
               <div className="modelo-fotos-label">
                 <span className="mfl-marca">{m.marca}</span>
                 <span className="mfl-nombre">{m.modelo}</span>
+                {m.modelo_fotos.length > 0 && (
+                  <button
+                    className="btn-compartir-modelo"
+                    onClick={e => handleCompartirModelo(m, e)}
+                    disabled={accionEnCurso === `modelo-${m.id}`}
+                    title="Compartir todas las fotos de este modelo"
+                  >
+                    <Share2 size={12} />
+                    {accionEnCurso === `modelo-${m.id}` ? '...' : 'Compartir'}
+                  </button>
+                )}
               </div>
               <div className="fotos-row">
                 {m.modelo_fotos.length === 0
@@ -186,17 +248,29 @@ export function Carpetas({ modelos }: CarpetasProps) {
                   : m.modelo_fotos.map(f => {
                       const sel = seleccion.has(f.foto_url)
                       return (
-                        <button
+                        <div
                           key={f.id}
                           className={`foto-seleccionable ${sel ? 'seleccionada' : ''}`}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => toggleFoto(f.foto_url)}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleFoto(f.foto_url) } }}
                           title={sel ? 'Quitar selección' : 'Seleccionar'}
                         >
                           <img src={f.foto_url} alt={m.modelo} />
                           <div className="foto-check">
                             {sel ? <CheckSquare size={16} /> : <Square size={16} />}
                           </div>
-                        </button>
+                          <button
+                            type="button"
+                            className="foto-share-rapido"
+                            aria-label="Compartir esta foto"
+                            title="Compartir esta foto"
+                            onClick={e => handleCompartirFoto(f.foto_url, m, e)}
+                          >
+                            <Share2 size={14} />
+                          </button>
+                        </div>
                       )
                     })
                 }
@@ -204,6 +278,8 @@ export function Carpetas({ modelos }: CarpetasProps) {
             </div>
           ))}
         </div>
+
+        {toast && <div className="carpetas-toast">{toast}</div>}
 
         {seleccion.size > 0 && (
           <div className="barra-compartir">
@@ -213,9 +289,9 @@ export function Carpetas({ modelos }: CarpetasProps) {
             <button className="btn-limpiar" onClick={() => setSeleccion(new Set())} title="Limpiar selección">
               <X size={14} />
             </button>
-            <button className="btn-compartir" onClick={handleCompartir} disabled={compartiendo}>
+            <button className="btn-compartir" onClick={handleCompartir} disabled={accionEnCurso === 'seleccion'}>
               <Share2 size={16} />
-              {compartiendo ? 'Cargando...' : 'Compartir'}
+              {accionEnCurso === 'seleccion' ? 'Cargando...' : 'Compartir'}
             </button>
           </div>
         )}
