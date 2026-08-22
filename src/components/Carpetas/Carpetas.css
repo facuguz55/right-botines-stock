@@ -137,20 +137,25 @@
 .btn-seleccionar-todo {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.375rem 0.75rem;
+  justify-content: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+  background: var(--accent-dim);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.625rem 1.25rem;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
   white-space: nowrap;
 }
-.btn-seleccionar-todo:hover { border-color: var(--accent); color: var(--accent); }
-.btn-seleccionar-todo.activo { border-color: var(--accent); color: var(--accent); }
+.btn-seleccionar-todo:hover { background: var(--accent); color: #000; }
+.btn-seleccionar-todo:active { transform: scale(0.98); }
+.btn-seleccionar-todo.activo { background: var(--accent); color: #000; }
+
+.carpeta-select-hint { margin: 0; }
 
 /* ── Nivel 2: grid de talles ── */
 .talles-grid {
@@ -411,6 +416,7 @@
   .carpetas-toast { bottom: 1rem; left: 1rem; right: 1rem; transform: none; text-align: center; }
 
   /* Objetivos táctiles más grandes para compartir desde el celular */
+  .btn-seleccionar-todo { width: 100%; align-self: stretch; padding: 0.75rem 1rem; }
   .modelo-fotos-label { flex-wrap: wrap; row-gap: 0.375rem; }
   .btn-compartir-modelo { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
   .foto-share-rapido { width: 36px; height: 36px; }
