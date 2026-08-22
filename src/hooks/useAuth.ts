@@ -9,7 +9,7 @@ const EMPLEADO_NOMBRE_KEY = 'rb_empleado_nombre'
 function getStoredRole(): Role | null {
   try {
     const saved = localStorage.getItem(ROLE_KEY)
-    return saved === 'empleado' || saved === 'dueno' ? saved : null
+    return saved === 'empleado' || saved === 'dueno' || saved === 'atencion' ? saved : null
   } catch {
     return null
   }
@@ -34,13 +34,17 @@ export function useAuth() {
   // Login = elegir perfil y quedar usando la app. Ya no abre fichaje: fichar
   // entrada/salida es una acción aparte (ver useFichajeActual), para que
   // cada empleado se haga cargo de ficharse sin depender de cerrar sesión.
-  const loginEmpleado = useCallback(async (empleado: Empleado): Promise<void> => {
+  // "atencion" es el mismo picker de nombre que "empleado" pero para el
+  // perfil de Atención al público: no ficha ni depende de la caja (por eso
+  // useFichajeActual/AperturaCajaGate solo miran role==='empleado'), y ve un
+  // menú reducido (Layout se encarga de eso).
+  const loginEmpleado = useCallback(async (empleado: Empleado, rol: 'empleado' | 'atencion' = 'empleado'): Promise<void> => {
     try {
-      localStorage.setItem(ROLE_KEY, 'empleado')
+      localStorage.setItem(ROLE_KEY, rol)
       localStorage.setItem(EMPLEADO_ID_KEY, empleado.id)
       localStorage.setItem(EMPLEADO_NOMBRE_KEY, empleado.nombre)
     } catch { /* noop */ }
-    setRole('empleado')
+    setRole(rol)
     setEmpleadoId(empleado.id)
     setEmpleadoNombre(empleado.nombre)
   }, [])

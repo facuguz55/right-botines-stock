@@ -12,6 +12,9 @@ interface ModelGridProps {
   modelos: Modelo[]
   loading: boolean
   onSell: (m: Modelo) => void
+  // Perfil "Atención al público": solo necesita buscar y vender, sin
+  // ninguno de los botones de administración del catálogo.
+  soloVenta?: boolean
   puedeVender: boolean
   motivoBloqueoVenta: string | null
   onEdit: (m: Modelo) => void
@@ -37,7 +40,7 @@ const DEFAULT_FILTERS: ModeloFilters = {
 
 export function ModelGrid({
   modelos, loading,
-  onSell, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory,
+  onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory,
   onAdd, onPhotoSearch, onImport, onImportFotos, onImportExcel, onClearAll,
   onSyncTN, syncingTN, tnProgress, tnLastResult, tnLastSyncAt,
 }: ModelGridProps) {
@@ -56,39 +59,41 @@ export function ModelGrid({
   return (
     <div className="model-grid-page">
       {/* ── Banner sincronización TN ── */}
-      <div className="tn-sync-bar">
-        <button
-          className={`btn-sync-tn${syncingTN ? ' syncing' : ''}`}
-          onClick={onSyncTN}
-          disabled={syncingTN}
-        >
-          <RefreshCw size={14} className={syncingTN ? 'spin' : ''} />
-          {syncLabel}
-        </button>
-
-        {!syncingTN && tnLastResult && (
-          <span
-            className={`sync-result${hasErrors ? ' sync-result--error' : ''}`}
-            title={hasErrors ? tnLastResult.errors.join('\n') : undefined}
+      {!soloVenta && (
+        <div className="tn-sync-bar">
+          <button
+            className={`btn-sync-tn${syncingTN ? ' syncing' : ''}`}
+            onClick={onSyncTN}
+            disabled={syncingTN}
           >
-            {hasErrors ? <AlertCircle size={12} /> : <CheckCircle size={12} />}
-            {tnLastResult.created > 0 && `${tnLastResult.created} creados`}
-            {tnLastResult.created > 0 && tnLastResult.updated > 0 && ' · '}
-            {tnLastResult.updated > 0 && `${tnLastResult.updated} actualizados`}
-            {tnLastResult.imagesAdded > 0 && ` · ${tnLastResult.imagesAdded} imágenes`}
-            {hasErrors && ` · ${tnLastResult.errors.length} errores`}
-            {lastSyncStr && <span className="sync-time">última sync: {lastSyncStr}</span>}
-          </span>
-        )}
+            <RefreshCw size={14} className={syncingTN ? 'spin' : ''} />
+            {syncLabel}
+          </button>
 
-        {!syncingTN && !tnLastResult && lastSyncStr && (
-          <span className="sync-result">
-            <CheckCircle size={12} /> última sync: {lastSyncStr}
-          </span>
-        )}
+          {!syncingTN && tnLastResult && (
+            <span
+              className={`sync-result${hasErrors ? ' sync-result--error' : ''}`}
+              title={hasErrors ? tnLastResult.errors.join('\n') : undefined}
+            >
+              {hasErrors ? <AlertCircle size={12} /> : <CheckCircle size={12} />}
+              {tnLastResult.created > 0 && `${tnLastResult.created} creados`}
+              {tnLastResult.created > 0 && tnLastResult.updated > 0 && ' · '}
+              {tnLastResult.updated > 0 && `${tnLastResult.updated} actualizados`}
+              {tnLastResult.imagesAdded > 0 && ` · ${tnLastResult.imagesAdded} imágenes`}
+              {hasErrors && ` · ${tnLastResult.errors.length} errores`}
+              {lastSyncStr && <span className="sync-time">última sync: {lastSyncStr}</span>}
+            </span>
+          )}
 
-        <span className="sync-auto-badge">↺ resync de respaldo cada 1h</span>
-      </div>
+          {!syncingTN && !tnLastResult && lastSyncStr && (
+            <span className="sync-result">
+              <CheckCircle size={12} /> última sync: {lastSyncStr}
+            </span>
+          )}
+
+          <span className="sync-auto-badge">↺ resync de respaldo cada 1h</span>
+        </div>
+      )}
 
       <div className="stock-page-header">
         <div className="stock-title-block">
@@ -98,32 +103,34 @@ export function ModelGrid({
           </p>
         </div>
 
-        <div className="stock-actions">
-          <div className="stock-actions-secondary">
-            <button className="btn btn-secondary btn-sm" onClick={onImport}>
-              <Upload size={13} /> Importar TiendaNube
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={onImportFotos}>
-              <Camera size={13} /> Importar fotos
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={onImportExcel}>
-              <Upload size={13} /> Cargar Excel
-            </button>
-            <ExportButton modelos={modelos} />
-            <button className="btn btn-danger btn-sm" onClick={onClearAll} disabled={modelos.length === 0}>
-              <Trash2 size={13} /> Borrar todo
-            </button>
-          </div>
+        {!soloVenta && (
+          <div className="stock-actions">
+            <div className="stock-actions-secondary">
+              <button className="btn btn-secondary btn-sm" onClick={onImport}>
+                <Upload size={13} /> Importar TiendaNube
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={onImportFotos}>
+                <Camera size={13} /> Importar fotos
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={onImportExcel}>
+                <Upload size={13} /> Cargar Excel
+              </button>
+              <ExportButton modelos={modelos} />
+              <button className="btn btn-danger btn-sm" onClick={onClearAll} disabled={modelos.length === 0}>
+                <Trash2 size={13} /> Borrar todo
+              </button>
+            </div>
 
-          <div className="stock-actions-primary">
-            <button className="btn btn-secondary" onClick={onPhotoSearch}>
-              <Camera size={15} /> Buscar por foto
-            </button>
-            <button className="btn btn-primary" onClick={onAdd}>
-              <Plus size={15} /> Agregar modelo
-            </button>
+            <div className="stock-actions-primary">
+              <button className="btn btn-secondary" onClick={onPhotoSearch}>
+                <Camera size={15} /> Buscar por foto
+              </button>
+              <button className="btn btn-primary" onClick={onAdd}>
+                <Plus size={15} /> Agregar modelo
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {!puedeVender && motivoBloqueoVenta && (
@@ -166,7 +173,7 @@ export function ModelGrid({
         <div className="grid-empty">
           <span className="empty-icon">📦</span>
           <p>{modelos.length === 0 ? 'No tenés modelos cargados todavía.' : 'No hay modelos con esos filtros.'}</p>
-          {modelos.length === 0 && <button className="btn btn-primary" onClick={onAdd}><Plus size={15} /> Agregar el primer modelo</button>}
+          {modelos.length === 0 && !soloVenta && <button className="btn btn-primary" onClick={onAdd}><Plus size={15} /> Agregar el primer modelo</button>}
         </div>
       ) : (
         <div className="model-grid">
@@ -175,6 +182,7 @@ export function ModelGrid({
               key={m.id}
               modelo={m}
               onSell={onSell}
+              soloVenta={soloVenta}
               puedeVender={puedeVender}
               motivoBloqueoVenta={motivoBloqueoVenta}
               onEdit={onEdit}

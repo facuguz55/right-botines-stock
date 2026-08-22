@@ -61,11 +61,25 @@ const ALL_NAV: NavItem[] = [
   { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart     },
 ]
 
+// Páginas del perfil "Atención al público": solo lo justo para vender y
+// mandar fotos por WhatsApp, sin fichaje/caja ni ninguna otra sección.
+const NAV_ATENCION: ActivePage[] = ['stock', 'carpetas', 'ventas']
+
 export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout, fichajeActual, children }: LayoutProps) {
   const nav = (page: ActivePage) => ALL_NAV.find(n => n.page === page)!
   const esDueno = role === 'dueno'
+  const esAtencion = role === 'atencion'
   const quienSoy = esDueno ? 'Dueño' : (empleadoNombre ?? 'Empleado')
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const renderNavAtencion = (onNav: (page: ActivePage) => void) => (
+    <>
+      <p className="nav-universe-label">Atención al público</p>
+      {NAV_ATENCION.map(p => (
+        <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
+      ))}
+    </>
+  )
 
   const renderNavGroups = (onNav: (page: ActivePage) => void) => (
     <>
@@ -148,10 +162,10 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
         </div>
         <div className="sidebar-user"><User size={13} /> {quienSoy}</div>
         <nav className="sidebar-nav">
-          {renderNavGroups(onNavigate)}
+          {esAtencion ? renderNavAtencion(onNavigate) : renderNavGroups(onNavigate)}
         </nav>
 
-        {!esDueno && <FichajeWidget fichajeHook={fichajeActual} />}
+        {role === 'empleado' && <FichajeWidget fichajeHook={fichajeActual} />}
         <div className="sidebar-footer">
           {esDueno && <AccessAlerts />}
           <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
@@ -169,7 +183,9 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       <nav className="bottom-nav">
         {(esDueno
           ? (['stock', 'caja', 'dashboard', 'seguimientos'] as ActivePage[])
-          : (['stock', 'caja', 'dashboard', 'tn_ordenes'] as ActivePage[])
+          : esAtencion
+            ? NAV_ATENCION
+            : (['stock', 'caja', 'dashboard', 'tn_ordenes'] as ActivePage[])
         ).map(p => {
           const item = nav(p)
           return (
@@ -203,9 +219,9 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
               </button>
             </div>
             <nav className="sidebar-nav nav-drawer-nav">
-              {renderNavGroups(handleMobileNav)}
+              {esAtencion ? renderNavAtencion(handleMobileNav) : renderNavGroups(handleMobileNav)}
             </nav>
-            {!esDueno && <FichajeWidget fichajeHook={fichajeActual} />}
+            {role === 'empleado' && <FichajeWidget fichajeHook={fichajeActual} />}
             <div className="sidebar-footer">
               <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
                 <LogOut size={15} />

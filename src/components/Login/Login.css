@@ -60,6 +60,9 @@
 .login-card-dueno svg { color: var(--warning); }
 .login-card-dueno:hover { border-color: var(--warning); }
 
+.login-card-atencion svg { color: #3b82f6; }
+.login-card-atencion:hover { border-color: #3b82f6; }
+
 /* ── PIN ── */
 .login-pin {
   display: flex;
