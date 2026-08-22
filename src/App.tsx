@@ -72,7 +72,7 @@ function restoreAccent() {
 }
 
 export function App() {
-  const { role, empleadoId, empleadoNombre, loginEmpleado, loginDueno, logout } = useAuth()
+  const { role, empleadoId, empleadoNombre, loginEmpleado, loginAtencion, loginDueno, logout } = useAuth()
   const [activePage, setActivePage] = useState<ActivePage>('stock')
   const [configTabInicial, setConfigTabInicial] = useState<'general' | 'tiendanube' | 'seguridad' | 'costos'>('general')
 
@@ -153,6 +153,7 @@ export function App() {
         empleados={empleadosHook.empleados.filter(e => e.activo)}
         loadingEmpleados={empleadosHook.loading}
         onLoginEmpleado={loginEmpleado}
+        onLoginAtencion={loginAtencion}
         onLoginDueno={loginDueno}
       />
     )

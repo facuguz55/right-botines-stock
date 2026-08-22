@@ -6,19 +6,22 @@ import './Login.css'
 interface LoginProps {
   empleados: Empleado[]
   loadingEmpleados: boolean
-  onLoginEmpleado: (empleado: Empleado, rol?: 'empleado' | 'atencion') => Promise<void>
+  onLoginEmpleado: (empleado: Empleado) => Promise<void>
+  onLoginAtencion: () => Promise<void>
   onLoginDueno: (pin: string) => Promise<boolean>
 }
 
 const PIN_LENGTH = 4
 
-export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDueno }: LoginProps) {
-  const [modo, setModo] = useState<'select' | 'empleado' | 'atencion' | 'pin'>('select')
+export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginAtencion, onLoginDueno }: LoginProps) {
+  const [modo, setModo] = useState<'select' | 'empleado' | 'pin'>('select')
   const [pin, setPin] = useState('')
   const [error, setError] = useState(false)
   const [checking, setChecking] = useState(false)
   const [empleadoError, setEmpleadoError] = useState<string | null>(null)
   const [entrandoId, setEntrandoId] = useState<string | null>(null)
+  const [entrandoAtencion, setEntrandoAtencion] = useState(false)
+  const [atencionError, setAtencionError] = useState<string | null>(null)
 
   const volver = () => {
     setModo('select')
@@ -51,10 +54,22 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDue
     setEmpleadoError(null)
     setEntrandoId(empleado.id)
     try {
-      await onLoginEmpleado(empleado, modo === 'atencion' ? 'atencion' : 'empleado')
+      await onLoginEmpleado(empleado)
     } catch {
       setEmpleadoError('No se pudo registrar el ingreso, probá de nuevo.')
       setEntrandoId(null)
+    }
+  }
+
+  const entrarAtencion = async () => {
+    if (entrandoAtencion) return
+    setAtencionError(null)
+    setEntrandoAtencion(true)
+    try {
+      await onLoginAtencion()
+    } catch {
+      setAtencionError('No se pudo entrar, probá de nuevo.')
+      setEntrandoAtencion(false)
     }
   }
 
@@ -81,9 +96,9 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDue
             <span>Acceso empleado</span>
             <small>Entrá sin contraseña</small>
           </button>
-          <button className="login-card login-card-atencion" onClick={() => setModo('atencion')}>
+          <button className="login-card login-card-atencion" onClick={entrarAtencion} disabled={entrandoAtencion}>
             <Headset size={28} />
-            <span>Atención al público</span>
+            <span>{entrandoAtencion ? 'Entrando...' : 'Atención al público'}</span>
             <small>Vender y ver fotos</small>
           </button>
           <button className="login-card login-card-dueno" onClick={() => setModo('pin')}>
@@ -94,7 +109,11 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDue
         </div>
       )}
 
-      {(modo === 'empleado' || modo === 'atencion') && (
+      {modo === 'select' && atencionError && (
+        <p className="login-pin-error"><AlertTriangle size={13} /> {atencionError}</p>
+      )}
+
+      {modo === 'empleado' && (
         <div className="login-empleados">
           <p className="login-pin-title">¿Quién sos?</p>
 
