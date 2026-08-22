@@ -184,7 +184,12 @@ export function Carpetas({ modelos }: CarpetasProps) {
   // ── Vista nivel 3: fotos del talle ──
   if (carpetaAbierta && talleAbierto !== null) {
     const todasUrls = modelosEnTalle.flatMap(m => m.modelo_fotos.map(f => f.foto_url))
-    const todoSeleccionado = todasUrls.length > 0 && todasUrls.every(url => seleccion.has(url))
+    const seleccionadasEnTalle = todasUrls.filter(url => seleccion.has(url)).length
+    const todoSeleccionado = todasUrls.length > 0 && seleccionadasEnTalle === todasUrls.length
+
+    let labelSeleccionarTodo = 'Seleccionar todo'
+    if (todoSeleccionado) labelSeleccionarTodo = 'Deseleccionar todo'
+    else if (seleccionadasEnTalle > 0) labelSeleccionarTodo = `Seleccionar todo (${seleccionadasEnTalle}/${todasUrls.length})`
 
     return (
       <div className="carpetas-page">
@@ -200,6 +205,20 @@ export function Carpetas({ modelos }: CarpetasProps) {
             <FolderOpen size={20} className="folder-icon-open" />
             <h2 className="carpeta-title">Talle {talleAbierto}</h2>
           </div>
+
+          <button
+            className={`btn-seleccionar-todo ${todoSeleccionado ? 'activo' : ''}`}
+            onClick={() => todoSeleccionado ? setSeleccion(new Set()) : seleccionarTodo()}
+          >
+            {todoSeleccionado ? <CheckSquare size={18} /> : <Square size={18} />}
+            {labelSeleccionarTodo}
+          </button>
+          {seleccion.size === 0 && (
+            <p className="carpeta-sub-hint carpeta-select-hint">
+              Tocá las fotos que quieras (de uno o varios modelos) para mandarlas juntas
+            </p>
+          )}
+
           <div className="carpeta-actions-row">
             <div className="carpeta-search-wrap">
               <Search size={14} />
@@ -211,13 +230,6 @@ export function Carpetas({ modelos }: CarpetasProps) {
                 className="carpeta-search"
               />
             </div>
-            <button
-              className={`btn-seleccionar-todo ${todoSeleccionado ? 'activo' : ''}`}
-              onClick={() => todoSeleccionado ? setSeleccion(new Set()) : seleccionarTodo()}
-            >
-              {todoSeleccionado ? <CheckSquare size={14} /> : <Square size={14} />}
-              {todoSeleccionado ? 'Deseleccionar todo' : 'Seleccionar todo'}
-            </button>
           </div>
         </div>
 
