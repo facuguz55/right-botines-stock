@@ -34,19 +34,31 @@ export function useAuth() {
   // Login = elegir perfil y quedar usando la app. Ya no abre fichaje: fichar
   // entrada/salida es una acción aparte (ver useFichajeActual), para que
   // cada empleado se haga cargo de ficharse sin depender de cerrar sesión.
-  // "atencion" es el mismo picker de nombre que "empleado" pero para el
-  // perfil de Atención al público: no ficha ni depende de la caja (por eso
-  // useFichajeActual/AperturaCajaGate solo miran role==='empleado'), y ve un
-  // menú reducido (Layout se encarga de eso).
-  const loginEmpleado = useCallback(async (empleado: Empleado, rol: 'empleado' | 'atencion' = 'empleado'): Promise<void> => {
+  const loginEmpleado = useCallback(async (empleado: Empleado): Promise<void> => {
     try {
-      localStorage.setItem(ROLE_KEY, rol)
+      localStorage.setItem(ROLE_KEY, 'empleado')
       localStorage.setItem(EMPLEADO_ID_KEY, empleado.id)
       localStorage.setItem(EMPLEADO_NOMBRE_KEY, empleado.nombre)
     } catch { /* noop */ }
-    setRole(rol)
+    setRole('empleado')
     setEmpleadoId(empleado.id)
     setEmpleadoNombre(empleado.nombre)
+  }, [])
+
+  // Atención al público: no es un empleado del listado (es una sola persona
+  // fija, sin ficha), así que entra directo sin elegir nombre, sin fichar y
+  // sin depender de la caja (ver App.tsx puedeVender / AperturaCajaGate, que
+  // solo miran role==='empleado'). Las ventas quedan con empleado_id null,
+  // igual que las que hace el dueño.
+  const loginAtencion = useCallback(async (): Promise<void> => {
+    try {
+      localStorage.setItem(ROLE_KEY, 'atencion')
+      localStorage.removeItem(EMPLEADO_ID_KEY)
+      localStorage.setItem(EMPLEADO_NOMBRE_KEY, 'Atención al público')
+    } catch { /* noop */ }
+    setRole('atencion')
+    setEmpleadoId(null)
+    setEmpleadoNombre('Atención al público')
   }, [])
 
   const loginDueno = useCallback(async (pin: string): Promise<boolean> => {
@@ -71,5 +83,5 @@ export function useAuth() {
     setEmpleadoNombre(null)
   }, [])
 
-  return { role, empleadoId, empleadoNombre, loginEmpleado, loginDueno, logout }
+  return { role, empleadoId, empleadoNombre, loginEmpleado, loginAtencion, loginDueno, logout }
 }

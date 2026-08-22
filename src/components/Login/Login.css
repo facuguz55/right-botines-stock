@@ -44,6 +44,8 @@
   transform: translateY(-2px);
 }
 
+.login-card:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
 .login-card span {
   font-family: var(--font-display);
   font-size: 1.25rem;
