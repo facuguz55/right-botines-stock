@@ -348,7 +348,7 @@
   border-radius: 999px;
   padding: 0.625rem 1rem 0.625rem 1.25rem;
   box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  z-index: 100;
+  z-index: 150; /* por encima del bottom-nav (z-index 100) del Layout */
   white-space: nowrap;
 }
 
@@ -403,8 +403,15 @@
   font-weight: 600;
   color: var(--text-primary);
   box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  z-index: 100;
+  z-index: 150; /* por encima del bottom-nav (z-index 100) del Layout */
   white-space: nowrap;
+}
+
+/* El Layout muestra un bottom-nav fijo de 68px de alto hasta 768px de ancho
+   (ver Layout.css). Sin este offset la barra flotante y el toast quedan
+   tapados detrás del nav y parecen no aparecer nunca. */
+@media (max-width: 768px) {
+  .barra-compartir, .carpetas-toast { bottom: calc(68px + 1rem); }
 }
 
 @media (max-width: 600px) {
@@ -412,8 +419,8 @@
   .carpetas-grid { grid-template-columns: repeat(2, 1fr); }
   .talles-grid { grid-template-columns: repeat(3, 1fr); }
   .foto-seleccionable { width: calc(50vw - 1.5rem); }
-  .barra-compartir { bottom: 1rem; left: 1rem; right: 1rem; transform: none; border-radius: var(--radius-md); }
-  .carpetas-toast { bottom: 1rem; left: 1rem; right: 1rem; transform: none; text-align: center; }
+  .barra-compartir { bottom: calc(68px + 1rem); left: 1rem; right: 1rem; transform: none; border-radius: var(--radius-md); }
+  .carpetas-toast { bottom: calc(68px + 1rem); left: 1rem; right: 1rem; transform: none; text-align: center; }
 
   /* Objetivos táctiles más grandes para compartir desde el celular */
   .btn-seleccionar-todo { width: 100%; align-self: stretch; padding: 0.75rem 1rem; }
