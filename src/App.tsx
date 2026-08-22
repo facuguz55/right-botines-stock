@@ -186,7 +186,8 @@ export function App() {
   // segundo/tercer empleado que entra a la app sin haber fichado todavía
   // (la caja ya la abrió el primero), y el caso raro de que la caja se haya
   // cerrado mientras seguía con el fichaje abierto.
-  const puedeVender = role === 'dueno' || (!!fichajeActual.fichaje && !!fichajeActual.cajaAbierta)
+  // Atención al público no ficha ni depende de la caja (ver useAuth.loginEmpleado).
+  const puedeVender = role === 'dueno' || role === 'atencion' || (!!fichajeActual.fichaje && !!fichajeActual.cajaAbierta)
   const motivoBloqueoVenta = puedeVender
     ? null
     : !fichajeActual.fichaje
@@ -210,6 +211,7 @@ export function App() {
             modelos={modelos}
             loading={loading}
             onSell={setSellTarget}
+            soloVenta={role === 'atencion'}
             puedeVender={puedeVender}
             motivoBloqueoVenta={motivoBloqueoVenta}
             onEdit={handleEdit}

@@ -8,6 +8,7 @@ import './ModelCard.css'
 interface ModelCardProps {
   modelo: Modelo
   onSell: (modelo: Modelo) => void
+  soloVenta?: boolean
   puedeVender: boolean
   motivoBloqueoVenta: string | null
   onEdit: (modelo: Modelo) => void
@@ -16,7 +17,7 @@ interface ModelCardProps {
   onPriceHistory: (modelo: Modelo) => void
 }
 
-export const ModelCard = memo(function ModelCard({ modelo, onSell, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
+export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
   const totalPares = modelo.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
   const agotado = totalPares === 0
   const ultimoPar = !agotado && totalPares === 1
@@ -86,7 +87,9 @@ export const ModelCard = memo(function ModelCard({ modelo, onSell, puedeVender, 
 
         <div className="card-ref-row">
           <p className="card-ref">{modelo.codigo_base}</p>
-          <button className="btn-price-history" onClick={() => onPriceHistory(modelo)} title="Historial de precios">📈</button>
+          {!soloVenta && (
+            <button className="btn-price-history" onClick={() => onPriceHistory(modelo)} title="Historial de precios">📈</button>
+          )}
         </div>
 
         {modelo.notas && (
@@ -102,11 +105,15 @@ export const ModelCard = memo(function ModelCard({ modelo, onSell, puedeVender, 
           >
             Vender
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => onIngreso(modelo)}>
-            + Stock
-          </button>
-          <button className="btn btn-secondary btn-sm icon-btn" onClick={() => onEdit(modelo)}><Pencil size={14} /></button>
-          <button className="btn btn-danger btn-sm icon-btn" onClick={() => onDelete(modelo)}><Trash2 size={14} /></button>
+          {!soloVenta && (
+            <>
+              <button className="btn btn-secondary btn-sm" onClick={() => onIngreso(modelo)}>
+                + Stock
+              </button>
+              <button className="btn btn-secondary btn-sm icon-btn" onClick={() => onEdit(modelo)}><Pencil size={14} /></button>
+              <button className="btn btn-danger btn-sm icon-btn" onClick={() => onDelete(modelo)}><Trash2 size={14} /></button>
+            </>
+          )}
         </div>
       </div>
 

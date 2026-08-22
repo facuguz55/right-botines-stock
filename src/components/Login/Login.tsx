@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Briefcase, ShieldCheck, Delete, AlertTriangle, User, ArrowLeft } from 'lucide-react'
+import { Briefcase, ShieldCheck, Headset, Delete, AlertTriangle, User, ArrowLeft } from 'lucide-react'
 import type { Empleado } from '../../types'
 import './Login.css'
 
 interface LoginProps {
   empleados: Empleado[]
   loadingEmpleados: boolean
-  onLoginEmpleado: (empleado: Empleado) => Promise<void>
+  onLoginEmpleado: (empleado: Empleado, rol?: 'empleado' | 'atencion') => Promise<void>
   onLoginDueno: (pin: string) => Promise<boolean>
 }
 
 const PIN_LENGTH = 4
 
 export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDueno }: LoginProps) {
-  const [modo, setModo] = useState<'select' | 'empleado' | 'pin'>('select')
+  const [modo, setModo] = useState<'select' | 'empleado' | 'atencion' | 'pin'>('select')
   const [pin, setPin] = useState('')
   const [error, setError] = useState(false)
   const [checking, setChecking] = useState(false)
@@ -51,7 +51,7 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDue
     setEmpleadoError(null)
     setEntrandoId(empleado.id)
     try {
-      await onLoginEmpleado(empleado)
+      await onLoginEmpleado(empleado, modo === 'atencion' ? 'atencion' : 'empleado')
     } catch {
       setEmpleadoError('No se pudo registrar el ingreso, probá de nuevo.')
       setEntrandoId(null)
@@ -81,6 +81,11 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDue
             <span>Acceso empleado</span>
             <small>Entrá sin contraseña</small>
           </button>
+          <button className="login-card login-card-atencion" onClick={() => setModo('atencion')}>
+            <Headset size={28} />
+            <span>Atención al público</span>
+            <small>Vender y ver fotos</small>
+          </button>
           <button className="login-card login-card-dueno" onClick={() => setModo('pin')}>
             <ShieldCheck size={28} />
             <span>Acceso dueño</span>
@@ -89,7 +94,7 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginDue
         </div>
       )}
 
-      {modo === 'empleado' && (
+      {(modo === 'empleado' || modo === 'atencion') && (
         <div className="login-empleados">
           <p className="login-pin-title">¿Quién sos?</p>
 

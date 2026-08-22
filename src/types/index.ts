@@ -111,7 +111,7 @@ export interface DashboardData {
   }[]
 }
 
-export type Role = 'empleado' | 'dueno'
+export type Role = 'empleado' | 'dueno' | 'atencion'
 
 export type ActivePage =
   | 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'carpetas' | 'configuracion' | 'seguimientos'
