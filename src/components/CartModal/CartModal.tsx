@@ -24,7 +24,12 @@ const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Mixto']
 
 export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, addCliente, onSell }: CartModalProps) {
   const [step, setStep] = useState<'pago' | 'cliente'>('pago')
-  const [medioPago, setMedioPago] = useState<MedioPago>('Efectivo')
+  // Sin default: si nadie toca nada acá, no hay forma de confirmar la venta
+  // sin elegir a propósito. Antes arrancaba en 'Efectivo' preseleccionado —
+  // una venta por transferencia que el vendedor se olvidaba de cambiar
+  // quedaba cargada como efectivo, inflando lo que la caja "espera" tener
+  // sin que haya entrado esa plata físicamente al cajón.
+  const [medioPago, setMedioPago] = useState<MedioPago | null>(null)
   const [tarjeta, setTarjeta] = useState<string | null>(null)
   const [cuotas, setCuotas] = useState<number | null>(null)
   const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('')
@@ -90,7 +95,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
   const handleClose = () => {
     setStep('pago')
-    setMedioPago('Efectivo')
+    setMedioPago(null)
     setTarjeta(null)
     setCuotas(null)
     setMontoEfectivoMixto('')
@@ -109,6 +114,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
   const handleConfirm = async () => {
     setError(null)
+    if (!medioPago) return setError('Elegí el medio de pago')
     let clienteId = selectedClienteId
 
     if (!clienteId) {
@@ -250,7 +256,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
           <div className="sell-actions">
             <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
-            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={faltaElegirRecargo || mixtoInvalido || recibidoInvalido}>
+            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={!medioPago || faltaElegirRecargo || mixtoInvalido || recibidoInvalido}>
               Continuar →
             </button>
           </div>
