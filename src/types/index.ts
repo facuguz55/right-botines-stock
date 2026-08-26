@@ -58,6 +58,7 @@ export interface Venta {
   venta_grupo_id: string | null
   precio_tipo?: 'lista' | 'promocional' | null
   descuento_pct_aplicado?: number | null
+  precio_editado?: boolean
   tarjeta?: string | null
   cuotas?: number | null
   empleado_id?: string | null
@@ -86,6 +87,9 @@ export interface CartItem {
   talleArg: number
   talleUs: number
   cantidad: number
+  // Precio de venta editado a mano al vender, distinto del de lista/promocional.
+  // null/undefined = se usa el precio normal del modelo (getPrecioReal).
+  precioManual?: number | null
 }
 
 export interface TopModelo {

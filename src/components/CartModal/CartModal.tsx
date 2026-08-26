@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CartItem, ClienteLocal, MedioPago, RecargoTarjeta } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { filterClientes } from '../../hooks/useClientesLocales'
-import { getPrecioReal, getRecargoPct, getPrecioConRecargo, tarjetasDisponibles, cuotasDisponibles } from '../../utils/precios'
+import { getPrecioItem, getRecargoPct, getPrecioConRecargo, tarjetasDisponibles, cuotasDisponibles } from '../../utils/precios'
 import './CartModal.css'
 
 interface CartModalProps {
@@ -55,12 +55,12 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const faltaElegirRecargo = esTarjeta && hayRecargosConfigurados && (!tarjeta || !cuotas)
   const recargoPct = getRecargoPct(recargos, tarjeta, cuotas)
 
-  const subtotal = items.reduce((s, i) => s + getPrecioReal(i.modelo) * i.cantidad, 0)
+  const subtotal = items.reduce((s, i) => s + getPrecioItem(i) * i.cantidad, 0)
   const montoEfectivoMixtoNum = montoEfectivoMixto ? Number(montoEfectivoMixto) : 0
   const montoTransferenciaMixtoNum = Math.max(0, subtotal - montoEfectivoMixtoNum)
   const mixtoInvalido = esMixto && (montoEfectivoMixto === '' || montoEfectivoMixtoNum < 0 || montoEfectivoMixtoNum > subtotal)
   const total = esTarjeta && !faltaElegirRecargo
-    ? items.reduce((s, i) => s + getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct) * i.cantidad, 0)
+    ? items.reduce((s, i) => s + getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct, i.precioManual) * i.cantidad, 0)
     : subtotal
   const recargo = total - subtotal
   // % efectivo mostrado junto al monto: puede diferir un poco del % nominal
@@ -77,7 +77,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const recibidoInvalido = hayRecibido && montoRecibidoEfectivoNum < baseEfectivo
 
   const ganancia = items.reduce((s, i) => {
-    const precioFinal = esTarjeta && !faltaElegirRecargo ? getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct) : getPrecioReal(i.modelo)
+    const precioFinal = esTarjeta && !faltaElegirRecargo ? getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct, i.precioManual) : getPrecioItem(i)
     return s + (precioFinal - i.modelo.precio_costo) * i.cantidad
   }, 0)
 

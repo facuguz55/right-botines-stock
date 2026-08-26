@@ -291,7 +291,7 @@ export function App() {
       <SellModal
         modelo={sellTarget}
         onClose={() => setSellTarget(null)}
-        onAdd={(modelo, talle, cantidad) => carrito.addItem(modelo, talle, cantidad)}
+        onAdd={(modelo, talle, cantidad, precioManual) => carrito.addItem(modelo, talle, cantidad, precioManual)}
       />
 
       <CartModal

@@ -82,7 +82,7 @@ export async function deleteTalle(id: string): Promise<void> {
 }
 
 export async function sellCarrito(
-  items: { modelo: Modelo; talleId: string; cantidad: number }[],
+  items: { modelo: Modelo; talleId: string; cantidad: number; precioManual?: number | null }[],
   medioPago: MedioPago,
   clienteId: string,
   tarjeta: string | null,
@@ -99,7 +99,7 @@ export async function sellCarrito(
   const esMixto = medioPago === 'Mixto'
   const esEfectivo = medioPago === 'Efectivo'
 
-  for (const { modelo, talleId, cantidad } of items) {
+  for (const { modelo, talleId, cantidad, precioManual } of items) {
     const talle = modelo.modelo_talles.find(t => t.id === talleId)
     if (!talle) throw new Error(`Talle no encontrado para ${modelo.modelo}`)
     if (cantidad > talle.cantidad) throw new Error(`No hay stock suficiente de ${modelo.modelo} (talle ${talle.talle_arg})`)
@@ -110,8 +110,8 @@ export async function sellCarrito(
       .eq('id', talleId)
     if (upErr) throw upErr
 
-    const precioBase = getPrecioReal(modelo)
-    const precioFinal = esTarjeta ? getPrecioConRecargo(modelo, tarjeta, cuotas, recargoPct) : precioBase
+    const precioBase = precioManual ?? getPrecioReal(modelo)
+    const precioFinal = esTarjeta ? getPrecioConRecargo(modelo, tarjeta, cuotas, recargoPct, precioManual) : precioBase
     const recargo = esTarjeta ? precioFinal - precioBase : null
     const esPromo = tieneDescuentoPromocional(modelo)
     const descuentoPctAplicado = esPromo
@@ -129,6 +129,7 @@ export async function sellCarrito(
       venta_grupo_id: ventaGrupoId,
       precio_tipo: esPromo ? 'promocional' : 'lista',
       descuento_pct_aplicado: descuentoPctAplicado,
+      precio_editado: precioManual != null,
       tarjeta: esTarjeta ? tarjeta : null,
       cuotas: esTarjeta ? cuotas : null,
       empleado_id: empleadoId,

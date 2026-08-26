@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { CartItem } from '../../types'
 import { Modal } from '../Modal/Modal'
-import { getPrecioReal } from '../../utils/precios'
+import { getPrecioItem } from '../../utils/precios'
 import './VentaEnCurso.css'
 
 interface VentaEnCursoProps {
@@ -29,11 +29,14 @@ export function VentaEnCurso({ items, subtotal, onAddMore, onStartPayment, onCan
 
         <div className="venta-en-curso-items">
           {items.map((item, idx) => {
-            const precioUnit = getPrecioReal(item.modelo)
+            const precioUnit = getPrecioItem(item)
             return (
               <div key={`${item.modelo.id}-${item.talleId}-${idx}`} className="venta-en-curso-item">
                 <div className="venta-en-curso-item-row">
-                  <span className="venta-en-curso-item-name">{item.modelo.marca} {item.modelo.modelo}</span>
+                  <span className="venta-en-curso-item-name">
+                    {item.modelo.marca} {item.modelo.modelo}
+                    {item.precioManual != null && <span className="venta-en-curso-editado-tag">editado</span>}
+                  </span>
                   <span className="venta-en-curso-item-detail">
                     talle {item.talleArg} × {item.cantidad}
                   </span>

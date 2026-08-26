@@ -246,6 +246,20 @@
   white-space: nowrap;
 }
 
+.precio-editado-tag {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  background: var(--warning-dim);
+  color: var(--warning);
+  padding: 1px 5px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
 .ganancia-cell {
   font-weight: 600;
   white-space: nowrap;
