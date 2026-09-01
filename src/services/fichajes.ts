@@ -62,14 +62,24 @@ function localDateKey(d: Date): string {
 }
 
 // Cierra automáticamente fichajes abandonados (alguien se olvidó de fichar
-// salida). Dos casos:
+// salida). Tres casos:
 // - Días anteriores: se cierran a la hora límite configurada de ESE día.
-// - HOY: antes nunca se tocaba (podía quedar "vivo" toda la jornada); ahora
-//   también se cierra solo si ya pasó horasMaximasTurno desde que entró —
-//   un turno de zapatería no llega a eso, así que si lo supera es casi
-//   seguro un olvido, no un turno real en curso.
-// Se llama una vez al abrir la app (App.tsx); no depende de ningún cron.
-export async function cerrarFichajesVencidos(horaLimiteCierre: string, horasMaximasTurno: number): Promise<number> {
+// - HOY, corte de turno (ej. mediodía): si entró antes de esa hora y ya se
+//   pasó, se cierra justo ahí — separa turno mañana/tarde aunque el fichaje
+//   lleve pocas horas (no llegaría a horasMaximasTurno todavía). Es lo que
+//   permite que la caja también corte sola en ese momento (ver
+//   caja.ts:cerrarCajaPorCorteDeTurno) en vez de arrastrar la plata de la
+//   mañana a la tarde.
+// - HOY, sin corte de turno o ya pasado: se cierra solo si ya pasó
+//   horasMaximasTurno desde que entró — un turno de zapatería no llega a
+//   eso, así que si lo supera es casi seguro un olvido, no un turno real.
+// Se llama al abrir la app y cada tanto mientras sigue abierta (App.tsx);
+// no depende de ningún cron.
+export async function cerrarFichajesVencidos(
+  horaLimiteCierre: string,
+  horasMaximasTurno: number,
+  horaCorteTurno: string | null = null,
+): Promise<number> {
   const { data, error } = await supabase
     .from('fichajes')
     .select('id, hora_entrada')
@@ -78,16 +88,24 @@ export async function cerrarFichajesVencidos(horaLimiteCierre: string, horasMaxi
 
   const hoyKey = localDateKey(new Date())
   const [hh, mm] = horaLimiteCierre.split(':').map(Number)
+  const corteHM = horaCorteTurno ? horaCorteTurno.split(':').map(Number) : null
   let cerrados = 0
 
   for (const f of data ?? []) {
     const entrada = new Date(f.hora_entrada)
-    let cierre: Date
+    let cierre: Date | null = null
 
     if (localDateKey(entrada) === hoyKey) {
-      const limiteHoras = new Date(entrada.getTime() + horasMaximasTurno * 3600000)
-      if (limiteHoras > new Date()) continue // todavía no se pasó del máximo, no tocar
-      cierre = limiteHoras
+      if (corteHM) {
+        const corte = new Date(entrada)
+        corte.setHours(corteHM[0], corteHM[1], 0, 0)
+        if (corte > entrada && corte <= new Date()) cierre = corte
+      }
+      if (!cierre) {
+        const limiteHoras = new Date(entrada.getTime() + horasMaximasTurno * 3600000)
+        if (limiteHoras > new Date()) continue // todavía no se pasó del máximo, no tocar
+        cierre = limiteHoras
+      }
     } else {
       const limite = new Date(entrada)
       limite.setHours(hh, mm, 0, 0)

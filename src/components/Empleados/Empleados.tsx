@@ -4,7 +4,7 @@ import type { Fichaje, Venta } from '../../types'
 import type { useEmpleados } from '../../hooks/useEmpleados'
 import { useFichajes } from '../../hooks/useFichajes'
 import { fetchVentasPorEmpleadoYRango } from '../../services/ventas'
-import { fetchConfiguracionFichajes, updateHoraLimiteCierre, updateHorasMaximasTurno } from '../../services/configuracionFichajes'
+import { fetchConfiguracionFichajes, updateHoraLimiteCierre, updateHorasMaximasTurno, updateHoraCorteTurno } from '../../services/configuracionFichajes'
 import { Modal } from '../Modal/Modal'
 import './Empleados.css'
 
@@ -87,11 +87,17 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
   const [horasMaximas, setHorasMaximas] = useState('12')
   const [savingHorasMaximas, setSavingHorasMaximas] = useState(false)
 
+  const [corteActivo, setCorteActivo] = useState(true)
+  const [horaCorte, setHoraCorte] = useState('13:00')
+  const [savingCorte, setSavingCorte] = useState(false)
+
   useEffect(() => {
     fetchConfiguracionFichajes()
       .then(cfg => {
         setHoraLimite(cfg.hora_limite_cierre.slice(0, 5))
         setHorasMaximas(String(cfg.horas_maximas_turno))
+        setCorteActivo(!!cfg.hora_corte_turno)
+        if (cfg.hora_corte_turno) setHoraCorte(cfg.hora_corte_turno.slice(0, 5))
       })
       .finally(() => setLoadingHoraLimite(false))
   }, [])
@@ -113,6 +119,15 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
       await updateHorasMaximasTurno(n)
     } finally {
       setSavingHorasMaximas(false)
+    }
+  }
+
+  const guardarCorteTurno = async () => {
+    setSavingCorte(true)
+    try {
+      await updateHoraCorteTurno(corteActivo ? horaCorte : null)
+    } finally {
+      setSavingCorte(false)
     }
   }
 
@@ -270,6 +285,34 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
           </div>
           <button className="btn btn-secondary btn-sm" disabled={loadingHoraLimite || savingHorasMaximas || !horasMaximas} onClick={guardarHorasMaximas}>
             {savingHorasMaximas ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+
+        <p className="config-section-desc">
+          Corte de turno (ej. mediodía): a esta hora se cierran solos los fichajes de <strong>hoy</strong> que sigan
+          abiertos y, si hay una caja abierta, se corta también — sin pedirle a nadie que cuente efectivo (usa el
+          monto calculado, sin diferencia). Así el turno siguiente arranca con una caja nueva pidiendo el efectivo
+          real que hay en ese momento, en vez de seguir sumando sobre lo de la mañana.
+        </p>
+        <div className="config-row">
+          <label className="config-label">
+            <input
+              type="checkbox" checked={corteActivo}
+              onChange={e => setCorteActivo(e.target.checked)}
+              disabled={loadingHoraLimite}
+              style={{ marginRight: '.375rem' }}
+            />
+            Cortar turno
+          </label>
+          <div className="config-input-wrap">
+            <input
+              type="time" className="config-input"
+              value={horaCorte} onChange={e => setHoraCorte(e.target.value)}
+              disabled={loadingHoraLimite || !corteActivo}
+            />
+          </div>
+          <button className="btn btn-secondary btn-sm" disabled={loadingHoraLimite || savingCorte} onClick={guardarCorteTurno}>
+            {savingCorte ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
       </section>

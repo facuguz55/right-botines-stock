@@ -305,6 +305,7 @@ export interface ConfiguracionFichajes {
   id: number
   hora_limite_cierre: string
   horas_maximas_turno: number
+  hora_corte_turno: string | null
   updated_at: string
 }
 

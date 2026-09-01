@@ -26,3 +26,12 @@ export async function updateHorasMaximasTurno(horasMaximasTurno: number): Promis
     .eq('id', 1)
   if (error) throw error
 }
+
+// null = desactivado (no se corta ningún turno a mitad de día).
+export async function updateHoraCorteTurno(horaCorteTurno: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('configuracion_fichajes')
+    .update({ hora_corte_turno: horaCorteTurno, updated_at: new Date().toISOString() })
+    .eq('id', 1)
+  if (error) throw error
+}
