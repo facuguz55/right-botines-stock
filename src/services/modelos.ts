@@ -80,6 +80,18 @@ export async function deleteTalle(id: string): Promise<void> {
   if (error) throw error
 }
 
+// Mueve pares del depósito al local ("reponer el mostrador"). Nunca deja
+// mover más de lo que hay en depósito — ver reponer_stock_local en
+// supabase/migrations/029_stock_local_vs_deposito.sql.
+export async function reponerStockLocal(talleId: string, cantidad: number): Promise<number> {
+  const { data, error } = await supabase.rpc('reponer_stock_local', {
+    p_talle_id: talleId,
+    p_cantidad: cantidad,
+  })
+  if (error) throw error
+  return data as number
+}
+
 // El descuento de stock y el chequeo de caja/fichaje viven en la función
 // registrar_venta_carrito (supabase/migrations/028_venta_y_devolucion_atomicas.sql):
 // hacerlo en la base evita la condición de carrera de restar stock leído en

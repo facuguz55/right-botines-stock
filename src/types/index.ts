@@ -12,6 +12,11 @@ export interface ModeloTalle {
   talle_us: number
   talle_arg: number
   cantidad: number
+  // Cuánto de "cantidad" (el total) está físicamente en el local ahora
+  // mismo — el resto (cantidad - cantidad_local) está en el depósito.
+  // Opcional porque tiene default 0 en la base: los talles se crean sin
+  // saber nada de esto (TN sync, import de Excel, alta manual).
+  cantidad_local?: number
   stock_minimo: number
   tn_variant_id?: number | null
 }

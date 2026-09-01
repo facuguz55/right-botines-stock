@@ -1,0 +1,30 @@
+.reponer-hint { font-size: .8125rem; color: var(--text-secondary); margin: 0; }
+
+.reponer-lista { display: flex; flex-direction: column; gap: .625rem; }
+
+.reponer-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .625rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.reponer-talle { display: flex; flex-direction: column; gap: 2px; }
+.reponer-talle-arg { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.reponer-talle-detalle { font-size: .75rem; color: var(--text-secondary); }
+
+.reponer-accion { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+.reponer-input {
+  width: 60px;
+  padding: .4rem .5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-size: .875rem;
+  text-align: center;
+}
+.reponer-input:disabled { opacity: .5; }

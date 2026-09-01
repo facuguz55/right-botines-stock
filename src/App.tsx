@@ -14,6 +14,7 @@ import { ClientesLocales } from './components/ClientesLocales/ClientesLocales'
 import { IngresoPage } from './components/IngresoPage/IngresoPage'
 import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
+import { ReponerStock } from './components/ReponerStock/ReponerStock'
 import { PhotoSearch } from './components/PhotoSearch/PhotoSearch'
 import { TiendaNubeImport } from './components/TiendaNubeImport/TiendaNubeImport'
 import { ImportFotos } from './components/ImportFotos/ImportFotos'
@@ -121,6 +122,7 @@ export function App() {
   const [editTarget, setEditTarget] = useState<Modelo | null>(null)
   const [sellTarget, setSellTarget] = useState<Modelo | null>(null)
   const [ingresoTarget, setIngresoTarget] = useState<Modelo | null>(null)
+  const [reponerTarget, setReponerTarget] = useState<Modelo | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Modelo | null>(null)
   const [priceHistoryTarget, setPriceHistoryTarget] = useState<Modelo | null>(null)
   const [showPhotoSearch, setShowPhotoSearch] = useState(false)
@@ -218,6 +220,7 @@ export function App() {
             onEdit={handleEdit}
             onDelete={setDeleteTarget}
             onIngreso={setIngresoTarget}
+            onReponer={setReponerTarget}
             onPriceHistory={setPriceHistoryTarget}
             onAdd={handleAdd}
             onPhotoSearch={() => setShowPhotoSearch(true)}
@@ -328,6 +331,12 @@ export function App() {
       <PriceHistoryModal
         modelo={priceHistoryTarget}
         onClose={() => setPriceHistoryTarget(null)}
+      />
+
+      <ReponerStock
+        modelo={reponerTarget ? modelos.find(m => m.id === reponerTarget.id) ?? null : null}
+        onClose={() => setReponerTarget(null)}
+        onDone={reload}
       />
 
       <PhotoSearch

@@ -20,6 +20,7 @@ interface ModelGridProps {
   onEdit: (m: Modelo) => void
   onDelete: (m: Modelo) => void
   onIngreso: (m: Modelo) => void
+  onReponer: (m: Modelo) => void
   onPriceHistory: (m: Modelo) => void
   onAdd: () => void
   onPhotoSearch: () => void
@@ -40,7 +41,7 @@ const DEFAULT_FILTERS: ModeloFilters = {
 
 export function ModelGrid({
   modelos, loading,
-  onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory,
+  onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onReponer, onPriceHistory,
   onAdd, onPhotoSearch, onImport, onImportFotos, onImportExcel, onClearAll,
   onSyncTN, syncingTN, tnProgress, tnLastResult, tnLastSyncAt,
 }: ModelGridProps) {
@@ -188,6 +189,7 @@ export function ModelGrid({
               onEdit={onEdit}
               onDelete={onDelete}
               onIngreso={onIngreso}
+              onReponer={onReponer}
               onPriceHistory={onPriceHistory}
             />
           ))}

@@ -123,6 +123,12 @@ export function SellModal({ modelo, onClose, onAdd }: SellModalProps) {
                 {selectedTalle.cantidad - cantidad} pares
               </span>
             </div>
+            <div className="sell-stat">
+              <span>En el local (después)</span>
+              <span className={`sell-stat-val ${Math.max(0, (selectedTalle.cantidad_local ?? 0) - cantidad) <= 0 ? 'danger' : ''}`}>
+                {Math.max(0, (selectedTalle.cantidad_local ?? 0) - cantidad)} pares
+              </span>
+            </div>
           </div>
         )}
 
