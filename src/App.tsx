@@ -47,6 +47,7 @@ import { useProveedores } from './hooks/useProveedores'
 import { useFichajeActual } from './hooks/useFichajeActual'
 import { fetchConfiguracionFichajes } from './services/configuracionFichajes'
 import { cerrarFichajesVencidos } from './services/fichajes'
+import { cerrarCajaPorCorteDeTurno } from './services/caja'
 import { AiChat } from './components/AiChat/AiChat'
 import './App.css'
 
@@ -79,14 +80,26 @@ export function App() {
 
   useEffect(() => { restoreAccent() }, [])
 
-  // Barrido de fichajes abandonados de días anteriores (nadie hizo logout).
-  // Corre una sola vez al abrir la app, con la hora límite configurada en
-  // Empleados — no depende de ningún cron ni de que quede una pestaña
-  // abierta a propósito, solo de que alguien entre a la app al otro día.
+  // Barrido de fichajes abandonados y corte de turno (ej. mediodía): cierra
+  // fichajes de días anteriores, fichajes de hoy vencidos, y si corresponde
+  // corta la caja abierta en la hora de corte configurada — así el turno
+  // siguiente no hereda el efectivo acumulado del anterior (ver
+  // services/fichajes.ts y services/caja.ts). Corre al abrir la app y cada
+  // 5 minutos mientras sigue abierta (la app suele quedar prendida todo el
+  // día en el mostrador, así que no alcanza con correr una sola vez al
+  // cargar); no depende de ningún cron.
   useEffect(() => {
-    fetchConfiguracionFichajes()
-      .then(cfg => cerrarFichajesVencidos(cfg.hora_limite_cierre, cfg.horas_maximas_turno))
-      .catch(() => { /* no bloquea el arranque de la app si falla */ })
+    const barrer = () => {
+      fetchConfiguracionFichajes()
+        .then(async cfg => {
+          await cerrarFichajesVencidos(cfg.hora_limite_cierre, cfg.horas_maximas_turno, cfg.hora_corte_turno)
+          await cerrarCajaPorCorteDeTurno(cfg.hora_corte_turno)
+        })
+        .catch(() => { /* no bloquea el arranque de la app si falla */ })
+    }
+    barrer()
+    const id = setInterval(barrer, 5 * 60 * 1000)
+    return () => clearInterval(id)
   }, [])
 
   // Si el rol cambia (ej: se pierde el acceso dueño) y la página activa quedó

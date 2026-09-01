@@ -169,6 +169,40 @@ export async function fetchVerificacionesCaja(cajaDiaId: string): Promise<CajaVe
   return (data || []) as CajaVerificacion[]
 }
 
+// Corta la caja de hoy sola apenas se pasa la hora de corte de turno
+// configurada (ej. mediodía), sin pedirle a nadie que cuente efectivo: usa
+// el monto calculado como "contado", así que la diferencia queda en 0 — no
+// es un arqueo real, es solo el límite entre un turno y el siguiente. El
+// próximo que fiche entrada se encuentra sin caja abierta y AperturaCajaGate
+// le pide el efectivo real que hay en ese momento, en vez de heredar el
+// cálculo acumulado del turno anterior (ver services/fichajes.ts).
+// Se llama junto con cerrarFichajesVencidos (App.tsx); no depende de cron.
+export async function cerrarCajaPorCorteDeTurno(horaCorteTurno: string | null): Promise<boolean> {
+  if (!horaCorteTurno) return false
+
+  const caja = await fetchCajaAbierta()
+  if (!caja) return false
+
+  const hoy = new Date().toISOString().slice(0, 10)
+  if (caja.fecha !== hoy) return false // cajas colgadas de días anteriores son otro problema, no se tocan acá
+
+  const [hh, mm] = horaCorteTurno.split(':').map(Number)
+  const corte = new Date()
+  corte.setHours(hh, mm, 0, 0)
+  if (corte > new Date()) return false // todavía no llegó la hora de corte
+
+  // Si se abrió después de la hora de corte de hoy (ej. turno tarde que ya
+  // arrancó pasado el mediodía), no corresponde volver a cortarla.
+  if (caja.abierta_at && new Date(caja.abierta_at) >= corte) return false
+
+  const esperado = await calcularEfectivoEsperado(caja)
+  await cerrarCaja(
+    caja.id, caja.fecha, caja.monto_apertura, esperado, null,
+    'Cierre automático de turno — nadie contó el efectivo, este monto es el calculado.',
+  )
+  return true
+}
+
 export async function cerrarCaja(
   cajaId: string,
   fecha: string,
