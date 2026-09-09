@@ -47,6 +47,11 @@ import { useFichajeActual } from './hooks/useFichajeActual'
 import { fetchConfiguracionFichajes } from './services/configuracionFichajes'
 import { cerrarFichajesVencidos } from './services/fichajes'
 import { AiChat } from './components/AiChat/AiChat'
+import CrmInbox from './components/CRM/CrmInbox/CrmInbox'
+import { CrmDashboard } from './components/CRM/CrmDashboard/CrmDashboard'
+import { PhotoSender } from './components/CRM/PhotoSender/PhotoSender'
+import { FeedbackButton } from './components/FeedbackButton/FeedbackButton'
+import { setupGlobalErrorHandler } from './services/errorReporter'
 import './App.css'
 
 const ACCENT_KEY = 'rb_accent'
@@ -73,10 +78,16 @@ function restoreAccent() {
 
 export function App() {
   const { role, empleadoId, empleadoNombre, loginEmpleado, loginAtencion, loginDueno, logout } = useAuth()
-  const [activePage, setActivePage] = useState<ActivePage>('stock')
+  const [activePage, setActivePage] = useState<ActivePage>(() => {
+    try {
+      const savedRole = localStorage.getItem('rb_role')
+      return savedRole === 'atencion' ? 'crm_inbox' : 'stock'
+    } catch { return 'stock' }
+  })
   const [configTabInicial, setConfigTabInicial] = useState<'general' | 'tiendanube' | 'seguridad' | 'costos'>('general')
 
   useEffect(() => { restoreAccent() }, [])
+  useEffect(() => { setupGlobalErrorHandler() }, [])
 
   // Barrido de fichajes abandonados de días anteriores (nadie hizo logout).
   // Corre una sola vez al abrir la app, con la hora límite configurada en
@@ -129,6 +140,7 @@ export function App() {
   const [showImportExcel, setShowImportExcel] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [photoSender, setPhotoSender] = useState<{ conversacionId: string; tipo: string | null; talle: number | null } | null>(null)
 
   const handleAdd = () => { setEditTarget(null); setShowForm(true) }
   const handleEdit = (m: Modelo) => { setEditTarget(m); setShowForm(true) }
@@ -154,6 +166,7 @@ export function App() {
         loadingEmpleados={empleadosHook.loading}
         onLoginEmpleado={loginEmpleado}
         onLoginAtencion={loginAtencion}
+
         onLoginDueno={loginDueno}
       />
     )
@@ -281,6 +294,16 @@ export function App() {
         <Rentabilidad onConfigurarCostos={() => { setConfigTabInicial('costos'); setActivePage('configuracion') }} />
       )}
 
+      {activePage === 'crm_inbox' && (
+        <CrmInbox
+          empleadoId={empleadoId}
+          onOpenPhotoSender={(conversacionId: string, tipo: string | null, talle: number | null) => setPhotoSender({ conversacionId, tipo, talle })}
+          onCreateVenta={() => {}}
+          onSendMpLink={() => {}}
+        />
+      )}
+      {activePage === 'crm_dashboard' && role === 'dueno' && <CrmDashboard />}
+
       <ModelForm
         isOpen={showForm}
         onClose={() => setShowForm(false)}
@@ -379,7 +402,19 @@ export function App() {
           </div>
         </div>
       </Modal>
+      {photoSender && (
+        <PhotoSender
+          isOpen={true}
+          onClose={() => setPhotoSender(null)}
+          tipo={photoSender.tipo}
+          talle={photoSender.talle}
+          conversacionId={photoSender.conversacionId}
+          empleadoId={empleadoId}
+          onSendPhotos={async () => { setPhotoSender(null) }}
+        />
+      )}
       <AiChat onReload={reload} />
+      <FeedbackButton />
     </Layout>
   )
 }

@@ -22,7 +22,6 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginAte
   const [entrandoId, setEntrandoId] = useState<string | null>(null)
   const [entrandoAtencion, setEntrandoAtencion] = useState(false)
   const [atencionError, setAtencionError] = useState<string | null>(null)
-
   const volver = () => {
     setModo('select')
     setPin('')

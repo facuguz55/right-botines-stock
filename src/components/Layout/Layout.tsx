@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User,
+  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Inbox,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -22,7 +22,7 @@ interface LayoutProps {
 
 // Páginas visibles solo para el dueño
 export const SOLO_DUENO: ActivePage[] = [
-  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics', 'proveedores',
+  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics', 'proveedores', 'crm_dashboard',
 ]
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
@@ -59,11 +59,9 @@ const ALL_NAV: NavItem[] = [
   { page: 'tn_cupones',     label: 'Cupones',       Icon: Tag          },
   { page: 'tn_mails',       label: 'Mensajes',      Icon: MessageCircle},
   { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart     },
+  { page: 'crm_inbox',      label: 'WhatsApp',      Icon: Inbox        },
+  { page: 'crm_dashboard',  label: 'Stats CRM',     Icon: BarChart2    },
 ]
-
-// Páginas del perfil "Atención al público": solo lo justo para vender y
-// mandar fotos por WhatsApp, sin fichaje/caja ni ninguna otra sección.
-const NAV_ATENCION: ActivePage[] = ['stock', 'carpetas', 'ventas']
 
 export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout, fichajeActual, children }: LayoutProps) {
   const nav = (page: ActivePage) => ALL_NAV.find(n => n.page === page)!
@@ -75,9 +73,14 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
   const renderNavAtencion = (onNav: (page: ActivePage) => void) => (
     <>
       <p className="nav-universe-label">Atención al público</p>
-      {NAV_ATENCION.map(p => (
+      <p className="nav-group-label">CRM</p>
+      <NavBtn item={nav('crm_inbox')} active={activePage === 'crm_inbox'} onClick={() => onNav('crm_inbox')} />
+      <p className="nav-group-label">Stock</p>
+      {(['stock', 'carpetas', 'ventas', 'clientes_locales'] as ActivePage[]).map(p => (
         <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
       ))}
+      <p className="nav-group-label">Caja</p>
+      <NavBtn item={nav('caja')} active={activePage === 'caja'} onClick={() => onNav('caja')} />
     </>
   )
 
@@ -146,6 +149,14 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
           <NavBtn item={nav('rentabilidad')} active={activePage === 'rentabilidad'} onClick={() => onNav('rentabilidad')} />
         </>
       )}
+
+      {/* ── WHATSAPP CRM ── */}
+      <div className="nav-divider" />
+      <p className="nav-universe-label">WhatsApp</p>
+      <NavBtn item={nav('crm_inbox')} active={activePage === 'crm_inbox'} onClick={() => onNav('crm_inbox')} />
+      {esDueno && (
+        <NavBtn item={nav('crm_dashboard')} active={activePage === 'crm_dashboard'} onClick={() => onNav('crm_dashboard')} />
+      )}
     </>
   )
 
@@ -182,9 +193,9 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       {/* Bottom nav mobile */}
       <nav className="bottom-nav">
         {(esDueno
-          ? (['stock', 'caja', 'dashboard', 'seguimientos'] as ActivePage[])
+          ? (['stock', 'caja', 'dashboard', 'crm_inbox'] as ActivePage[])
           : esAtencion
-            ? NAV_ATENCION
+            ? (['crm_inbox', 'stock', 'ventas', 'caja'] as ActivePage[])
             : (['stock', 'caja', 'dashboard', 'tn_ordenes'] as ActivePage[])
         ).map(p => {
           const item = nav(p)

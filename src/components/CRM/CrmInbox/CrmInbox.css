@@ -1,0 +1,38 @@
+.crm-inbox {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.crm-inbox-list {
+  width: 380px;
+  flex-shrink: 0;
+  height: 100%;
+  border-right: 1px solid var(--border);
+}
+
+.crm-inbox-chat {
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .crm-inbox-list {
+    width: 100%;
+    border-right: none;
+  }
+
+  .crm-inbox-list--hidden {
+    display: none;
+  }
+
+  .crm-inbox-chat--hidden {
+    display: none;
+  }
+
+  .crm-inbox-chat {
+    width: 100%;
+  }
+}

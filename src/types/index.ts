@@ -120,6 +120,7 @@ export type ActivePage =
   | 'rentabilidad'
   | 'empleados' | 'caja'
   | 'proveedores' | 'devoluciones'
+  | 'crm_inbox' | 'crm_dashboard'
 
 // Para importación TiendaNube
 export interface TiendaNubeModelo {

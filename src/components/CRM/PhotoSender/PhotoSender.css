@@ -1,0 +1,331 @@
+.photo-sender-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(2px);
+}
+
+.photo-sender-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  animation: photo-sender-in 0.15s ease;
+}
+
+@keyframes photo-sender-in {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.photo-sender-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.125rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.photo-sender-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.photo-sender-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  display: block;
+}
+
+.photo-sender-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.photo-sender-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-3);
+}
+
+.photo-sender-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.5rem;
+}
+
+.photo-sender-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.photo-sender-spin {
+  animation: photo-sender-rotate 1s linear infinite;
+}
+
+@keyframes photo-sender-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.photo-sender-empty {
+  text-align: center;
+  padding: 3rem 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.photo-sender-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.photo-sender-card {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.photo-sender-card:hover {
+  border-color: var(--border-light);
+}
+
+.photo-sender-card--selected {
+  border-color: #22D3EE;
+  box-shadow: 0 0 0 1px #22D3EE;
+}
+
+.photo-sender-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  z-index: 1;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.photo-sender-card--selected .photo-sender-card-check {
+  background: #22D3EE;
+  border-color: #22D3EE;
+  color: #060A10;
+}
+
+.photo-sender-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--bg-surface-3);
+}
+
+.photo-sender-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-sender-card-info {
+  padding: 0.625rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.photo-sender-brand {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.photo-sender-model {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.photo-sender-price {
+  font-size: 0.8125rem;
+  color: #22D3EE;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.photo-sender-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.photo-sender-size {
+  font-size: 0.625rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-surface-3);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.photo-sender-size--match {
+  background: rgba(34, 211, 238, 0.15);
+  color: #22D3EE;
+}
+
+/* Preview section */
+.photo-sender-preview {
+  border-top: 1px solid var(--border);
+  padding: 0.875rem 1.5rem;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.photo-sender-preview h3 {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.5rem;
+}
+
+.photo-sender-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.photo-sender-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.photo-sender-preview-item img {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.photo-sender-preview-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.photo-sender-preview-item strong {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+.photo-sender-preview-item span {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.photo-sender-preview-sizes {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+}
+
+/* Footer */
+.photo-sender-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.photo-sender-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.photo-sender-btn--cancel {
+  background: var(--bg-surface-3);
+  color: var(--text-secondary);
+}
+
+.photo-sender-btn--cancel:hover {
+  color: var(--text-primary);
+}
+
+.photo-sender-btn--send {
+  background: #22D3EE;
+  color: #060A10;
+}
+
+.photo-sender-btn--send:hover {
+  background: #06b6d4;
+}
+
+.photo-sender-btn--send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .photo-sender-modal {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .photo-sender-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .photo-sender-header,
+  .photo-sender-body,
+  .photo-sender-footer,
+  .photo-sender-preview {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
