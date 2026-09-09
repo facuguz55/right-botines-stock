@@ -1,12 +1,7 @@
-const ENDPOINT = import.meta.env.VITE_ERROR_WEBHOOK_URL as string | undefined
-const SECRET = import.meta.env.VITE_ERROR_WEBHOOK_SECRET as string | undefined
+const ENDPOINT = import.meta.env.VITE_ERROR_WEBHOOK_URL
+const SECRET = import.meta.env.VITE_ERROR_WEBHOOK_SECRET
 
 const APP_NAME = 'right-botines-stock'
-
-let release: string | undefined
-try {
-  release = import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA as string | undefined
-} catch { /* noop */ }
 
 interface ErrorReport {
   donde: string
@@ -47,7 +42,6 @@ export async function reportError(report: ErrorReport): Promise<void> {
           donde: report.donde,
           mensaje: report.mensaje,
           stack: report.stack,
-          release,
           detalle: report.detalle,
           url: window.location.href,
           navegador: navigator.userAgent,
@@ -78,7 +72,6 @@ export async function reportFeedback(descripcion: string, donde: string): Promis
           id,
           donde,
           mensaje: descripcion,
-          release,
           detalle: { tipo: 'feedback_manual' },
           url: window.location.href,
           navegador: navigator.userAgent,
