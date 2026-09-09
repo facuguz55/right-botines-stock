@@ -129,6 +129,7 @@ export type ActivePage =
   | 'rentabilidad'
   | 'empleados' | 'caja'
   | 'proveedores' | 'devoluciones'
+  | 'mis_horas'
 
 // Para importación TiendaNube
 export interface TiendaNubeModelo {

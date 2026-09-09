@@ -33,6 +33,7 @@ import { TNCupones } from './components/TNCupones/TNCupones'
 import { TNMails } from './components/TNMails/TNMails'
 import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
 import { Empleados } from './components/Empleados/Empleados'
+import { MisHoras } from './components/MisHoras/MisHoras'
 import { Caja } from './components/Caja/Caja'
 import { Proveedores } from './components/Proveedores/Proveedores'
 import { Devoluciones } from './components/Devoluciones/Devoluciones'
@@ -276,6 +277,9 @@ export function App() {
       )}
       {activePage === 'empleados' && role === 'dueno' && (
         <Empleados empleadosHook={empleadosHook} />
+      )}
+      {activePage === 'mis_horas' && role === 'empleado' && (
+        <MisHoras empleadoId={empleadoId} />
       )}
       {activePage === 'caja' && (
         <Caja empleadoId={empleadoId} empleadoNombre={empleadoNombre} role={role} />

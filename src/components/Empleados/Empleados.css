@@ -40,3 +40,56 @@
   font-size: 0.875rem;
   font-weight: 400;
 }
+
+.sueldos-lock {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .875rem 1rem;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+.sueldos-lock svg { flex-shrink: 0; color: var(--text-muted); }
+.sueldos-lock p { flex: 1; font-size: .8125rem; margin: 0; }
+
+.sueldos-lock-nota { font-size: .75rem; color: var(--text-muted); margin: .5rem 0 0; }
+
+.sueldos-sin-asignar { color: var(--text-muted); font-style: italic; }
+
+.pagos-periodo {
+  display: flex;
+  flex-direction: column;
+  gap: .375rem;
+  padding: .75rem 1rem;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+}
+
+.pagos-fila {
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+  font-size: .8125rem;
+  flex-wrap: wrap;
+}
+
+.pagos-nombre { flex: 1; font-weight: 600; color: var(--text-primary); min-width: 100px; }
+.pagos-horas { color: var(--text-secondary); }
+.pagos-importe { font-weight: 700; color: var(--accent); min-width: 90px; text-align: right; }
+
+.pagos-sin-valorizar {
+  font-size: .75rem;
+  color: var(--warning);
+  width: 100%;
+}
+
+.pagos-total {
+  border-top: 1px solid var(--border);
+  margin-top: .25rem;
+  padding-top: .5rem;
+  font-size: .875rem;
+}

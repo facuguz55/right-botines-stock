@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User,
+  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Clock,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -50,6 +50,7 @@ const ALL_NAV: NavItem[] = [
   { page: 'caja',           label: 'Caja',          Icon: Banknote     },
   { page: 'devoluciones',   label: 'Devoluciones',  Icon: RotateCcw    },
   { page: 'empleados',      label: 'Empleados',     Icon: UserCog      },
+  { page: 'mis_horas',      label: 'Mis horas',     Icon: Clock        },
   { page: 'proveedores',    label: 'Proveedores',   Icon: Truck        },
   { page: 'configuracion',  label: 'Ajustes',       Icon: Settings     },
   { page: 'tn_dashboard',   label: 'Dashboard',     Icon: ShoppingBag  },
@@ -102,6 +103,9 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       <NavBtn item={nav('devoluciones')} active={activePage === 'devoluciones'} onClick={() => onNav('devoluciones')} />
       {esDueno && (
         <NavBtn item={nav('empleados')} active={activePage === 'empleados'} onClick={() => onNav('empleados')} />
+      )}
+      {!esDueno && (
+        <NavBtn item={nav('mis_horas')} active={activePage === 'mis_horas'} onClick={() => onNav('mis_horas')} />
       )}
 
       {esDueno && (

@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Plus, Power, PauseCircle, UserPlus, Clock, Eye, Timer } from 'lucide-react'
+import { Plus, Power, PauseCircle, UserPlus, Clock, Eye, Timer, Wallet, Lock } from 'lucide-react'
 import type { Fichaje, Venta } from '../../types'
 import type { useEmpleados } from '../../hooks/useEmpleados'
 import { useFichajes } from '../../hooks/useFichajes'
 import { fetchVentasPorEmpleadoYRango } from '../../services/ventas'
 import { fetchConfiguracionFichajes, updateHoraLimiteCierre, updateHorasMaximasTurno, updateHoraCorteTurno } from '../../services/configuracionFichajes'
+import { verifyOwnerPin } from '../../services/auth'
+import { fetchValoresHora, asignarValorHora } from '../../services/valoresHora'
+import { getSessionPin, setSessionPin } from '../../lib/pinSession'
+import { valorHoraEn, calcularPagos, type ValorHora } from '../../utils/valoresHora'
 import { Modal } from '../Modal/Modal'
 import './Empleados.css'
 
@@ -55,6 +59,19 @@ function horasTrabajadas(f: Fichaje): string {
   return `${Math.floor(mins / 60)}h ${mins % 60}m`
 }
 
+function fmtHoras(horas: number): string {
+  const mins = Math.round(horas * 60)
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`
+}
+
+function fmtMoney(n: number): string {
+  return `$${n.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+}
+
+function hoyISO(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 interface EmpleadosProps {
   empleadosHook: ReturnType<typeof useEmpleados>
 }
@@ -90,6 +107,90 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
   const [corteActivo, setCorteActivo] = useState(true)
   const [horaCorte, setHoraCorte] = useState('13:00')
   const [savingCorte, setSavingCorte] = useState(false)
+
+  // Sueldos: importes ocultos hasta pedir el PIN — verificado server-side
+  // (verifyOwnerPin), no por el rol del cliente. Una vez válido, se recuerda
+  // para el resto de la pestaña (getSessionPin/setSessionPin) para no
+  // repreguntarlo en cada acción.
+  const [pin, setPin] = useState<string | null>(() => getSessionPin())
+  const [valoresHora, setValoresHora] = useState<ValorHora[] | null>(null)
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState<string | null>(null)
+  const [verificandoPin, setVerificandoPin] = useState(false)
+
+  const [asignarTarget, setAsignarTarget] = useState<{ empleadoId: string | null; nombre: string } | null>(null)
+  const [montoAsignar, setMontoAsignar] = useState('')
+  const [fechaAsignar, setFechaAsignar] = useState(hoyISO())
+  const [asignarError, setAsignarError] = useState<string | null>(null)
+  const [asignando, setAsignando] = useState(false)
+
+  const cargarValoresHora = async (pinValido: string) => {
+    setValoresHora(await fetchValoresHora(pinValido))
+  }
+
+  // Si ya había un PIN recordado de esta pestaña, lo revalida server-side
+  // antes de confiar en él (pudo haber cambiado desde la última vez).
+  useEffect(() => {
+    if (!pin) return
+    verifyOwnerPin(pin).then(ok => {
+      if (ok) cargarValoresHora(pin)
+      else { setPin(null); setSessionPin('') }
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const abrirPinModal = () => {
+    setPinInput('')
+    setPinError(null)
+    setPinModalOpen(true)
+  }
+
+  const confirmarPin = async () => {
+    setVerificandoPin(true)
+    setPinError(null)
+    try {
+      const ok = await verifyOwnerPin(pinInput)
+      if (!ok) { setPinError('PIN incorrecto'); return }
+      setSessionPin(pinInput)
+      setPin(pinInput)
+      await cargarValoresHora(pinInput)
+      setPinModalOpen(false)
+    } catch (e) {
+      setPinError((e as Error).message)
+    } finally {
+      setVerificandoPin(false)
+    }
+  }
+
+  const abrirAsignar = (empleadoId: string | null, nombre: string) => {
+    setAsignarTarget({ empleadoId, nombre })
+    setMontoAsignar('')
+    setFechaAsignar(hoyISO())
+    setAsignarError(null)
+  }
+
+  // El botón que abre este modal solo se muestra una vez desbloqueados los
+  // sueldos (pin ya verificado), así que acá siempre hay un pin válido.
+  const confirmarAsignar = async () => {
+    if (!asignarTarget || !pin) return
+    const monto = Number(montoAsignar)
+    if (!(monto >= 0)) return setAsignarError('Ingresá un valor válido')
+    if (!fechaAsignar) return setAsignarError('Elegí la fecha desde la que rige')
+
+    setAsignarError(null)
+    setAsignando(true)
+    try {
+      const ok = await asignarValorHora(pin, asignarTarget.empleadoId, monto, fechaAsignar)
+      if (!ok) return setAsignarError('PIN incorrecto — pedí "Ver importes" de nuevo.')
+      await cargarValoresHora(pin)
+      setAsignarTarget(null)
+    } catch (e) {
+      setAsignarError((e as Error).message)
+    } finally {
+      setAsignando(false)
+    }
+  }
 
   useEffect(() => {
     fetchConfiguracionFichajes()
@@ -250,6 +351,46 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
 
       <section className="config-section">
         <div className="config-section-header">
+          <Wallet size={16} />
+          <h2 className="config-section-title">Sueldos por hora</h2>
+        </div>
+
+        {!pin ? (
+          <div className="sueldos-lock">
+            <Lock size={15} />
+            <p>Los importes están protegidos con el PIN del dueño, verificado en el servidor — no alcanza con estar en esta sección para verlos.</p>
+            <button className="btn btn-secondary btn-sm" onClick={abrirPinModal}>Ver / asignar sueldos</button>
+          </div>
+        ) : (
+          <div className="config-table-wrap">
+            <table className="config-table">
+              <thead><tr><th>Persona</th><th>Valor por hora</th><th>Vigente desde</th><th></th></tr></thead>
+              <tbody>
+                {[{ id: null as string | null, nombre: 'Dueño' }, ...empleados.map(e => ({ id: e.id, nombre: e.nombre }))].map(persona => {
+                  const hoy = hoyISO()
+                  const valorActual = valoresHora ? valorHoraEn(valoresHora, persona.id, hoy) : null
+                  const registro = valoresHora?.find(v => v.empleado_id === persona.id && v.valor_hora === valorActual)
+                  return (
+                    <tr key={persona.id ?? 'dueno'}>
+                      <td>{persona.nombre}</td>
+                      <td>{valorActual != null ? fmtMoney(valorActual) + '/h' : <span className="sueldos-sin-asignar">Sin asignar</span>}</td>
+                      <td>{registro ? new Date(registro.vigente_desde + 'T00:00:00').toLocaleDateString('es-AR') : '—'}</td>
+                      <td>
+                        <button className="btn btn-secondary btn-sm" onClick={() => abrirAsignar(persona.id, persona.nombre)}>
+                          {valorActual != null ? 'Cambiar' : 'Asignar'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="config-section">
+        <div className="config-section-header">
           <Timer size={16} />
           <h2 className="config-section-title">Cierre automático de fichajes</h2>
         </div>
@@ -346,6 +487,36 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
           </div>
         </div>
 
+        {!pin ? (
+          <p className="sueldos-lock-nota">Desbloqueá "Sueldos por hora" arriba para ver el importe de este período.</p>
+        ) : !loadingFichajes && fichajes.length > 0 && (
+          <div className="pagos-periodo">
+            <p className="config-section-desc" style={{ marginBottom: '.75rem' }}>Pagos del período</p>
+            {calcularPagos(fichajes, valoresHora ?? []).map(pago => {
+              const nombre = empleados.find(e => e.id === pago.empleadoId)?.nombre ?? 'Dueño'
+              return (
+                <div key={pago.empleadoId ?? 'dueno'} className="pagos-fila">
+                  <span className="pagos-nombre">{nombre}</span>
+                  <span className="pagos-horas">{fmtHoras(pago.horas)}</span>
+                  <span className="pagos-importe">{fmtMoney(pago.importe)}</span>
+                  {pago.horasSinValorizar > 0 && (
+                    <span className="pagos-sin-valorizar" title="Horas trabajadas antes de tener un valor por hora asignado — no están sumadas al importe.">
+                      ⚠ {fmtHoras(pago.horasSinValorizar)} sin valorizar
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+            <div className="pagos-fila pagos-total">
+              <span className="pagos-nombre">Total del período</span>
+              <span />
+              <span className="pagos-importe">
+                {fmtMoney(calcularPagos(fichajes, valoresHora ?? []).reduce((s, p) => s + p.importe, 0))}
+              </span>
+            </div>
+          </div>
+        )}
+
         {loadingFichajes ? (
           <div className="ventas-loading"><div className="spinner" /><p>Cargando fichajes...</p></div>
         ) : fichajes.length === 0 ? (
@@ -435,6 +606,63 @@ export function Empleados({ empleadosHook }: EmpleadosProps) {
             </table>
           </div>
         )}
+      </Modal>
+
+      <Modal isOpen={pinModalOpen} onClose={() => !verificandoPin && setPinModalOpen(false)} title="PIN del dueño" maxWidth="360px">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '.875rem' }}>
+            Los importes de sueldos se verifican en el servidor, no alcanza con estar en esta pantalla.
+          </p>
+          <input
+            type="password"
+            className="config-input"
+            autoFocus
+            value={pinInput}
+            onChange={e => setPinInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !verificandoPin && confirmarPin()}
+            placeholder="PIN"
+          />
+          {pinError && <p className="sell-error">{pinError}</p>}
+          <div className="sell-actions">
+            <button className="btn btn-secondary" onClick={() => setPinModalOpen(false)} disabled={verificandoPin}>Cancelar</button>
+            <button className="btn btn-primary" disabled={!pinInput || verificandoPin} onClick={confirmarPin}>
+              {verificandoPin ? 'Verificando...' : 'Confirmar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!asignarTarget} onClose={() => !asignando && setAsignarTarget(null)} title={`Valor por hora — ${asignarTarget?.nombre ?? ''}`} maxWidth="380px">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="config-row">
+            <label className="config-label">Monto por hora</label>
+            <div className="config-input-wrap">
+              <input
+                type="number" min={0} className="config-input" autoFocus
+                value={montoAsignar} onChange={e => setMontoAsignar(e.target.value)}
+                placeholder="0"
+              />
+              <span className="config-input-suffix">ARS/h</span>
+            </div>
+          </div>
+          <div className="config-row">
+            <label className="config-label">Vigente desde</label>
+            <input
+              type="date" className="config-input"
+              value={fechaAsignar} onChange={e => setFechaAsignar(e.target.value)}
+            />
+          </div>
+          <p className="sueldos-lock-nota">
+            Lo trabajado antes de esta fecha se sigue calculando con el valor que regía en ese momento — esto no reescribe pagos anteriores.
+          </p>
+          {asignarError && <p className="sell-error">{asignarError}</p>}
+          <div className="sell-actions">
+            <button className="btn btn-secondary" onClick={() => setAsignarTarget(null)} disabled={asignando}>Cancelar</button>
+            <button className="btn btn-primary" disabled={!montoAsignar || !fechaAsignar || asignando} onClick={confirmarAsignar}>
+              {asignando ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   )
