@@ -80,7 +80,7 @@ export function App() {
   const { role, empleadoId, empleadoNombre, loginEmpleado, loginAtencion, loginDueno, logout } = useAuth()
   const [activePage, setActivePage] = useState<ActivePage>(() => {
     try {
-      const savedRole = localStorage.getItem('rb_role')
+      const savedRole = sessionStorage.getItem('rb_role')
       return savedRole === 'atencion' ? 'crm_inbox' : 'stock'
     } catch { return 'stock' }
   })
@@ -325,10 +325,10 @@ export function App() {
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
-        onSell={(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo) =>
+        onSell={(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo, totalAjustado) =>
           venderCarrito(
             items, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId,
-            montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo,
+            montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo, totalAjustado,
           )}
       />
 

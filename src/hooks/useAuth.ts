@@ -6,9 +6,14 @@ const ROLE_KEY = 'rb_role'
 const EMPLEADO_ID_KEY = 'rb_empleado_id'
 const EMPLEADO_NOMBRE_KEY = 'rb_empleado_nombre'
 
+// sessionStorage, no localStorage: localStorage se comparte entre TODAS las
+// pestañas del navegador, así que dos empleados atendiendo a la vez en dos
+// pestañas (ej. Rocío y Bernardino los sábados) se pisaban la sesión el uno
+// al otro. sessionStorage es propio de cada pestaña — cada una mantiene su
+// propio empleado logueado sin afectar a las demás.
 function getStoredRole(): Role | null {
   try {
-    const saved = localStorage.getItem(ROLE_KEY)
+    const saved = sessionStorage.getItem(ROLE_KEY)
     return saved === 'empleado' || saved === 'dueno' || saved === 'atencion' ? saved : null
   } catch {
     return null
@@ -18,8 +23,8 @@ function getStoredRole(): Role | null {
 function getStoredEmpleado(): { id: string | null; nombre: string | null } {
   try {
     return {
-      id: localStorage.getItem(EMPLEADO_ID_KEY),
-      nombre: localStorage.getItem(EMPLEADO_NOMBRE_KEY),
+      id: sessionStorage.getItem(EMPLEADO_ID_KEY),
+      nombre: sessionStorage.getItem(EMPLEADO_NOMBRE_KEY),
     }
   } catch {
     return { id: null, nombre: null }
@@ -36,9 +41,9 @@ export function useAuth() {
   // cada empleado se haga cargo de ficharse sin depender de cerrar sesión.
   const loginEmpleado = useCallback(async (empleado: Empleado): Promise<void> => {
     try {
-      localStorage.setItem(ROLE_KEY, 'empleado')
-      localStorage.setItem(EMPLEADO_ID_KEY, empleado.id)
-      localStorage.setItem(EMPLEADO_NOMBRE_KEY, empleado.nombre)
+      sessionStorage.setItem(ROLE_KEY, 'empleado')
+      sessionStorage.setItem(EMPLEADO_ID_KEY, empleado.id)
+      sessionStorage.setItem(EMPLEADO_NOMBRE_KEY, empleado.nombre)
     } catch { /* noop */ }
     setRole('empleado')
     setEmpleadoId(empleado.id)
@@ -52,9 +57,9 @@ export function useAuth() {
   // igual que las que hace el dueño.
   const loginAtencion = useCallback(async (): Promise<void> => {
     try {
-      localStorage.setItem(ROLE_KEY, 'atencion')
-      localStorage.removeItem(EMPLEADO_ID_KEY)
-      localStorage.setItem(EMPLEADO_NOMBRE_KEY, 'Atención al público')
+      sessionStorage.setItem(ROLE_KEY, 'atencion')
+      sessionStorage.removeItem(EMPLEADO_ID_KEY)
+      sessionStorage.setItem(EMPLEADO_NOMBRE_KEY, 'Atención al público')
     } catch { /* noop */ }
     setRole('atencion')
     setEmpleadoId(null)
@@ -64,7 +69,7 @@ export function useAuth() {
   const loginDueno = useCallback(async (pin: string): Promise<boolean> => {
     const ok = await verifyOwnerPin(pin)
     if (ok) {
-      try { localStorage.setItem(ROLE_KEY, 'dueno') } catch { /* noop */ }
+      try { sessionStorage.setItem(ROLE_KEY, 'dueno') } catch { /* noop */ }
       setRole('dueno')
     } else {
       try { await logFailedOwnerAttempt() } catch { /* noop */ }
@@ -74,9 +79,9 @@ export function useAuth() {
 
   const logout = useCallback(async (): Promise<void> => {
     try {
-      localStorage.removeItem(ROLE_KEY)
-      localStorage.removeItem(EMPLEADO_ID_KEY)
-      localStorage.removeItem(EMPLEADO_NOMBRE_KEY)
+      sessionStorage.removeItem(ROLE_KEY)
+      sessionStorage.removeItem(EMPLEADO_ID_KEY)
+      sessionStorage.removeItem(EMPLEADO_NOMBRE_KEY)
     } catch { /* noop */ }
     setRole(null)
     setEmpleadoId(null)

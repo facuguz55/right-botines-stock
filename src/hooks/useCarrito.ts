@@ -4,9 +4,13 @@ import { getPrecioReal } from '../utils/precios'
 
 const CART_KEY = 'rb_carrito'
 
+// sessionStorage, no localStorage: con dos empleados vendiendo a la vez en
+// dos pestañas (ej. Rocío y Bernardino los sábados), un carrito en
+// localStorage se pisaba entre pestañas — el carrito de uno tapaba el del
+// otro. sessionStorage es propio de cada pestaña.
 function loadInitial(): CartItem[] {
   try {
-    const saved = localStorage.getItem(CART_KEY)
+    const saved = sessionStorage.getItem(CART_KEY)
     return saved ? JSON.parse(saved) : []
   } catch {
     return []
@@ -17,7 +21,7 @@ export function useCarrito() {
   const [items, setItems] = useState<CartItem[]>(loadInitial)
 
   useEffect(() => {
-    try { localStorage.setItem(CART_KEY, JSON.stringify(items)) } catch { /* noop */ }
+    try { sessionStorage.setItem(CART_KEY, JSON.stringify(items)) } catch { /* noop */ }
   }, [items])
 
   const addItem = useCallback((modelo: Modelo, talle: ModeloTalle, cantidad: number) => {

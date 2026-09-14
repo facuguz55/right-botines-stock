@@ -166,6 +166,35 @@ async function findExistingModeloByTNProduct(productId: number): Promise<{ id: s
   return rowsB[0]
 }
 
+// Borra localmente los modelos sincronizados de TN que ya no aparecen en el
+// listado completo de productos: cubre el caso en que el webhook
+// `product/deleted` no llegó (se perdió, falló, timeout) y el producto
+// quedó "fantasma" — visible como disponible acá aunque ya no exista en
+// TiendaNube. Solo se ejecuta cuando fetchAllTNProductsServerSide trajo
+// TODAS las páginas sin error (si hubiera fallado, ya lanzó antes de llegar
+// hasta acá), así que el set de IDs vigentes está completo y es seguro
+// borrar por diferencia.
+async function eliminarModelosYaNoExistentesEnTN(idsVigentes: Set<number>): Promise<{ eliminados: number; errores: string[] }> {
+  const res = await sbFetch('modelos?tn_product_id=not.is.null&select=id,tn_product_id')
+  const modelosSincronizados = await res.json() as { id: string; tn_product_id: number }[]
+
+  const huerfanos = modelosSincronizados.filter(m => !idsVigentes.has(m.tn_product_id))
+
+  let eliminados = 0
+  const errores: string[] = []
+  for (const m of huerfanos) {
+    try {
+      await sbFetch(`modelo_fotos?modelo_id=eq.${m.id}`, { method: 'DELETE' })
+      await sbFetch(`modelo_talles?modelo_id=eq.${m.id}`, { method: 'DELETE' })
+      await sbFetch(`modelos?id=eq.${m.id}`, { method: 'DELETE' })
+      eliminados++
+    } catch (err) {
+      errores.push(`borrado modelo ${m.id} (tn_product_id ${m.tn_product_id}): ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return { eliminados, errores }
+}
+
 async function upsertModeloFromTNProductREST(
   prod: TNRawProductMinimal,
   recargoPct: number | null,
@@ -354,7 +383,13 @@ export default async function handler(req: VercelReq, res: VercelRes): Promise<v
       })
     }
 
-    res.status(200).json({ ok: true, total: productos.length, actualizados: ok, errores })
+    const idsVigentes = new Set(productos.map(p => p.id))
+    const { eliminados, errores: erroresEliminacion } = await eliminarModelosYaNoExistentesEnTN(idsVigentes)
+
+    res.status(200).json({
+      ok: true, total: productos.length, actualizados: ok, errores,
+      eliminados, erroresEliminacion,
+    })
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err) })
   }

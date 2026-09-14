@@ -30,7 +30,7 @@ export function useTNSync(onSynced?: () => void) {
 
       const result: SyncResult = stockRes.status === 'fulfilled'
         ? stockRes.value
-        : { created: 0, updated: 0, imagesAdded: 0, total: 0, errors: [] }
+        : { created: 0, updated: 0, imagesAdded: 0, total: 0, deleted: 0, errors: [] }
 
       for (const [label, r] of [['órdenes', ordenesRes], ['clientes', clientesRes], ['cupones', cuponesRes]] as const) {
         if (r.status === 'rejected') {
@@ -44,7 +44,7 @@ export function useTNSync(onSynced?: () => void) {
       onSyncedRef.current?.()
     } catch (err) {
       setLastResult({
-        created: 0, updated: 0, imagesAdded: 0, total: 0,
+        created: 0, updated: 0, imagesAdded: 0, total: 0, deleted: 0,
         errors: [(err as Error).message ?? 'Error desconocido'],
       })
     } finally {

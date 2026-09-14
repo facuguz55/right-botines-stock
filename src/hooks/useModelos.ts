@@ -164,6 +164,7 @@ export function useModelos() {
     tarjeta: string | null, cuotas: number | null, recargoPct: number, empleadoId: string | null,
     montoEfectivo: number | null = null, montoTransferencia: number | null = null,
     montoRecibidoEfectivo: number | null = null, vueltoEfectivo: number | null = null,
+    totalAjustado: number | null = null,
   ) => {
     const resolved = items.map(item => {
       const modelo = modelos.find(m => m.id === item.modelo.id)
@@ -174,6 +175,7 @@ export function useModelos() {
     await sellCarrito(
       resolved, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId,
       montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo,
+      totalAjustado,
     )
 
     setModelos(prev => prev.map(m => {

@@ -4,7 +4,7 @@
 // respaldo (corre cada 1h, ver useTNSync.ts) para cubrir webhooks perdidos.
 
 import { supabase } from '../lib/supabase'
-import { fetchModelos, createModelo, updateModelo, upsertTalle, deleteTalle } from './modelos'
+import { fetchModelos, createModelo, updateModelo, upsertTalle, deleteTalle, deleteModelo } from './modelos'
 import { uploadFotoFromUrl } from './storage'
 import {
   fetchTNRawProducts, fetchTNProduct, updateTNVariant, createTNProduct,
@@ -23,6 +23,7 @@ export interface SyncResult {
   imagesAdded: number
   errors: string[]
   total: number
+  deleted: number
 }
 
 export { parseTalleArg }
@@ -151,7 +152,7 @@ export async function upsertModeloFromTNProduct(
 export async function syncTNStock(
   onProgress?: (msg: string) => void
 ): Promise<SyncResult> {
-  const result: SyncResult = { created: 0, updated: 0, imagesAdded: 0, errors: [], total: 0 }
+  const result: SyncResult = { created: 0, updated: 0, imagesAdded: 0, errors: [], total: 0, deleted: 0 }
 
   const { storeId, token } = getTNCredentials()
 
@@ -192,6 +193,26 @@ export async function syncTNStock(
       result.imagesAdded += imagesAdded
     } catch (err) {
       result.errors.push(`Producto ${prod.id}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  // Modelos sincronizados de TN que ya no aparecen en el catálogo: cubre el
+  // caso en que el webhook `product/deleted` no llegó (perdido, falló,
+  // timeout) y el producto quedó "fantasma" — disponible acá aunque ya no
+  // exista en TiendaNube. Seguro por diferencia porque tnProducts recién
+  // trajo el catálogo completo sin error (si hubiera fallado, ya se hubiera
+  // lanzado antes de llegar hasta acá).
+  onProgress?.('Revisando productos borrados en TiendaNube...')
+  const idsVigentes = new Set(tnProducts.map(p => String(p.id)))
+  const huerfanos = localModelos.filter(m => m.tn_product_id != null && !idsVigentes.has(String(m.tn_product_id)))
+  for (const m of huerfanos) {
+    try {
+      await supabase.from('modelo_fotos').delete().eq('modelo_id', m.id)
+      await supabase.from('modelo_talles').delete().eq('modelo_id', m.id)
+      await deleteModelo(m.id)
+      result.deleted++
+    } catch (err) {
+      result.errors.push(`Borrado modelo ${m.id} (tn_product_id ${m.tn_product_id}): ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 

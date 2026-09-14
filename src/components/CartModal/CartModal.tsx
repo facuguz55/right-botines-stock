@@ -16,7 +16,7 @@ interface CartModalProps {
   onSell: (
     items: CartItem[], medioPago: MedioPago, clienteId: string, tarjeta: string | null, cuotas: number | null,
     recargoPct: number, montoEfectivo: number | null, montoTransferencia: number | null,
-    montoRecibidoEfectivo: number | null, vueltoEfectivo: number | null,
+    montoRecibidoEfectivo: number | null, vueltoEfectivo: number | null, totalAjustado: number | null,
   ) => Promise<void>
 }
 
@@ -34,6 +34,9 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const [cuotas, setCuotas] = useState<number | null>(null)
   const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('')
   const [montoRecibidoEfectivo, setMontoRecibidoEfectivo] = useState('')
+  // Ajuste manual del total en efectivo (ej. redondear para abajo o un
+  // descuento puntual negociado). Vacío = usar el precio de lista tal cual.
+  const [totalAjustadoStr, setTotalAjustadoStr] = useState('')
   const [search, setSearch] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
@@ -68,9 +71,17 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const recargoPctMostrado = subtotal > 0 ? (recargo / subtotal) * 100 : recargoPct
 
   const esEfectivo = medioPago === 'Efectivo'
+  // Ajuste manual del total, solo para pago 100% en efectivo (ej. cobrar
+  // menos por un descuento negociado en el momento, o redondear). Vacío o
+  // inválido = se usa el precio de lista (`total`) sin tocar nada.
+  const totalAjustadoNum = totalAjustadoStr !== '' ? Number(totalAjustadoStr) : null
+  const ajusteInvalido = esEfectivo && totalAjustadoStr !== '' && (isNaN(totalAjustadoNum!) || totalAjustadoNum! < 0)
+  const totalFinal = esEfectivo && totalAjustadoNum != null && !ajusteInvalido ? totalAjustadoNum : total
+  const factorAjuste = total > 0 ? totalFinal / total : 1
+
   // Base sobre la que se calcula el vuelto: el total de la venta si es
   // 100% efectivo, o solo la porción en efectivo si es un pago mixto.
-  const baseEfectivo = esEfectivo ? total : esMixto ? montoEfectivoMixtoNum : 0
+  const baseEfectivo = esEfectivo ? totalFinal : esMixto ? montoEfectivoMixtoNum : 0
   const montoRecibidoEfectivoNum = montoRecibidoEfectivo ? Number(montoRecibidoEfectivo) : 0
   const hayRecibido = montoRecibidoEfectivo !== ''
   const vuelto = hayRecibido ? montoRecibidoEfectivoNum - baseEfectivo : 0
@@ -78,7 +89,8 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
   const ganancia = items.reduce((s, i) => {
     const precioFinal = esTarjeta && !faltaElegirRecargo ? getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct) : getPrecioReal(i.modelo)
-    return s + (precioFinal - i.modelo.precio_costo) * i.cantidad
+    const precioFinalAjustado = esEfectivo ? precioFinal * factorAjuste : precioFinal
+    return s + (precioFinalAjustado - i.modelo.precio_costo) * i.cantidad
   }, 0)
 
   const resetCliente = () => {
@@ -100,6 +112,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setCuotas(null)
     setMontoEfectivoMixto('')
     setMontoRecibidoEfectivo('')
+    setTotalAjustadoStr('')
     resetCliente()
     onClose()
   }
@@ -110,6 +123,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setCuotas(null)
     setMontoEfectivoMixto('')
     setMontoRecibidoEfectivo('')
+    setTotalAjustadoStr('')
   }
 
   const handleConfirm = async () => {
@@ -143,6 +157,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
         esMixto ? montoTransferenciaMixtoNum : null,
         (esEfectivo || esMixto) && hayRecibido ? montoRecibidoEfectivoNum : null,
         (esEfectivo || esMixto) && hayRecibido ? vuelto : null,
+        esEfectivo && totalAjustadoNum != null && !ajusteInvalido ? totalAjustadoNum : null,
       )
       clear()
       handleClose()
@@ -223,6 +238,28 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
             </div>
           )}
 
+          {esEfectivo && (
+            <div className="sell-section">
+              <p className="sell-label">Ajustar total a cobrar (opcional)</p>
+              <div className="config-input-wrap">
+                <input
+                  type="number" className="config-input" min={0}
+                  value={totalAjustadoStr} onChange={e => { setTotalAjustadoStr(e.target.value); setMontoRecibidoEfectivo('') }}
+                  placeholder={`${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })} (precio de lista)`}
+                />
+                <span className="config-input-suffix">ARS</span>
+              </div>
+              {ajusteInvalido && (
+                <p className="sell-error">El monto tiene que ser un número positivo.</p>
+              )}
+              {!ajusteInvalido && totalAjustadoStr !== '' && totalFinal !== total && (
+                <p className="sell-mixto-resto">
+                  {totalFinal < total ? 'Descuento' : 'Recargo'} de <strong>${Math.abs(total - totalFinal).toLocaleString('es-AR', { maximumFractionDigits: 0 })}</strong> sobre el precio de lista.
+                </p>
+              )}
+            </div>
+          )}
+
           {(esEfectivo || (esMixto && montoEfectivoMixtoNum > 0)) && (
             <div className="sell-section">
               <p className="sell-label">¿Con cuánto paga el cliente? (opcional)</p>
@@ -246,7 +283,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
           <div className="sell-stats">
             <div className="sell-stat"><span>Subtotal</span><span className="sell-stat-val">${subtotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
-            <div className="sell-stat"><span>Total</span><span className="sell-stat-val accent">${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
+            <div className="sell-stat"><span>Total</span><span className="sell-stat-val accent">${totalFinal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
             <div className="sell-stat"><span>Ganancia estimada</span><span className={`sell-stat-val ${ganancia >= 0 ? 'accent' : 'danger'}`}>${ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span></div>
           </div>
 
@@ -256,7 +293,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
           <div className="sell-actions">
             <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
-            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={!medioPago || faltaElegirRecargo || mixtoInvalido || recibidoInvalido}>
+            <button className="btn btn-primary" onClick={() => setStep('cliente')} disabled={!medioPago || faltaElegirRecargo || mixtoInvalido || recibidoInvalido || ajusteInvalido}>
               Continuar →
             </button>
           </div>

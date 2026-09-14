@@ -93,11 +93,23 @@ export async function sellCarrito(
   montoTransferencia: number | null = null,
   montoRecibidoEfectivo: number | null = null,
   vueltoEfectivo: number | null = null,
+  // Permite cobrar un total distinto al calculado (ej. un descuento puntual
+  // negociado en efectivo). Se aplica como factor proporcional sobre el
+  // precio de cada línea, para no perder el desglose por producto en
+  // `ventas`. null = usar el precio de lista tal cual, sin ajuste.
+  totalAjustado: number | null = null,
 ): Promise<void> {
   const ventaGrupoId = crypto.randomUUID()
   const esTarjeta = medioPago === 'Tarjeta'
   const esMixto = medioPago === 'Mixto'
   const esEfectivo = medioPago === 'Efectivo'
+
+  const totalListaOriginal = items.reduce((s, { modelo, cantidad }) => {
+    const precioBase = getPrecioReal(modelo)
+    const precioFinal = esTarjeta ? getPrecioConRecargo(modelo, tarjeta, cuotas, recargoPct) : precioBase
+    return s + precioFinal * cantidad
+  }, 0)
+  const factorAjuste = totalAjustado != null && totalListaOriginal > 0 ? totalAjustado / totalListaOriginal : 1
 
   for (const { modelo, talleId, cantidad } of items) {
     const talle = modelo.modelo_talles.find(t => t.id === talleId)
@@ -111,12 +123,15 @@ export async function sellCarrito(
     if (upErr) throw upErr
 
     const precioBase = getPrecioReal(modelo)
-    const precioFinal = esTarjeta ? getPrecioConRecargo(modelo, tarjeta, cuotas, recargoPct) : precioBase
-    const recargo = esTarjeta ? precioFinal - precioBase : null
+    const precioListaFinal = esTarjeta ? getPrecioConRecargo(modelo, tarjeta, cuotas, recargoPct) : precioBase
+    // Redondeado al peso: evita centavos sueltos por el prorrateo del ajuste.
+    const precioFinal = Math.round(precioListaFinal * factorAjuste)
+    const recargo = esTarjeta ? precioListaFinal - precioBase : null
     const esPromo = tieneDescuentoPromocional(modelo)
     const descuentoPctAplicado = esPromo
       ? Math.round((1 - modelo.precio_promocional! / modelo.precio_venta) * 1000) / 10
       : null
+    const ajusteManualPct = factorAjuste !== 1 ? Math.round((1 - factorAjuste) * 1000) / 10 : null
 
     const filas = Array.from({ length: cantidad }, () => ({
       modelo_id: modelo.id,
@@ -129,6 +144,7 @@ export async function sellCarrito(
       venta_grupo_id: ventaGrupoId,
       precio_tipo: esPromo ? 'promocional' : 'lista',
       descuento_pct_aplicado: descuentoPctAplicado,
+      ajuste_manual_pct: ajusteManualPct,
       tarjeta: esTarjeta ? tarjeta : null,
       cuotas: esTarjeta ? cuotas : null,
       empleado_id: empleadoId,

@@ -58,6 +58,7 @@ export interface Venta {
   venta_grupo_id: string | null
   precio_tipo?: 'lista' | 'promocional' | null
   descuento_pct_aplicado?: number | null
+  ajuste_manual_pct?: number | null
   tarjeta?: string | null
   cuotas?: number | null
   empleado_id?: string | null
