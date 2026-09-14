@@ -1,4 +1,4 @@
-import type { Modelo, RecargoTarjeta } from '../types'
+import type { CartItem, Modelo, RecargoTarjeta } from '../types'
 
 // El "Promocional" de TiendaNube (precio_promocional) es el precio CON
 // TARJETA de cada producto, no el de efectivo. Cuando ese campo no está
@@ -14,6 +14,12 @@ export function getPrecioReal(modelo: Modelo): number {
 
 export function tieneDescuentoPromocional(modelo: Modelo): boolean {
   return getPrecioReal(modelo) < modelo.precio_venta
+}
+
+// Precio unitario efectivo de un ítem del carrito: el editado a mano si lo
+// hay, si no el normal del modelo (lista/promocional).
+export function getPrecioItem(item: Pick<CartItem, 'modelo' | 'precioManual'>): number {
+  return item.precioManual ?? getPrecioReal(item.modelo)
 }
 
 // Recargo fijo usado mientras no haya ningún recargo por tarjeta/cuotas
@@ -41,9 +47,14 @@ export function getRecargoPct(recargos: RecargoTarjeta[], tarjeta: string | null
 // tnMapping.ts). Para ese caso puntual se usa ese valor ya sincronizado en
 // vez del % genérico de recargos_tarjeta, así el local cobra exactamente lo
 // mismo que muestra la web pública.
+// precioBaseOverride: cuando el precio se editó a mano al vender, ese valor
+// manda por completo — incluida la excepción de Crédito 3 cuotas, que solo
+// tiene sentido cuando se está cobrando el precio normal del modelo.
 export function getPrecioConRecargo(
   modelo: Modelo, tarjeta: string | null, cuotas: number | null, recargoPct: number,
+  precioBaseOverride?: number | null,
 ): number {
+  if (precioBaseOverride != null) return precioBaseOverride * (1 + recargoPct / 100)
   if (tarjeta === 'Crédito' && cuotas === 3) {
     return modelo.precio_promocional ?? modelo.precio_venta
   }

@@ -253,7 +253,10 @@ export function VentasHistory({ role }: VentasHistoryProps) {
                       </span>
                     )}
                   </td>
-                  <td className="price-cell">${v.precio_venta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
+                  <td className="price-cell">
+                    ${v.precio_venta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                    {v.precio_editado && <span className="precio-editado-tag" title="El precio se editó a mano al vender">editado</span>}
+                  </td>
                   {puedeVerMontos && (
                     <td className={`ganancia-cell ${v.ganancia >= 0 ? 'positive' : 'negative'}`}>${v.ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
                   )}

@@ -60,6 +60,18 @@
   text-overflow: ellipsis;
 }
 
+.venta-en-curso-editado-tag {
+  margin-left: .35rem;
+  font-size: .625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  background: var(--warning-dim);
+  color: var(--warning);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
 .venta-en-curso-item-detail {
   color: var(--text-secondary);
   white-space: nowrap;

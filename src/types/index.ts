@@ -12,6 +12,11 @@ export interface ModeloTalle {
   talle_us: number
   talle_arg: number
   cantidad: number
+  // Cuánto de "cantidad" (el total) está físicamente en el local ahora
+  // mismo — el resto (cantidad - cantidad_local) está en el depósito.
+  // Opcional porque tiene default 0 en la base: los talles se crean sin
+  // saber nada de esto (TN sync, import de Excel, alta manual).
+  cantidad_local?: number
   stock_minimo: number
   tn_variant_id?: number | null
 }
@@ -58,7 +63,7 @@ export interface Venta {
   venta_grupo_id: string | null
   precio_tipo?: 'lista' | 'promocional' | null
   descuento_pct_aplicado?: number | null
-  ajuste_manual_pct?: number | null
+  precio_editado?: boolean
   tarjeta?: string | null
   cuotas?: number | null
   empleado_id?: string | null
@@ -87,6 +92,9 @@ export interface CartItem {
   talleArg: number
   talleUs: number
   cantidad: number
+  // Precio de venta editado a mano al vender, distinto del de lista/promocional.
+  // null/undefined = se usa el precio normal del modelo (getPrecioReal).
+  precioManual?: number | null
 }
 
 export interface TopModelo {
@@ -122,6 +130,7 @@ export type ActivePage =
   | 'empleados' | 'caja'
   | 'proveedores' | 'devoluciones'
   | 'crm_inbox' | 'crm_dashboard'
+  | 'mis_horas'
 
 // Para importación TiendaNube
 export interface TiendaNubeModelo {
@@ -298,6 +307,7 @@ export interface ConfiguracionFichajes {
   id: number
   hora_limite_cierre: string
   horas_maximas_turno: number
+  hora_corte_turno: string | null
   updated_at: string
 }
 

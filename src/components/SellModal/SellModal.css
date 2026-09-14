@@ -9,6 +9,20 @@
 .sell-section { display: flex; flex-direction: column; gap: .5rem; }
 .sell-label { font-size: .8125rem; color: var(--text-secondary); font-weight: 500; }
 
+.sell-precio-editado-tag {
+  display: inline-block;
+  margin-left: .4rem;
+  font-size: .625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  background: var(--warning-dim);
+  color: var(--warning);
+  padding: 1px 5px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
 /* Talle selector */
 .talle-selector { display: flex; flex-wrap: wrap; gap: .5rem; }
 .talle-btn {

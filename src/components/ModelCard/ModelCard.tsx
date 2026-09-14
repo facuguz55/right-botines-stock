@@ -1,5 +1,5 @@
 import { memo, useState } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Truck } from 'lucide-react'
 import type { Modelo } from '../../types'
 import { getPrecioReal } from '../../utils/precios'
 import { ImageLightbox } from '../ImageLightbox/ImageLightbox'
@@ -14,10 +14,11 @@ interface ModelCardProps {
   onEdit: (modelo: Modelo) => void
   onDelete: (modelo: Modelo) => void
   onIngreso: (modelo: Modelo) => void
+  onReponer: (modelo: Modelo) => void
   onPriceHistory: (modelo: Modelo) => void
 }
 
-export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onPriceHistory }: ModelCardProps) {
+export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onReponer, onPriceHistory }: ModelCardProps) {
   const totalPares = modelo.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
   const agotado = totalPares === 0
   const ultimoPar = !agotado && totalPares === 1
@@ -70,9 +71,9 @@ export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, pu
               <span
                 key={t.id}
                 className={`talle-chip ${t.cantidad === 0 ? 'agotado' : t.cantidad === 1 ? 'ultimo' : t.cantidad <= t.stock_minimo ? 'bajo' : ''}`}
-                title={`Talle ${t.talle_arg} arg / ${t.talle_us} us`}
+                title={`Talle ${t.talle_arg} arg / ${t.talle_us} us — ${t.cantidad_local ?? 0} en el local de ${t.cantidad} en total`}
               >
-                {t.talle_arg}×{t.cantidad}
+                {t.talle_arg}×{t.cantidad_local ?? 0}/{t.cantidad}
               </span>
             ))
           )}
@@ -109,6 +110,9 @@ export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, pu
             <>
               <button className="btn btn-secondary btn-sm" onClick={() => onIngreso(modelo)}>
                 + Stock
+              </button>
+              <button className="btn btn-secondary btn-sm icon-btn" onClick={() => onReponer(modelo)} title="Reponer stock en el local">
+                <Truck size={14} />
               </button>
               <button className="btn btn-secondary btn-sm icon-btn" onClick={() => onEdit(modelo)}><Pencil size={14} /></button>
               <button className="btn btn-danger btn-sm icon-btn" onClick={() => onDelete(modelo)}><Trash2 size={14} /></button>

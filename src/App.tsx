@@ -14,6 +14,7 @@ import { ClientesLocales } from './components/ClientesLocales/ClientesLocales'
 import { IngresoPage } from './components/IngresoPage/IngresoPage'
 import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
+import { ReponerStock } from './components/ReponerStock/ReponerStock'
 import { PhotoSearch } from './components/PhotoSearch/PhotoSearch'
 import { TiendaNubeImport } from './components/TiendaNubeImport/TiendaNubeImport'
 import { ImportFotos } from './components/ImportFotos/ImportFotos'
@@ -32,6 +33,7 @@ import { TNCupones } from './components/TNCupones/TNCupones'
 import { TNMails } from './components/TNMails/TNMails'
 import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
 import { Empleados } from './components/Empleados/Empleados'
+import { MisHoras } from './components/MisHoras/MisHoras'
 import { Caja } from './components/Caja/Caja'
 import { Proveedores } from './components/Proveedores/Proveedores'
 import { Devoluciones } from './components/Devoluciones/Devoluciones'
@@ -46,6 +48,7 @@ import { useProveedores } from './hooks/useProveedores'
 import { useFichajeActual } from './hooks/useFichajeActual'
 import { fetchConfiguracionFichajes } from './services/configuracionFichajes'
 import { cerrarFichajesVencidos } from './services/fichajes'
+import { cerrarCajaPorCorteDeTurno } from './services/caja'
 import { AiChat } from './components/AiChat/AiChat'
 import CrmInbox from './components/CRM/CrmInbox/CrmInbox'
 import { CrmDashboard } from './components/CRM/CrmDashboard/CrmDashboard'
@@ -89,14 +92,26 @@ export function App() {
   useEffect(() => { restoreAccent() }, [])
   useEffect(() => { setupGlobalErrorHandler() }, [])
 
-  // Barrido de fichajes abandonados de días anteriores (nadie hizo logout).
-  // Corre una sola vez al abrir la app, con la hora límite configurada en
-  // Empleados — no depende de ningún cron ni de que quede una pestaña
-  // abierta a propósito, solo de que alguien entre a la app al otro día.
+  // Barrido de fichajes abandonados y corte de turno (ej. mediodía): cierra
+  // fichajes de días anteriores, fichajes de hoy vencidos, y si corresponde
+  // corta la caja abierta en la hora de corte configurada — así el turno
+  // siguiente no hereda el efectivo acumulado del anterior (ver
+  // services/fichajes.ts y services/caja.ts). Corre al abrir la app y cada
+  // 5 minutos mientras sigue abierta (la app suele quedar prendida todo el
+  // día en el mostrador, así que no alcanza con correr una sola vez al
+  // cargar); no depende de ningún cron.
   useEffect(() => {
-    fetchConfiguracionFichajes()
-      .then(cfg => cerrarFichajesVencidos(cfg.hora_limite_cierre, cfg.horas_maximas_turno))
-      .catch(() => { /* no bloquea el arranque de la app si falla */ })
+    const barrer = () => {
+      fetchConfiguracionFichajes()
+        .then(async cfg => {
+          await cerrarFichajesVencidos(cfg.hora_limite_cierre, cfg.horas_maximas_turno, cfg.hora_corte_turno)
+          await cerrarCajaPorCorteDeTurno(cfg.hora_corte_turno)
+        })
+        .catch(() => { /* no bloquea el arranque de la app si falla */ })
+    }
+    barrer()
+    const id = setInterval(barrer, 5 * 60 * 1000)
+    return () => clearInterval(id)
   }, [])
 
   // Si el rol cambia (ej: se pierde el acceso dueño) y la página activa quedó
@@ -132,6 +147,7 @@ export function App() {
   const [editTarget, setEditTarget] = useState<Modelo | null>(null)
   const [sellTarget, setSellTarget] = useState<Modelo | null>(null)
   const [ingresoTarget, setIngresoTarget] = useState<Modelo | null>(null)
+  const [reponerTarget, setReponerTarget] = useState<Modelo | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Modelo | null>(null)
   const [priceHistoryTarget, setPriceHistoryTarget] = useState<Modelo | null>(null)
   const [showPhotoSearch, setShowPhotoSearch] = useState(false)
@@ -231,6 +247,7 @@ export function App() {
             onEdit={handleEdit}
             onDelete={setDeleteTarget}
             onIngreso={setIngresoTarget}
+            onReponer={setReponerTarget}
             onPriceHistory={setPriceHistoryTarget}
             onAdd={handleAdd}
             onPhotoSearch={() => setShowPhotoSearch(true)}
@@ -274,6 +291,9 @@ export function App() {
       {activePage === 'empleados' && role === 'dueno' && (
         <Empleados empleadosHook={empleadosHook} />
       )}
+      {activePage === 'mis_horas' && role === 'empleado' && (
+        <MisHoras empleadoId={empleadoId} />
+      )}
       {activePage === 'caja' && (
         <Caja empleadoId={empleadoId} empleadoNombre={empleadoNombre} role={role} />
       )}
@@ -314,7 +334,7 @@ export function App() {
       <SellModal
         modelo={sellTarget}
         onClose={() => setSellTarget(null)}
-        onAdd={(modelo, talle, cantidad) => carrito.addItem(modelo, talle, cantidad)}
+        onAdd={(modelo, talle, cantidad, precioManual) => carrito.addItem(modelo, talle, cantidad, precioManual)}
       />
 
       <CartModal
@@ -325,10 +345,10 @@ export function App() {
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
-        onSell={(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo, totalAjustado) =>
+        onSell={(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo) =>
           venderCarrito(
             items, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId,
-            montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo, totalAjustado,
+            montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo,
           )}
       />
 
@@ -351,6 +371,12 @@ export function App() {
       <PriceHistoryModal
         modelo={priceHistoryTarget}
         onClose={() => setPriceHistoryTarget(null)}
+      />
+
+      <ReponerStock
+        modelo={reponerTarget ? modelos.find(m => m.id === reponerTarget.id) ?? null : null}
+        onClose={() => setReponerTarget(null)}
+        onDone={reload}
       />
 
       <PhotoSearch

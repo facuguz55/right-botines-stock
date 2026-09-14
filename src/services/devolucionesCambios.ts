@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase'
 import type { DevolucionCambio, MedioPago, TipoDevolucionCambio } from '../types'
-import { ajustarStockTalle } from './modelos'
 
 const SELECT = `*,
   modelo_original:modelos!devoluciones_cambios_modelo_id_original_fkey(modelo, marca),
@@ -19,51 +18,29 @@ export async function fetchDevolucionesCambios(startDate?: string, endDate?: str
 export interface RegistrarDevolucionCambioInput {
   tipo: TipoDevolucionCambio
   ventaId: string | null
-  modeloIdOriginal: string
   talleIdOriginal: string
-  talleArgOriginal: number
-  cantidadActualOriginal: number
   cantidad: number
-  modeloIdNuevo: string | null
   talleIdNuevo: string | null
-  talleArgNuevo: number | null
-  cantidadActualNuevo: number | null
   montoDiferencia: number
   medioPagoDiferencia: MedioPago | null
   motivo: string
   empleadoId: string | null
 }
 
+// El ajuste de stock (atómico) y el chequeo de caja/fichaje viven en
+// registrar_devolucion_cambio (supabase/migrations/028_venta_y_devolucion_atomicas.sql),
+// con el mismo criterio que registrar_venta_carrito.
 export async function registrarDevolucionCambio(input: RegistrarDevolucionCambioInput): Promise<void> {
-  if (input.tipo === 'cambio') {
-    if (!input.talleIdNuevo || input.cantidadActualNuevo == null) {
-      throw new Error('Falta elegir el talle nuevo para el cambio')
-    }
-    if (input.cantidad > input.cantidadActualNuevo) {
-      throw new Error('No hay stock suficiente del talle nuevo')
-    }
-  }
-
-  // Suma stock del talle devuelto.
-  await ajustarStockTalle(input.talleIdOriginal, input.cantidadActualOriginal, input.cantidad)
-
-  // Resta stock del talle nuevo (solo cambio).
-  if (input.tipo === 'cambio' && input.talleIdNuevo && input.cantidadActualNuevo != null) {
-    await ajustarStockTalle(input.talleIdNuevo, input.cantidadActualNuevo, -input.cantidad)
-  }
-
-  const { error } = await supabase.from('devoluciones_cambios').insert([{
-    tipo: input.tipo,
-    venta_id: input.ventaId,
-    modelo_id_original: input.modeloIdOriginal,
-    talle_arg_original: input.talleArgOriginal,
-    cantidad: input.cantidad,
-    modelo_id_nuevo: input.tipo === 'cambio' ? input.modeloIdNuevo : null,
-    talle_arg_nuevo: input.tipo === 'cambio' ? input.talleArgNuevo : null,
-    monto_diferencia: input.montoDiferencia,
-    medio_pago_diferencia: input.montoDiferencia !== 0 ? input.medioPagoDiferencia : null,
-    motivo: input.motivo,
-    empleado_id: input.empleadoId,
-  }])
+  const { error } = await supabase.rpc('registrar_devolucion_cambio', {
+    p_tipo: input.tipo,
+    p_venta_id: input.ventaId,
+    p_talle_id_original: input.talleIdOriginal,
+    p_cantidad: input.cantidad,
+    p_talle_id_nuevo: input.tipo === 'cambio' ? input.talleIdNuevo : null,
+    p_monto_diferencia: input.montoDiferencia,
+    p_medio_pago_diferencia: input.montoDiferencia !== 0 ? input.medioPagoDiferencia : null,
+    p_motivo: input.motivo,
+    p_empleado_id: input.empleadoId,
+  })
   if (error) throw error
 }

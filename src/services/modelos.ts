@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase'
 import type { Modelo, ModeloTalle, MedioPago } from '../types'
-import { getPrecioReal, tieneDescuentoPromocional, getPrecioConRecargo } from '../utils/precios'
 
 type ModeloInput = Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>
 
@@ -81,8 +80,25 @@ export async function deleteTalle(id: string): Promise<void> {
   if (error) throw error
 }
 
+// Mueve pares del depósito al local ("reponer el mostrador"). Nunca deja
+// mover más de lo que hay en depósito — ver reponer_stock_local en
+// supabase/migrations/029_stock_local_vs_deposito.sql.
+export async function reponerStockLocal(talleId: string, cantidad: number): Promise<number> {
+  const { data, error } = await supabase.rpc('reponer_stock_local', {
+    p_talle_id: talleId,
+    p_cantidad: cantidad,
+  })
+  if (error) throw error
+  return data as number
+}
+
+// El descuento de stock y el chequeo de caja/fichaje viven en la función
+// registrar_venta_carrito (supabase/migrations/028_venta_y_devolucion_atomicas.sql):
+// hacerlo en la base evita la condición de carrera de restar stock leído en
+// el cliente, y evita que el chequeo de caja se pueda saltear llamando a la
+// API directo. Acá solo se arma el payload.
 export async function sellCarrito(
-  items: { modelo: Modelo; talleId: string; cantidad: number }[],
+  items: { modelo: Modelo; talleId: string; cantidad: number; precioManual?: number | null }[],
   medioPago: MedioPago,
   clienteId: string,
   tarjeta: string | null,
@@ -93,83 +109,24 @@ export async function sellCarrito(
   montoTransferencia: number | null = null,
   montoRecibidoEfectivo: number | null = null,
   vueltoEfectivo: number | null = null,
-  // Permite cobrar un total distinto al calculado (ej. un descuento puntual
-  // negociado en efectivo). Se aplica como factor proporcional sobre el
-  // precio de cada línea, para no perder el desglose por producto en
-  // `ventas`. null = usar el precio de lista tal cual, sin ajuste.
-  totalAjustado: number | null = null,
 ): Promise<void> {
-  const ventaGrupoId = crypto.randomUUID()
-  const esTarjeta = medioPago === 'Tarjeta'
-  const esMixto = medioPago === 'Mixto'
-  const esEfectivo = medioPago === 'Efectivo'
-
-  const totalListaOriginal = items.reduce((s, { modelo, cantidad }) => {
-    const precioBase = getPrecioReal(modelo)
-    const precioFinal = esTarjeta ? getPrecioConRecargo(modelo, tarjeta, cuotas, recargoPct) : precioBase
-    return s + precioFinal * cantidad
-  }, 0)
-  const factorAjuste = totalAjustado != null && totalListaOriginal > 0 ? totalAjustado / totalListaOriginal : 1
-
-  for (const { modelo, talleId, cantidad } of items) {
-    const talle = modelo.modelo_talles.find(t => t.id === talleId)
-    if (!talle) throw new Error(`Talle no encontrado para ${modelo.modelo}`)
-    if (cantidad > talle.cantidad) throw new Error(`No hay stock suficiente de ${modelo.modelo} (talle ${talle.talle_arg})`)
-
-    const { error: upErr } = await supabase
-      .from('modelo_talles')
-      .update({ cantidad: talle.cantidad - cantidad })
-      .eq('id', talleId)
-    if (upErr) throw upErr
-
-    const precioBase = getPrecioReal(modelo)
-    const precioListaFinal = esTarjeta ? getPrecioConRecargo(modelo, tarjeta, cuotas, recargoPct) : precioBase
-    // Redondeado al peso: evita centavos sueltos por el prorrateo del ajuste.
-    const precioFinal = Math.round(precioListaFinal * factorAjuste)
-    const recargo = esTarjeta ? precioListaFinal - precioBase : null
-    const esPromo = tieneDescuentoPromocional(modelo)
-    const descuentoPctAplicado = esPromo
-      ? Math.round((1 - modelo.precio_promocional! / modelo.precio_venta) * 1000) / 10
-      : null
-    const ajusteManualPct = factorAjuste !== 1 ? Math.round((1 - factorAjuste) * 1000) / 10 : null
-
-    const filas = Array.from({ length: cantidad }, () => ({
-      modelo_id: modelo.id,
-      talle_arg: talle.talle_arg,
-      precio_venta: precioFinal,
-      medio_pago: medioPago,
-      recargo_tarjeta: recargo,
-      ganancia: precioFinal - modelo.precio_costo,
-      cliente_id: clienteId,
-      venta_grupo_id: ventaGrupoId,
-      precio_tipo: esPromo ? 'promocional' : 'lista',
-      descuento_pct_aplicado: descuentoPctAplicado,
-      ajuste_manual_pct: ajusteManualPct,
-      tarjeta: esTarjeta ? tarjeta : null,
-      cuotas: esTarjeta ? cuotas : null,
-      empleado_id: empleadoId,
-      monto_efectivo: esMixto ? montoEfectivo : null,
-      monto_transferencia: esMixto ? montoTransferencia : null,
-      monto_recibido_efectivo: esEfectivo || esMixto ? montoRecibidoEfectivo : null,
-      vuelto_efectivo: esEfectivo || esMixto ? vueltoEfectivo : null,
-    }))
-
-    const { error: ventaErr } = await supabase.from('ventas').insert(filas)
-    if (ventaErr) throw ventaErr
-  }
-}
-
-// Corrección de stock por devolución/cambio (no es un ingreso de mercadería,
-// no se registra en la tabla `ingresos`).
-export async function ajustarStockTalle(
-  talleId: string,
-  cantidadActual: number,
-  delta: number,
-): Promise<void> {
-  const { error } = await supabase
-    .from('modelo_talles')
-    .update({ cantidad: cantidadActual + delta })
-    .eq('id', talleId)
+  const { error } = await supabase.rpc('registrar_venta_carrito', {
+    p_items: items.map(({ talleId, cantidad, precioManual }) => ({
+      talle_id: talleId,
+      cantidad,
+      precio_manual: precioManual ?? null,
+    })),
+    p_medio_pago: medioPago,
+    p_cliente_id: clienteId,
+    p_tarjeta: tarjeta,
+    p_cuotas: cuotas,
+    p_recargo_pct: recargoPct,
+    p_empleado_id: empleadoId,
+    p_monto_efectivo: montoEfectivo,
+    p_monto_transferencia: montoTransferencia,
+    p_monto_recibido_efectivo: montoRecibidoEfectivo,
+    p_vuelto_efectivo: vueltoEfectivo,
+  })
   if (error) throw error
 }
 

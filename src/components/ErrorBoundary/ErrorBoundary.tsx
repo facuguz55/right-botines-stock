@@ -1,0 +1,39 @@
+import { Component, type ReactNode } from 'react'
+import { reportError } from '../../services/errorReporter'
+
+interface ErrorBoundaryProps {
+  children: ReactNode
+  fallback?: ReactNode
+}
+
+interface ErrorBoundaryState {
+  error: Error | null
+}
+
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { error: null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    reportError({
+      donde: 'ErrorBoundary',
+      mensaje: error.message,
+      stack: error.stack,
+      detalle: { componentStack: info.componentStack },
+    })
+  }
+
+  render() {
+    if (this.state.error) {
+      return this.props.fallback ?? (
+        <div style={{ padding: 24 }}>
+          <p>Algo salió mal. Ya lo estamos investigando.</p>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
