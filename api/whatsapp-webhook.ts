@@ -4,9 +4,36 @@ const SB_URL = process.env.SUPABASE_URL ?? ''
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
 const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN ?? ''
 const WA_PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID ?? ''
+const WA_APP_SECRET = process.env.WA_APP_SECRET ?? ''
 const AI_API_KEY = process.env.AI_API_KEY ?? ''
 const AI_API_URL = process.env.AI_API_URL ?? ''
 const AI_MODEL = process.env.AI_MODEL ?? ''
+
+// Verifica que el POST venga realmente de Meta: recalcula el HMAC-SHA256 del
+// body crudo con el App Secret y lo compara contra el header que manda Meta
+// (mismo patrón que verifyHmac en api/tn-webhook.ts, adaptado al formato hex
+// con prefijo "sha256=" que usa Meta en vez del base64 de TiendaNube).
+// Falla CERRADO si falta el secret (el handler ya corta antes con 503 en ese
+// caso, así que llegar acá sin WA_APP_SECRET no debería pasar — pero un
+// "true" por defecto aceptaría cualquier POST sin firma si algo cambia el
+// orden de los chequeos más adelante).
+async function verifyMetaSignature(req: Request, rawBody: string): Promise<boolean> {
+  if (!WA_APP_SECRET) return false
+  const header = req.headers.get('x-hub-signature-256') ?? ''
+  const expectedPrefix = 'sha256='
+  if (!header.startsWith(expectedPrefix)) return false
+  const sigHex = header.slice(expectedPrefix.length)
+  try {
+    const enc = new TextEncoder()
+    const key = await crypto.subtle.importKey('raw', enc.encode(WA_APP_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    const digest = await crypto.subtle.sign('HMAC', key, enc.encode(rawBody))
+    const computedHex = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('')
+    if (computedHex.length !== sigHex.length) return false
+    let diff = 0
+    for (let i = 0; i < computedHex.length; i++) diff |= computedHex.charCodeAt(i) ^ sigHex.charCodeAt(i)
+    return diff === 0
+  } catch { return false }
+}
 
 async function sbFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -125,8 +152,21 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response('Method not allowed', { status: 405 })
   }
 
+  if (!WA_APP_SECRET) {
+    return new Response(JSON.stringify({ error: 'Webhook no configurado (falta WA_APP_SECRET)' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   try {
-    const body = await req.json() as {
+    const rawBody = await req.text()
+
+    if (!await verifyMetaSignature(req, rawBody)) {
+      return new Response('Invalid signature', { status: 401 })
+    }
+
+    const body = JSON.parse(rawBody) as {
       entry?: {
         changes?: {
           value?: {

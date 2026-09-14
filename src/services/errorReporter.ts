@@ -1,7 +1,7 @@
-const ENDPOINT = import.meta.env.VITE_ERROR_WEBHOOK_URL
-const SECRET = import.meta.env.VITE_ERROR_WEBHOOK_SECRET
-
-const APP_NAME = 'right-botines-stock'
+// El cliente nunca ve el secreto del webhook de Nova Agency OS: llama a
+// nuestro propio endpoint server-side (/api/report-error), que reenvía con
+// el secreto guardado como variable de entorno sin prefijo VITE_.
+const PROXY_ENDPOINT = '/api/report-error'
 
 interface ErrorReport {
   donde: string
@@ -20,22 +20,16 @@ function dedup(key: string): boolean {
 }
 
 export async function reportError(report: ErrorReport): Promise<void> {
-  if (!ENDPOINT || !SECRET) return
-
   const key = `${report.donde}:${report.mensaje ?? ''}`
   if (!dedup(key)) return
 
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
   try {
-    await fetch(ENDPOINT, {
+    await fetch(PROXY_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SECRET}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        app: APP_NAME,
         asunto: `[${report.donde}] ${report.mensaje?.slice(0, 120) ?? 'Error'}`,
         error: {
           id,
@@ -54,19 +48,13 @@ export async function reportError(report: ErrorReport): Promise<void> {
 }
 
 export async function reportFeedback(descripcion: string, donde: string): Promise<void> {
-  if (!ENDPOINT || !SECRET) return
-
   const id = `feedback-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
   try {
-    await fetch(ENDPOINT, {
+    await fetch(PROXY_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SECRET}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        app: APP_NAME,
         asunto: `[Feedback] ${descripcion.slice(0, 120)}`,
         error: {
           id,
