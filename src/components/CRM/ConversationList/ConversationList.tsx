@@ -45,7 +45,15 @@ export default function ConversationList({
   return (
     <div className="conv-list">
       <div className="conv-list-header">
-        <h2 className="conv-list-title">WhatsApp</h2>
+        <h2 className="conv-list-title">
+          <span className="conv-list-title-icon">
+            <MessageCircle size={16} />
+          </span>
+          WhatsApp
+        </h2>
+        {conversaciones.length > 0 && (
+          <span className="conv-list-count">{conversaciones.length}</span>
+        )}
       </div>
 
       <div className="conv-list-search">

@@ -2,7 +2,11 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-primary);
+  background:
+    radial-gradient(circle at 30% 20%, #22D3EE0D, transparent 40%),
+    radial-gradient(circle at 80% 75%, #F9731610, transparent 40%),
+    radial-gradient(var(--border) 1px, transparent 1px) 0 0 / 28px 28px,
+    var(--bg-primary);
 }
 
 /* ── Estado vacío ── */
@@ -12,36 +16,59 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 16px;
+  gap: 20px;
   padding: 40px;
 }
 
+/* Ondas concéntricas alrededor del ícono, como "esperando señal" — le dan
+   presencia al centro sin depender de que el contenedor sea chico. */
 .chat-panel-empty-icon {
-  width: 80px;
-  height: 80px;
+  position: relative;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: linear-gradient(160deg, var(--bg-surface-2), var(--bg-surface));
+  border: 1px solid #22D3EE33;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: #22D3EE;
+  box-shadow: 0 0 0 1px var(--border), 0 20px 50px -18px #22D3EE40, inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+.chat-panel-empty-icon::before,
+.chat-panel-empty-icon::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  pointer-events: none;
+}
+
+.chat-panel-empty-icon::before {
+  inset: -22px;
+  opacity: .6;
+}
+
+.chat-panel-empty-icon::after {
+  inset: -46px;
+  opacity: .3;
 }
 
 .chat-panel-empty-title {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   letter-spacing: 0.02em;
 }
 
 .chat-panel-empty-hint {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 13px;
   text-align: center;
-  max-width: 280px;
-  line-height: 1.5;
+  max-width: 300px;
+  line-height: 1.6;
 }
 
 /* ── Header ── */
