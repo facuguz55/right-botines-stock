@@ -5,9 +5,10 @@
 
 import { supabase } from '../lib/supabase'
 import {
-  fetchAllTNOrders, fetchTNCustomers, fetchTNCoupons, getTNCredentials,
+  fetchAllTNOrders, fetchTNCustomers, fetchTNCoupons, fetchTNCategories, getTNCredentials,
   type TNOrder, type TNCustomer, type TNCoupon,
 } from './tiendanubeService'
+import { fetchModelos } from './modelos'
 
 // ── Lectura local (Supabase) ─────────────────────────────────────────────────
 // Las páginas de Tienda Online leen de acá en vez de pedirle en vivo a la API
@@ -201,4 +202,89 @@ export async function syncTNCupones(): Promise<{ synced: number }> {
   const rows = coupons.map(cuponRow)
   await upsertBatch('tn_cupones', rows, 'tn_coupon_id')
   return { synced: rows.length }
+}
+
+// ── Preventa ──────────────────────────────────────────────────────────────
+// No hay ningún flag "es preventa" en TiendaNube ni en nuestras tablas: se
+// resuelve en el momento cruzando cada línea de la orden (products[].product_id)
+// contra los modelos ya sincronizados localmente (modelos.tn_category_id),
+// comparado contra el ID de la categoría "Pre-venta" — resuelto por nombre
+// (no hardcodeado, por si el ID cambia si se recrea la categoría en TN).
+// Si un producto de la orden ya no tiene modelo local (se borró del stock),
+// esa línea simplemente no cuenta como señal de preventa — no se puede saber.
+
+export interface PreventaOrder extends TNOrder {
+  clienteTelefono: string | null
+}
+
+function esCategoriaPreventa(name: Record<string, string>): boolean {
+  const valores = Object.values(name).map(v => v.toLowerCase().trim())
+  return valores.some(v => v === 'pre-venta' || v === 'preventa' || v === 'pre venta')
+}
+
+// El ID de la categoría "Pre-venta" no cambia casi nunca — cachearlo evita
+// pegarle a la API de TN en cada carga de la página (a diferencia de
+// órdenes/clientes, que ya se leen de Supabase local). Si el fetch en vivo
+// falla pero hay un cache previo, se usa ese en vez de romper la página.
+const CATEGORIA_CACHE_KEY = 'rb_tn_categoria_preventa_id'
+const CATEGORIA_CACHE_TTL = 24 * 60 * 60 * 1000
+
+// { id: null } es un resultado de cache válido (la tienda no tiene categoría
+// Pre-venta) — hay que distinguirlo de "no hay entrada de cache todavía",
+// así que la ausencia de cache se señaliza devolviendo undefined, no null.
+function loadCategoriaPreventaCache(): number | null | undefined {
+  try {
+    const raw = localStorage.getItem(CATEGORIA_CACHE_KEY)
+    if (!raw) return undefined
+    const { id, ts } = JSON.parse(raw) as { id: number | null; ts: number }
+    if (Date.now() - ts > CATEGORIA_CACHE_TTL) return undefined
+    return id
+  } catch { return undefined }
+}
+
+function saveCategoriaPreventaCache(id: number | null) {
+  try { localStorage.setItem(CATEGORIA_CACHE_KEY, JSON.stringify({ id, ts: Date.now() })) } catch { /* ignore */ }
+}
+
+// Distingue "la tienda no tiene categoría Pre-venta creada" (id: null,
+// resuelto con éxito) de "no se pudo conectar con TN para averiguarlo"
+// (lanza, sin cache previo) — la UI necesita mostrar cada caso distinto.
+async function resolveCategoriaPreventaId(): Promise<number | null> {
+  const cached = loadCategoriaPreventaCache()
+  if (cached !== undefined) return cached
+
+  const { storeId, token } = getTNCredentials()
+  const categorias = await fetchTNCategories(storeId, token)
+  const id = categorias.find(c => esCategoriaPreventa(c.name))?.id ?? null
+  saveCategoriaPreventaCache(id)
+  return id
+}
+
+export async function fetchPreventaOrders(): Promise<PreventaOrder[]> {
+  const [ordenes, modelos, clientes, categoriaPreventaId] = await Promise.all([
+    fetchLocalTNOrdenes(),
+    fetchModelos(),
+    fetchLocalTNClientes(),
+    resolveCategoriaPreventaId(),
+  ])
+
+  if (categoriaPreventaId == null) return []
+
+  const categoriaPorProductId = new Map<number, number | null>()
+  for (const m of modelos) {
+    if (m.tn_product_id != null) categoriaPorProductId.set(m.tn_product_id, m.tn_category_id ?? null)
+  }
+
+  const telefonoPorClienteId = new Map<number, string | null>()
+  for (const c of clientes) telefonoPorClienteId.set(c.id, c.phone)
+
+  return ordenes
+    .filter(o => o.products.some(p => {
+      const productId = p.product_id ?? p.id
+      return categoriaPorProductId.get(productId) === categoriaPreventaId
+    }))
+    .map(o => ({
+      ...o,
+      clienteTelefono: o.customer ? telefonoPorClienteId.get(o.customer.id) ?? null : null,
+    }))
 }

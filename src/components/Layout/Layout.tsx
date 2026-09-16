@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Inbox, Clock,
+  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Inbox, Clock, CalendarClock,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -56,6 +56,7 @@ const ALL_NAV: NavItem[] = [
   { page: 'tn_dashboard',   label: 'Dashboard',     Icon: ShoppingBag  },
   { page: 'tn_analytics',   label: 'Análisis',      Icon: TrendingUp   },
   { page: 'tn_ordenes',     label: 'Órdenes',       Icon: ShoppingCart },
+  { page: 'tn_preventa',    label: 'Preventas',     Icon: CalendarClock},
   { page: 'tn_clientes',    label: 'Clientes',      Icon: Users        },
   { page: 'tn_cupones',     label: 'Cupones',       Icon: Tag          },
   { page: 'tn_mails',       label: 'Mensajes',      Icon: MessageCircle},
@@ -139,7 +140,7 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       )}
 
       <p className="nav-group-label">Gestión</p>
-      {(['tn_ordenes', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
+      {(['tn_ordenes', 'tn_preventa', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
         <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
       ))}
 
