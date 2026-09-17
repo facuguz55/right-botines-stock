@@ -53,10 +53,14 @@ async function sbFetch(path: string, options: RequestInit = {}) {
   return res
 }
 
-async function getOrCreateConversation(waContactId: string, name: string | null, phone: string | null) {
-  const existing = await sbFetch(`wsp_conversaciones?wa_contact_id=eq.${encodeURIComponent(waContactId)}&select=id&limit=1`)
-  const rows = await existing.json() as { id: string }[]
-  if (rows[0]) return rows[0].id
+// Devuelve también no_leidos actual: el llamador lo necesita para incrementar
+// en vez de pisarlo con 1 fijo (ver el PATCH más abajo).
+async function getOrCreateConversation(
+  waContactId: string, name: string | null, phone: string | null,
+): Promise<{ id: string; noLeidosActual: number }> {
+  const existing = await sbFetch(`wsp_conversaciones?wa_contact_id=eq.${encodeURIComponent(waContactId)}&select=id,no_leidos&limit=1`)
+  const rows = await existing.json() as { id: string; no_leidos: number | null }[]
+  if (rows[0]) return { id: rows[0].id, noLeidosActual: rows[0].no_leidos ?? 0 }
 
   const clienteRes = await sbFetch('crm_clientes', {
     method: 'POST',
@@ -74,7 +78,7 @@ async function getOrCreateConversation(waContactId: string, name: string | null,
     }),
   })
   const conv = (await convRes.json() as { id: string }[])[0]
-  return conv.id
+  return { id: conv.id, noLeidosActual: 0 }
 }
 
 async function classifyWithAI(text: string, conversacionId: string, messageId: string) {
@@ -196,7 +200,7 @@ export default async function handler(req: Request): Promise<Response> {
           const name = contactInfo?.profile?.name || null
           const phone = msg.from
 
-          const conversacionId = await getOrCreateConversation(msg.from, name, phone)
+          const { id: conversacionId, noLeidosActual } = await getOrCreateConversation(msg.from, name, phone)
 
           let contenido: string | null = null
           let tipo = msg.type || 'text'
@@ -230,7 +234,10 @@ export default async function handler(req: Request): Promise<Response> {
               ultimo_mensaje: contenido?.slice(0, 200) || `[${tipo}]`,
               ultimo_mensaje_at: new Date(parseInt(msg.timestamp) * 1000).toISOString(),
               estado: 'Sin leer',
-              no_leidos: 1, // simplified; ideally increment
+              // Antes quedaba fijo en 1 sin importar cuántos mensajes seguidos
+              // mandara el cliente antes de que alguien abriera el chat —
+              // ahora sí acumula.
+              no_leidos: noLeidosActual + 1,
               nombre: name || phone,
             }),
           })

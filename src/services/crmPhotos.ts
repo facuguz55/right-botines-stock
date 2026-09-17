@@ -7,7 +7,7 @@ export async function searchModelosByTalleDisponible(
 ): Promise<PhotoMatch[]> {
   let query = supabase
     .from('modelos')
-    .select('id, marca, modelo, categoria, precio_venta, precio_efectivo, modelo_talles(talle_arg, cantidad), modelo_fotos(foto_url, orden)')
+    .select('id, marca, modelo, categoria, precio_venta, precio_promocional, precio_efectivo, modelo_talles(talle_arg, cantidad), modelo_fotos(foto_url, orden)')
 
   if (tipo) {
     query = query.ilike('categoria', `%${tipo}%`)
@@ -37,6 +37,9 @@ export async function searchModelosByTalleDisponible(
       categoria: m.categoria,
       precio_venta: m.precio_venta,
       precio_efectivo: m.precio_efectivo,
+      // Mismo criterio que getPrecioReal (utils/precios.ts): efectivo si
+      // está cargado, si no promocional, si no el de lista.
+      precio_real: m.precio_efectivo ?? m.precio_promocional ?? m.precio_venta,
       talles_disponibles: tallesDisponibles.sort((a: any, b: any) => a.talle_arg - b.talle_arg),
       fotos: fotos.sort((a: any, b: any) => a.orden - b.orden),
     })

@@ -132,7 +132,7 @@ export function PhotoSender({
                     <span className="photo-sender-brand">{m.marca}</span>
                     <span className="photo-sender-model">{m.modelo}</span>
                     <span className="photo-sender-price">
-                      ${m.precio_venta.toLocaleString('es-AR')}
+                      ${m.precio_real.toLocaleString('es-AR')}
                     </span>
                     <div className="photo-sender-sizes">
                       {m.talles_disponibles.map(t => (
@@ -160,7 +160,7 @@ export function PhotoSender({
                   <img src={m.fotos[0]?.foto_url} alt={m.modelo} />
                   <div>
                     <strong>{m.marca} {m.modelo}</strong>
-                    <span>${m.precio_venta.toLocaleString('es-AR')}</span>
+                    <span>${m.precio_real.toLocaleString('es-AR')}</span>
                     <span className="photo-sender-preview-sizes">
                       Talles: {m.talles_disponibles.map(t => t.talle_arg).join(', ')}
                     </span>

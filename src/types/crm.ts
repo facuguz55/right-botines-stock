@@ -113,6 +113,11 @@ export interface PhotoMatch {
   categoria: string
   precio_venta: number
   precio_efectivo: number | null
+  // Precio real a cotizar (mismo criterio que getPrecioReal en utils/precios.ts:
+  // precio_efectivo ?? precio_promocional ?? precio_venta) — antes se mostraba
+  // precio_venta a secas acá, que puede ser más caro que lo que después se
+  // cobra en el local si el modelo tiene precio_efectivo cargado.
+  precio_real: number
   talles_disponibles: { talle_arg: number; cantidad: number }[]
   fotos: { foto_url: string; orden: number }[]
 }
