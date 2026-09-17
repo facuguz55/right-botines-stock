@@ -4,24 +4,23 @@ import type { Compra, Modelo } from '../../types'
 import type { useProveedores } from '../../hooks/useProveedores'
 import { useCompras } from '../../hooks/useCompras'
 import { Modal } from '../Modal/Modal'
+import { toISOLocal, semanaActual } from '../../utils/fecha'
 import './Proveedores.css'
-
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()
-  const today = toISO(now)
+  const today = toISOLocal(now)
   switch (preset) {
     case 'hoy': return { start: today, end: today }
-    case 'semana': { const d = new Date(now); d.setDate(d.getDate() - 6); return { start: toISO(d), end: today } }
-    case 'mes': return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
+    case 'semana': return semanaActual(now)
+    case 'mes': return { start: toISOLocal(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
     case 'mes_ant': {
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const end = new Date(now.getFullYear(), now.getMonth(), 0)
-      return { start: toISO(start), end: toISO(end) }
+      return { start: toISOLocal(start), end: toISOLocal(end) }
     }
     case 'todo': return { start: '2020-01-01', end: today }
-    default: return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
+    default: return { start: toISOLocal(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
   }
 }
 
@@ -69,7 +68,7 @@ export function Proveedores({ proveedoresHook, modelos, empleadoId }: Proveedore
 
   const [mostrarFormCompra, setMostrarFormCompra] = useState(false)
   const [compraProveedorId, setCompraProveedorId] = useState('')
-  const [compraFecha, setCompraFecha] = useState(toISO(new Date()))
+  const [compraFecha, setCompraFecha] = useState(toISOLocal(new Date()))
   const [numeroRemito, setNumeroRemito] = useState('')
   const [notasCompra, setNotasCompra] = useState('')
   const [items, setItems] = useState<ItemForm[]>([blankItem()])
@@ -80,7 +79,7 @@ export function Proveedores({ proveedoresHook, modelos, empleadoId }: Proveedore
 
   const [pagoTarget, setPagoTarget] = useState<Compra | null>(null)
   const [montoPago, setMontoPago] = useState('')
-  const [fechaPago, setFechaPago] = useState(toISO(new Date()))
+  const [fechaPago, setFechaPago] = useState(toISOLocal(new Date()))
   const [notasPago, setNotasPago] = useState('')
   const [savingPago, setSavingPago] = useState(false)
 
@@ -147,7 +146,7 @@ export function Proveedores({ proveedoresHook, modelos, empleadoId }: Proveedore
   }
 
   const abrirPago = (c: Compra) => {
-    setPagoTarget(c); setMontoPago(''); setFechaPago(toISO(new Date())); setNotasPago('')
+    setPagoTarget(c); setMontoPago(''); setFechaPago(toISOLocal(new Date())); setNotasPago('')
   }
 
   const confirmarPago = async () => {

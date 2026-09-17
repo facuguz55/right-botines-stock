@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CrmStatsData } from '../types/crm'
 import { fetchCrmStats } from '../services/crmStats'
+import { toISOLocal } from '../utils/fecha'
 
 export function useCrmStats() {
   const [stats, setStats] = useState<CrmStatsData | null>(null)
@@ -8,7 +9,7 @@ export function useCrmStats() {
   const [range, setRange] = useState(() => {
     const now = new Date()
     const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
-    const end = now.toISOString().slice(0, 10)
+    const end = toISOLocal(now)
     return { start, end }
   })
 

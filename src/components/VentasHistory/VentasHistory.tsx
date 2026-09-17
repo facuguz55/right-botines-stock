@@ -3,36 +3,32 @@ import { useVentas } from '../../hooks/useVentas'
 import { deleteVenta } from '../../services/ventas'
 import { Modal } from '../Modal/Modal'
 import type { Role, Venta } from '../../types'
+import { toISOLocal, semanaActual } from '../../utils/fecha'
 import './VentasHistory.css'
 
 const MEDIO_ICONS: Record<string, string> = { Efectivo: '💵', Transferencia: '📲', Tarjeta: '💳', Mixto: '🔀' }
 const MEDIOS: Venta['medio_pago'][] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Mixto']
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
-
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()
-  const today = toISO(now)
+  const today = toISOLocal(now)
   switch (preset) {
     case 'hoy': return { start: today, end: today }
     case 'ayer': {
-      const d = new Date(now); d.setDate(d.getDate() - 1); const s = toISO(d)
+      const d = new Date(now); d.setDate(d.getDate() - 1); const s = toISOLocal(d)
       return { start: s, end: s }
     }
-    case 'semana': {
-      const d = new Date(now); d.setDate(d.getDate() - 6)
-      return { start: toISO(d), end: today }
-    }
-    case 'mes': return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
+    case 'semana': return semanaActual(now)
+    case 'mes': return { start: toISOLocal(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
     case 'mes_ant': {
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const end = new Date(now.getFullYear(), now.getMonth(), 0)
-      return { start: toISO(start), end: toISO(end) }
+      return { start: toISOLocal(start), end: toISOLocal(end) }
     }
     case 'todo': {
       return { start: '2020-01-01', end: today }
     }
-    default: return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
+    default: return { start: toISOLocal(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
   }
 }
 

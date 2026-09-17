@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react'
 import type { Modelo } from '../../types'
+import { toISOLocal } from '../../utils/fecha'
 
 interface ExportButtonProps { modelos: Modelo[] }
 
@@ -30,7 +31,7 @@ export function ExportButton({ modelos }: ExportButtonProps) {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `stock-right-botines-${new Date().toISOString().split('T')[0]}.csv`
+    link.download = `stock-right-botines-${toISOLocal(new Date())}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

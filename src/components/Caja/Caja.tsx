@@ -3,31 +3,27 @@ import { Wallet, Lock, Unlock, AlertTriangle, Receipt, MinusCircle, ClipboardChe
 import type { Role } from '../../types'
 import { useCaja } from '../../hooks/useCaja'
 import { Modal } from '../Modal/Modal'
+import { toISOLocal, semanaActual } from '../../utils/fecha'
 import './Caja.css'
-
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()
-  const today = toISO(now)
+  const today = toISOLocal(now)
   switch (preset) {
     case 'hoy': return { start: today, end: today }
     case 'ayer': {
-      const d = new Date(now); d.setDate(d.getDate() - 1); const s = toISO(d)
+      const d = new Date(now); d.setDate(d.getDate() - 1); const s = toISOLocal(d)
       return { start: s, end: s }
     }
-    case 'semana': {
-      const d = new Date(now); d.setDate(d.getDate() - 6)
-      return { start: toISO(d), end: today }
-    }
-    case 'mes': return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
+    case 'semana': return semanaActual(now)
+    case 'mes': return { start: toISOLocal(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
     case 'mes_ant': {
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const end = new Date(now.getFullYear(), now.getMonth(), 0)
-      return { start: toISO(start), end: toISO(end) }
+      return { start: toISOLocal(start), end: toISOLocal(end) }
     }
     case 'todo': return { start: '2020-01-01', end: today }
-    default: return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
+    default: return { start: toISOLocal(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
   }
 }
 
@@ -127,7 +123,13 @@ export function Caja({ empleadoId, empleadoNombre, role }: CajaProps) {
     }
   }
 
-  const hoy = toISO(new Date())
+  // OJO: acá se compara contra `caja.fecha`, que se sigue guardando en UTC al
+  // abrir la caja (services/caja.ts) — no cambiado en esta pasada para no
+  // arriesgar romper la identificación de una caja ya abierta ahora mismo.
+  // Por eso esta comparación puntual usa UTC también, no toISOLocal (que
+  // rompería la comparación si no coinciden). El bug real que sí se corrigió
+  // es el rango horario de ventas contadas dentro del día (ver caja.ts).
+  const hoy = new Date().toISOString().slice(0, 10)
   const esDeHoy = cajaAbierta?.fecha === hoy
   const puedeCerrar = role === 'dueno' || (!!cajaAbierta && cajaAbierta.abierta_por === empleadoId)
 

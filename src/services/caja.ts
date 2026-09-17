@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { CajaDia, CajaGasto, CajaVerificacion, TotalesEfectivoDia } from '../types'
+import { inicioDiaLocalISO, finDiaLocalISO } from '../utils/fecha'
 
 const SELECT_CON_EMPLEADOS =
   '*, empleado_apertura:empleados!caja_dias_abierta_por_fkey(nombre), empleado_cierre:empleados!caja_dias_cerrada_por_fkey(nombre)'
@@ -66,11 +67,16 @@ async function fetchTotalGastos(cajaDiaId: string): Promise<number> {
 }
 
 export async function fetchTotalesEfectivoDia(fecha: string): Promise<TotalesEfectivoDia> {
+  // Límites del día en hora de Argentina, no UTC: con `fecha + 'T23:59:59'`
+  // sin zona horaria, Postgres corta a las 23:59 UTC = 20:59 ART, dejando
+  // afuera del "efectivo esperado" cualquier venta hecha entre las 21:00 y
+  // medianoche hora local — plata real que sí está en el cajón pero que el
+  // arqueo no contaba, mostrando una "diferencia" que no existe.
   const { data, error } = await supabase
     .from('ventas')
     .select('precio_venta, medio_pago, venta_grupo_id, monto_efectivo, monto_transferencia')
-    .gte('fecha', fecha)
-    .lte('fecha', fecha + 'T23:59:59')
+    .gte('fecha', inicioDiaLocalISO(fecha))
+    .lte('fecha', finDiaLocalISO(fecha))
   if (error) throw error
 
   const totales: TotalesEfectivoDia = { efectivo: 0, transferencia: 0, tarjeta: 0 }
@@ -98,8 +104,8 @@ export async function fetchTotalVueltoEntregado(fecha: string): Promise<number> 
   const { data, error } = await supabase
     .from('ventas')
     .select('vuelto_efectivo, venta_grupo_id')
-    .gte('fecha', fecha)
-    .lte('fecha', fecha + 'T23:59:59')
+    .gte('fecha', inicioDiaLocalISO(fecha))
+    .lte('fecha', finDiaLocalISO(fecha))
     .not('vuelto_efectivo', 'is', null)
   if (error) throw error
 
@@ -123,8 +129,8 @@ export async function fetchNetoDevolucionesEfectivo(fecha: string): Promise<numb
     .from('devoluciones_cambios')
     .select('monto_diferencia')
     .eq('medio_pago_diferencia', 'Efectivo')
-    .gte('fecha', fecha)
-    .lte('fecha', fecha + 'T23:59:59')
+    .gte('fecha', inicioDiaLocalISO(fecha))
+    .lte('fecha', finDiaLocalISO(fecha))
   if (error) throw error
   return (data || []).reduce((s, d) => s + Number(d.monto_diferencia), 0)
 }

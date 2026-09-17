@@ -5,19 +5,18 @@ import { useDevoluciones } from '../../hooks/useDevoluciones'
 import { fetchVentas } from '../../services/ventas'
 import { getPrecioReal } from '../../utils/precios'
 import { Modal } from '../Modal/Modal'
+import { toISOLocal, semanaActual } from '../../utils/fecha'
 import './Devoluciones.css'
-
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()
-  const today = toISO(now)
+  const today = toISOLocal(now)
   switch (preset) {
     case 'hoy': return { start: today, end: today }
-    case 'semana': { const d = new Date(now); d.setDate(d.getDate() - 6); return { start: toISO(d), end: today } }
-    case 'mes': return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
+    case 'semana': return semanaActual(now)
+    case 'mes': return { start: toISOLocal(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
     case 'todo': return { start: '2020-01-01', end: today }
-    default: return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
+    default: return { start: toISOLocal(new Date(now.getFullYear(), now.getMonth(), 1)), end: today }
   }
 }
 
@@ -83,8 +82,8 @@ export function Devoluciones({ modelos, empleadoId }: DevolucionesProps) {
     setDiferenciaEditada(false); setError('')
     setLoadingVentas(true)
     try {
-      const desde = toISO(new Date(Date.now() - 30 * 86400000))
-      setVentasRecientes(await fetchVentas(desde, toISO(new Date())))
+      const desde = toISOLocal(new Date(Date.now() - 30 * 86400000))
+      setVentasRecientes(await fetchVentas(desde, toISOLocal(new Date())))
     } finally {
       setLoadingVentas(false)
     }

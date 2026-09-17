@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { CrmStatsData } from '../types/crm'
+import { toISOLocal } from '../utils/fecha'
 
 export async function fetchCrmStats(startDate: string, endDate: string): Promise<CrmStatsData> {
   const [mensajes, conversaciones, enviosFotos] = await Promise.all([
@@ -50,7 +51,9 @@ export async function fetchCrmStats(startDate: string, endDate: string): Promise
   const actividadVendedora = groupByDate(outMsgs, m => m.timestamp).map(d => ({
     fecha: d.fecha,
     mensajes_enviados: d.cantidad,
-    conversaciones_atendidas: new Set(outMsgs.filter(m => m.timestamp.startsWith(d.fecha)).map(m => m.conversacion_id)).size,
+    conversaciones_atendidas: new Set(
+      outMsgs.filter(m => toISOLocal(new Date(m.timestamp)) === d.fecha).map(m => m.conversacion_id)
+    ).size,
   }))
 
   const horasPico: { hora: number; cantidad: number }[] = []
@@ -74,10 +77,13 @@ export async function fetchCrmStats(startDate: string, endDate: string): Promise
   }
 }
 
+// Agrupa por fecha en hora de Argentina, no UTC: cortar el timestamp ISO
+// crudo con .slice(0,10) hacía que un mensaje recibido entre las 21:00 y
+// medianoche hora local quedara contado en el día siguiente.
 function groupByDate<T>(items: T[], getDate: (item: T) => string): { fecha: string; cantidad: number }[] {
   const counts: Record<string, number> = {}
   for (const item of items) {
-    const fecha = getDate(item).slice(0, 10)
+    const fecha = toISOLocal(new Date(getDate(item)))
     counts[fecha] = (counts[fecha] || 0) + 1
   }
   return Object.entries(counts)

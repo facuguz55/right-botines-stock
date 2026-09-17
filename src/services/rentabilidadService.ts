@@ -7,6 +7,7 @@
 import { supabase } from '../lib/supabase'
 import { fetchLocalTNOrdenes } from './tnOrdersSync'
 import { fetchCostosConfig, fetchCostosUnicos } from './costosService'
+import { inicioDiaLocalISO, finDiaLocalISO } from '../utils/fecha'
 import type { RentabilidadMes, RentabilidadCanal, CostoConfig, CostoCanal } from '../types'
 
 function emptyCanal(): RentabilidadCanal {
@@ -17,16 +18,20 @@ function emptyCanal(): RentabilidadCanal {
   }
 }
 
+// Límites del mes en hora de Argentina, no UTC: con Date.UTC puro, la última
+// noche del mes (21:00-23:59 ART del último día) cae ya en el 1º del mes
+// siguiente en UTC, y esas ventas se contaban en el mes equivocado — un
+// número de facturación/ganancia distinto al que corresponde a ese mes
+// calendario real. `daysInMonth` sí es aritmética pura de calendario (no
+// depende de huso horario), se puede seguir calculando con Date.UTC.
 function rangoMes(mes: string): { start: Date; end: Date; daysInMonth: number; startDateStr: string; endDateStr: string } {
   const [y, m] = mes.split('-').map(Number)
-  const start = new Date(Date.UTC(y, m - 1, 1))
-  const end = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999))
-  const daysInMonth = end.getUTCDate()
-  return {
-    start, end, daysInMonth,
-    startDateStr: `${mes}-01`,
-    endDateStr: `${mes}-${String(daysInMonth).padStart(2, '0')}`,
-  }
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const startDateStr = `${mes}-01`
+  const endDateStr = `${mes}-${String(daysInMonth).padStart(2, '0')}`
+  const start = new Date(inicioDiaLocalISO(startDateStr))
+  const end = new Date(finDiaLocalISO(endDateStr))
+  return { start, end, daysInMonth, startDateStr, endDateStr }
 }
 
 // % del reparto que le corresponde a "web" para costos compartidos sin override manual.
@@ -36,8 +41,8 @@ function shareWebPorFacturacion(facturadoLocal: number, facturadoWeb: number): n
 }
 
 function montoFijoDelMes(costo: CostoConfig, start: Date, end: Date, daysInMonth: number): number {
-  const desde = new Date(Math.max(new Date(costo.vigente_desde + 'T00:00:00Z').getTime(), start.getTime()))
-  const hastaMs = costo.vigente_hasta ? new Date(costo.vigente_hasta + 'T23:59:59Z').getTime() : end.getTime()
+  const desde = new Date(Math.max(new Date(inicioDiaLocalISO(costo.vigente_desde)).getTime(), start.getTime()))
+  const hastaMs = costo.vigente_hasta ? new Date(finDiaLocalISO(costo.vigente_hasta)).getTime() : end.getTime()
   const hasta = new Date(Math.min(hastaMs, end.getTime()))
   const overlapDays = Math.max(0, Math.round((hasta.getTime() - desde.getTime()) / 86_400_000) + 1)
   return costo.valor * (overlapDays / daysInMonth)
@@ -113,8 +118,8 @@ export async function computeRentabilidadMes(mes: string): Promise<RentabilidadM
 
   const vigentes = costosConfig.filter(c => {
     if (!c.activo) return false
-    const desde = new Date(c.vigente_desde + 'T00:00:00Z').getTime()
-    const hasta = c.vigente_hasta ? new Date(c.vigente_hasta + 'T23:59:59Z').getTime() : Infinity
+    const desde = new Date(inicioDiaLocalISO(c.vigente_desde)).getTime()
+    const hasta = c.vigente_hasta ? new Date(finDiaLocalISO(c.vigente_hasta)).getTime() : Infinity
     return desde <= end.getTime() && hasta >= start.getTime()
   })
 

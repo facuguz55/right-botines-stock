@@ -2,25 +2,21 @@ import { useState, useEffect } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp, Search, Check } from 'lucide-react'
 import { paymentStatusLabel, paymentStatusClass, humanizePaymentMethod, formatARS, type TNOrder } from '../../services/tiendanubeService'
 import { fetchLocalTNOrdenes, syncTNOrdenes, marcarOrdenPreparada } from '../../services/tnOrdersSync'
+import { toISOLocal, semanaActual } from '../../utils/fecha'
 import './TNOrdenes.css'
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'cancelled'
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
-
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()
-  const today = toISO(now)
+  const today = toISOLocal(now)
   switch (preset) {
     case 'hoy': return { start: today, end: today }
     case 'ayer': {
-      const d = new Date(now); d.setDate(d.getDate() - 1); const s = toISO(d)
+      const d = new Date(now); d.setDate(d.getDate() - 1); const s = toISOLocal(d)
       return { start: s, end: s }
     }
-    case 'semana': {
-      const d = new Date(now); d.setDate(d.getDate() - 6)
-      return { start: toISO(d), end: today }
-    }
+    case 'semana': return semanaActual(now)
     case 'todo': return { start: '2020-01-01', end: today }
     default: return { start: today, end: today }
   }

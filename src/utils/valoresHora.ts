@@ -1,3 +1,5 @@
+import { toISOLocal } from './fecha'
+
 // empleado_id null = el dueño. La cuenta que hoy no ficha (fichajes.empleado_id
 // es NOT NULL en la base) pero para la que igual queremos poder guardar un
 // valor por hora, por si algún día ficha o solo por prolijidad de la tabla.
@@ -51,7 +53,11 @@ export function calcularPagos(turnos: TurnoParaPago[], valores: ValorHora[]): Pa
     const horas = (new Date(t.hora_salida).getTime() - new Date(t.hora_entrada).getTime()) / 3_600_000
     if (!(horas > 0)) continue
 
-    const fechaISO = t.hora_entrada.slice(0, 10)
+    // Día calendario de Argentina en que empezó el turno, no el de UTC — un
+    // turno que arranca entre las 21:00 y medianoche hora local podía quedar
+    // con la fecha del día siguiente y aplicarle la tarifa equivocada si
+    // justo ese día había un cambio de valor programado.
+    const fechaISO = toISOLocal(new Date(t.hora_entrada))
     const valor = valorHoraEn(valores, t.empleado_id, fechaISO)
 
     const actual = porPersona.get(t.empleado_id)
