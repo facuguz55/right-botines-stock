@@ -84,7 +84,10 @@ export function App() {
   const { role, empleadoId, empleadoNombre, loginEmpleado, loginAtencion, loginDueno, logout } = useAuth()
   const [activePage, setActivePage] = useState<ActivePage>(() => {
     try {
-      const savedRole = sessionStorage.getItem('rb_role')
+      // Mismo fallback a localStorage que useAuth.ts (sesión heredada de antes
+      // de que la sesión pasara a sessionStorage) — no perder el destino
+      // inicial correcto para quien ya estaba logueado como "atencion".
+      const savedRole = sessionStorage.getItem('rb_role') ?? localStorage.getItem('rb_role')
       return savedRole === 'atencion' ? 'crm_inbox' : 'stock'
     } catch { return 'stock' }
   })

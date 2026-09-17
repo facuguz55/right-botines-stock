@@ -11,9 +11,17 @@ const EMPLEADO_NOMBRE_KEY = 'rb_empleado_nombre'
 // pestañas (ej. Rocío y Bernardino los sábados) se pisaban la sesión el uno
 // al otro. sessionStorage es propio de cada pestaña — cada una mantiene su
 // propio empleado logueado sin afectar a las demás.
+//
+// Fallback a localStorage (sin borrarlo) si sessionStorage viene vacío: la
+// primera vez que esta versión llega a una pestaña que ya tenía una sesión
+// abierta con el código viejo (que solo escribía en localStorage), esto
+// evita que se la mande de vuelta a la pantalla de login de golpe — sigue
+// viendo su sesión como la tenía. A partir de acá cualquier login nuevo
+// escribe solo en sessionStorage, así que el problema original (pestañas
+// pisándose) queda resuelto para adelante.
 function getStoredRole(): Role | null {
   try {
-    const saved = sessionStorage.getItem(ROLE_KEY)
+    const saved = sessionStorage.getItem(ROLE_KEY) ?? localStorage.getItem(ROLE_KEY)
     return saved === 'empleado' || saved === 'dueno' || saved === 'atencion' ? saved : null
   } catch {
     return null
@@ -23,8 +31,8 @@ function getStoredRole(): Role | null {
 function getStoredEmpleado(): { id: string | null; nombre: string | null } {
   try {
     return {
-      id: sessionStorage.getItem(EMPLEADO_ID_KEY),
-      nombre: sessionStorage.getItem(EMPLEADO_NOMBRE_KEY),
+      id: sessionStorage.getItem(EMPLEADO_ID_KEY) ?? localStorage.getItem(EMPLEADO_ID_KEY),
+      nombre: sessionStorage.getItem(EMPLEADO_NOMBRE_KEY) ?? localStorage.getItem(EMPLEADO_NOMBRE_KEY),
     }
   } catch {
     return { id: null, nombre: null }
@@ -82,6 +90,12 @@ export function useAuth() {
       sessionStorage.removeItem(ROLE_KEY)
       sessionStorage.removeItem(EMPLEADO_ID_KEY)
       sessionStorage.removeItem(EMPLEADO_NOMBRE_KEY)
+      // También el localStorage viejo (ver el fallback de migración arriba):
+      // si no se limpia acá, un logout explícito podría "revivir" solo con
+      // recargar la página, porque el fallback volvería a leerlo.
+      localStorage.removeItem(ROLE_KEY)
+      localStorage.removeItem(EMPLEADO_ID_KEY)
+      localStorage.removeItem(EMPLEADO_NOMBRE_KEY)
     } catch { /* noop */ }
     setRole(null)
     setEmpleadoId(null)

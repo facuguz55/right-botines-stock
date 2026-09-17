@@ -8,9 +8,13 @@ const CART_KEY = 'rb_carrito'
 // dos pestañas (ej. Rocío y Bernardino los sábados), un carrito en
 // localStorage se pisaba entre pestañas — el carrito de uno tapaba el del
 // otro. sessionStorage es propio de cada pestaña.
+//
+// Fallback a localStorage (sin borrarlo) si sessionStorage viene vacío: no
+// perder un carrito en curso justo en la pestaña que estaba abierta cuando
+// esta versión se despliega. Ver el mismo patrón en hooks/useAuth.ts.
 function loadInitial(): CartItem[] {
   try {
-    const saved = sessionStorage.getItem(CART_KEY)
+    const saved = sessionStorage.getItem(CART_KEY) ?? localStorage.getItem(CART_KEY)
     return saved ? JSON.parse(saved) : []
   } catch {
     return []
@@ -21,7 +25,14 @@ export function useCarrito() {
   const [items, setItems] = useState<CartItem[]>(loadInitial)
 
   useEffect(() => {
-    try { sessionStorage.setItem(CART_KEY, JSON.stringify(items)) } catch { /* noop */ }
+    try {
+      sessionStorage.setItem(CART_KEY, JSON.stringify(items))
+      // Limpio el localStorage viejo apenas el carrito cambia en esta pestaña
+      // (incluido el clear() al confirmar una venta), para que ese carrito ya
+      // completado no "reaparezca" por el fallback de arriba en otra pestaña
+      // o recarga futura.
+      localStorage.removeItem(CART_KEY)
+    } catch { /* noop */ }
   }, [items])
 
   const addItem = useCallback((modelo: Modelo, talle: ModeloTalle, cantidad: number, precioManual: number | null = null) => {
