@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Plus, Trash2, Power, PauseCircle, CreditCard } from 'lucide-react'
 import type { useRecargosTarjeta } from '../../hooks/useRecargosTarjeta'
+import type { RecargoTarjeta } from '../../types'
+import { Modal } from '../Modal/Modal'
 
 function formatPct(n: number) {
   return `${n}%`
@@ -18,6 +20,24 @@ export function RecargosTarjetaSection({ recargosTarjeta }: RecargosTarjetaSecti
   const [porcentaje, setPorcentaje] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  // Borrar un recargo sin querer (ej. el de "Crédito 3 cuotas") deja al
+  // sync de TiendaNube sin poder calcular el precio de efectivo de
+  // productos nuevos — pasa a cobrarse el precio de tarjeta por error,
+  // silenciosamente. Por eso esto sí pide confirmación (a diferencia de
+  // activar/desactivar, que es reversible con un clic).
+  const [deleteTarget, setDeleteTarget] = useState<RecargoTarjeta | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await removeRecargo(deleteTarget.id)
+      setDeleteTarget(null)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const puedeGuardar = tarjeta.trim().length > 0 && Number(cuotas) > 0 && porcentaje.trim().length > 0
 
@@ -70,7 +90,7 @@ export function RecargosTarjetaSection({ recargosTarjeta }: RecargosTarjetaSecti
                       <button className="icon-btn" title={r.activo ? 'Desactivar' : 'Activar'} onClick={() => toggleActivo(r.id, !r.activo)}>
                         {r.activo ? <Power size={13} /> : <PauseCircle size={13} />}
                       </button>
-                      <button className="icon-btn danger" title="Eliminar" onClick={() => removeRecargo(r.id)}>
+                      <button className="icon-btn danger" title="Eliminar" onClick={() => setDeleteTarget(r)}>
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -122,6 +142,24 @@ export function RecargosTarjetaSection({ recargosTarjeta }: RecargosTarjetaSecti
           <Plus size={13} /> Nuevo recargo
         </button>
       )}
+
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Eliminar recargo" maxWidth="380px">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            ¿Seguro que querés eliminar el recargo de{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{deleteTarget?.tarjeta} en {deleteTarget?.cuotas} cuota{deleteTarget?.cuotas !== 1 ? 's' : ''}</strong>?
+            {deleteTarget?.tarjeta === 'Crédito' && deleteTarget?.cuotas === 3 && (
+              <> Este puntual también se usa para calcular el precio de efectivo de productos nuevos de TiendaNube — borrarlo puede hacer que se les cobre el precio de tarjeta por error hasta que lo cargues de nuevo.</>
+            )}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem' }}>
+            <button className="btn btn-secondary" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancelar</button>
+            <button className="btn btn-danger" onClick={handleConfirmDelete} disabled={deleting}>
+              {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </section>
   )
 }
