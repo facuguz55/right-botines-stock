@@ -3,16 +3,22 @@ import { buildCodigoBase } from './codigos'
 
 // ── Talle conversions ────────────────────────────────────────────────────────
 
+// Alineada con src/lib/tnMapping.ts (la tabla que usa el sync en vivo con
+// TiendaNube) — antes esta tabla del importador manual de Excel/CSV era
+// otra completamente distinta (offset variable ~31.5-34.5) y encima sus
+// fallbacks de acá abajo usaban un tercer offset (33) distinto de ambas.
+// Resultado real: el mismo talle ARG 42 daba US 10 (tnMapping, sync activo)
+// o US 9 (este importador) según qué camino lo hubiera tocado. Se unifica
+// todo en una sola fuente de verdad (offset ARG-US=32 constante).
 const ARG_TO_US: Record<number, number> = {
-  35: 3.5, 36: 4, 37: 5, 38: 6, 38.5: 6.5, 39: 7, 40: 7.5, 40.5: 8,
-  41: 8.5, 42: 9, 42.5: 9.5, 43: 10, 44: 10.5, 44.5: 11, 45: 11.5,
-  46: 12, 47: 12.5, 47.5: 13, 48: 13.5,
+  34: 2, 34.5: 2.5, 35: 3, 35.5: 3.5, 36: 4, 36.5: 4.5, 37: 5, 37.5: 5.5,
+  38: 6, 38.5: 6.5, 39: 7, 39.5: 7.5, 40: 8, 40.5: 8.5, 41: 9, 41.5: 9.5,
+  42: 10, 42.5: 10.5, 43: 11, 43.5: 11.5, 44: 12, 44.5: 12.5, 45: 13, 45.5: 13.5,
+  46: 14, 46.5: 14.5, 47: 15,
 }
-const US_TO_ARG: Record<number, number> = {
-  3.5: 35, 4: 36, 5: 37, 6: 38, 6.5: 38.5, 7: 39, 7.5: 40, 8: 40.5,
-  8.5: 41, 9: 42, 9.5: 42.5, 10: 43, 10.5: 44, 11: 44.5, 11.5: 45,
-  12: 46, 12.5: 47, 13: 47.5, 13.5: 48,
-}
+const US_TO_ARG: Record<number, number> = Object.fromEntries(
+  Object.entries(ARG_TO_US).map(([arg, us]) => [us, Number(arg)])
+)
 
 export function parseTalle(raw: string): { talle_us: number; talle_arg: number } | null {
   const s = raw.trim()
@@ -32,15 +38,15 @@ export function parseTalle(raw: string): { talle_us: number; talle_arg: number }
   }
 
   const usMatch = s.match(/(\d+(?:[.,]\d+)?)\s*US/i)
-  if (usMatch) { const us = parseFloat(usMatch[1].replace(',', '.')); return { talle_us: us, talle_arg: US_TO_ARG[us] ?? Math.round(us + 33) } }
+  if (usMatch) { const us = parseFloat(usMatch[1].replace(',', '.')); return { talle_us: us, talle_arg: US_TO_ARG[us] ?? Math.round(us + 32) } }
 
   const argMatch = s.match(/(\d+(?:[.,]\d+)?)\s*ARG/i)
-  if (argMatch) { const arg = parseFloat(argMatch[1].replace(',', '.')); return { talle_arg: arg, talle_us: ARG_TO_US[arg] ?? Math.round((arg - 33) * 2) / 2 } }
+  if (argMatch) { const arg = parseFloat(argMatch[1].replace(',', '.')); return { talle_arg: arg, talle_us: ARG_TO_US[arg] ?? Math.round((arg - 32) * 2) / 2 } }
 
   const num = parseFloat(s.replace(',', '.'))
   if (!isNaN(num)) {
-    if (num >= 35) return { talle_arg: num, talle_us: ARG_TO_US[num] ?? Math.round((num - 33) * 2) / 2 }
-    return { talle_us: num, talle_arg: US_TO_ARG[num] ?? Math.round(num + 33) }
+    if (num >= 34) return { talle_arg: num, talle_us: ARG_TO_US[num] ?? Math.round((num - 32) * 2) / 2 }
+    return { talle_us: num, talle_arg: US_TO_ARG[num] ?? Math.round(num + 32) }
   }
   return null
 }

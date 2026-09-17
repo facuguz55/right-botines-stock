@@ -30,8 +30,9 @@ const ARG_TO_US: Record<number, number> = {
   42: 10, 42.5: 10.5, 43: 11, 43.5: 11.5, 44: 12, 44.5: 12.5, 45: 13, 45.5: 13.5,
   46: 14, 46.5: 14.5, 47: 15,
 }
+// Mismo fix que src/lib/tnMapping.ts: la tabla usa offset ARG-US=32, no 30.5.
 function getUsFromArg(arg: number): number {
-  return ARG_TO_US[arg] ?? Math.round((arg - 30.5) * 2) / 2
+  return ARG_TO_US[arg] ?? Math.round((arg - 32) * 2) / 2
 }
 function variantLabel(v: { values?: { es?: string; en?: string; [k: string]: string | undefined }[] }): string {
   return (v.values ?? []).map(val => val.es ?? val.en ?? Object.values(val).find(x => x) ?? '').join(' ')

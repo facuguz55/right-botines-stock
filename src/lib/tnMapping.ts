@@ -24,8 +24,12 @@ export const ARG_TO_US: Record<number, number> = {
   47: 15,
 }
 
+// Fallback para talles fuera de la tabla (ej. 33, 33.5, 48+): la tabla usa
+// consistentemente el offset ARG-US=32 (34→2, 42→10, 47→15) — el fallback
+// tenía 30.5, dando un talle US equivocado por 1.5 números fuera del rango
+// relevado (ej. 47.5 daba 17 en vez de 15.5).
 export function getUsFromArg(arg: number): number {
-  return ARG_TO_US[arg] ?? Math.round((arg - 30.5) * 2) / 2
+  return ARG_TO_US[arg] ?? Math.round((arg - 32) * 2) / 2
 }
 
 // ── Label de variante ────────────────────────────────────────────────────────
