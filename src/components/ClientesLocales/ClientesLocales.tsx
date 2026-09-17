@@ -16,7 +16,17 @@ interface ClientesLocalesProps {
   removeCliente: (id: string) => Promise<void>
 }
 
-const soloDigitos = (s: string) => s.replace(/\D/g, '')
+// WhatsApp necesita el número en formato internacional (código de país +
+// "9" de celular argentino + código de área + número). El teléfono se carga
+// a mano en formato variable ("11 2345-6789", "1123456789", etc.) — si ya
+// viene con el 54 de país se respeta tal cual, si no se le antepone "549"
+// (el caso más común de lo que carga un vendedor). Antes se mandaba el
+// número tal cual sin código de país, y WhatsApp podía no reconocerlo o
+// abrir un contacto internacional equivocado.
+const numeroWhatsApp = (s: string) => {
+  const digitos = s.replace(/\D/g, '')
+  return digitos.startsWith('54') ? digitos : `549${digitos}`
+}
 
 function fmtFecha(fecha: string) {
   return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -153,7 +163,7 @@ export function ClientesLocales({ clientes, loading, addCliente, editCliente, re
                       {c.telefono ? (
                         <a
                           className="contact-link"
-                          href={`https://wa.me/${soloDigitos(c.telefono)}`}
+                          href={`https://wa.me/${numeroWhatsApp(c.telefono)}`}
                           target="_blank" rel="noreferrer"
                           onClick={e => e.stopPropagation()}
                         >

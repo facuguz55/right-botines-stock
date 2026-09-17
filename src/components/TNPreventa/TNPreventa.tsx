@@ -4,7 +4,12 @@ import { paymentStatusLabel, paymentStatusClass, formatARS } from '../../service
 import { fetchPreventaOrders, syncTNOrdenes, syncTNClientes, type PreventaOrder } from '../../services/tnOrdersSync'
 import './TNPreventa.css'
 
-const soloDigitos = (s: string) => s.replace(/\D/g, '')
+// Ver el mismo comentario en ClientesLocales.tsx: WhatsApp necesita el
+// número con código de país, si no ya lo trae.
+const numeroWhatsApp = (s: string) => {
+  const digitos = s.replace(/\D/g, '')
+  return digitos.startsWith('54') ? digitos : `549${digitos}`
+}
 
 export function TNPreventa() {
   const [orders, setOrders]     = useState<PreventaOrder[]>([])
@@ -122,7 +127,7 @@ export function TNPreventa() {
                     <div className="tn-preventa-contacto">
                       <a
                         className="tn-contacto-btn tn-contacto-btn--whatsapp"
-                        href={order.clienteTelefono ? `https://wa.me/${soloDigitos(order.clienteTelefono)}` : undefined}
+                        href={order.clienteTelefono ? `https://wa.me/${numeroWhatsApp(order.clienteTelefono)}` : undefined}
                         target="_blank" rel="noreferrer"
                         aria-disabled={!order.clienteTelefono}
                         onClick={e => { e.stopPropagation(); if (!order.clienteTelefono) e.preventDefault() }}
