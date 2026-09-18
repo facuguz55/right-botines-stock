@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import type { ActivePage, Modelo, PhotoSlot, TalleRow } from './types'
 import { Layout, SOLO_DUENO } from './components/Layout/Layout'
 import { Login } from './components/Login/Login'
@@ -10,35 +10,45 @@ import { ModelForm } from './components/ModelForm/ModelForm'
 import { SellModal } from './components/SellModal/SellModal'
 import { CartModal } from './components/CartModal/CartModal'
 import { VentaEnCurso } from './components/VentaEnCurso/VentaEnCurso'
-import { ClientesLocales } from './components/ClientesLocales/ClientesLocales'
 import { IngresoPage } from './components/IngresoPage/IngresoPage'
 import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
 import { ReponerStock } from './components/ReponerStock/ReponerStock'
-import { PhotoSearch } from './components/PhotoSearch/PhotoSearch'
-import { TiendaNubeImport } from './components/TiendaNubeImport/TiendaNubeImport'
-import { ImportFotos } from './components/ImportFotos/ImportFotos'
-import { ImportExcel } from './components/ImportExcel/ImportExcel'
-import { Dashboard } from './components/Dashboard/Dashboard'
-import { VentasHistory } from './components/VentasHistory/VentasHistory'
-import { Configuracion } from './components/Configuracion/Configuracion'
-import { StockAvanzado } from './components/StockAvanzado/StockAvanzado'
-import { Carpetas } from './components/Carpetas/Carpetas'
-import { Seguimientos } from './components/Seguimientos/Seguimientos'
-import { TNDashboard } from './components/TNDashboard/TNDashboard'
-import { TNAnalytics } from './components/TNAnalytics/TNAnalytics'
-import { TNOrdenes } from './components/TNOrdenes/TNOrdenes'
-import { TNPreventa } from './components/TNPreventa/TNPreventa'
-import { TNClientes } from './components/TNClientes/TNClientes'
-import { TNCupones } from './components/TNCupones/TNCupones'
-import { TNMails } from './components/TNMails/TNMails'
-import { Rentabilidad } from './components/Rentabilidad/Rentabilidad'
-import { Empleados } from './components/Empleados/Empleados'
-import { MisHoras } from './components/MisHoras/MisHoras'
-import { Caja } from './components/Caja/Caja'
-import { Proveedores } from './components/Proveedores/Proveedores'
-import { Devoluciones } from './components/Devoluciones/Devoluciones'
 import { useModelos } from './hooks/useModelos'
+
+// Páginas y modales que no hacen falta en la primera pantalla (Stock): se
+// cargan sólo cuando el usuario navega a esa sección o abre ese modal, en
+// vez de venir todas juntas en el bundle inicial. No cambia en nada lo que
+// ve el usuario — React.lazy + Suspense muestra el mismo contenido apenas
+// termina de bajar el chunk, solo que ese chunk no bloquea el primer paint.
+const ClientesLocales = lazy(() => import('./components/ClientesLocales/ClientesLocales').then(m => ({ default: m.ClientesLocales })))
+const PhotoSearch = lazy(() => import('./components/PhotoSearch/PhotoSearch').then(m => ({ default: m.PhotoSearch })))
+const TiendaNubeImport = lazy(() => import('./components/TiendaNubeImport/TiendaNubeImport').then(m => ({ default: m.TiendaNubeImport })))
+const ImportFotos = lazy(() => import('./components/ImportFotos/ImportFotos').then(m => ({ default: m.ImportFotos })))
+const ImportExcel = lazy(() => import('./components/ImportExcel/ImportExcel').then(m => ({ default: m.ImportExcel })))
+const Dashboard = lazy(() => import('./components/Dashboard/Dashboard').then(m => ({ default: m.Dashboard })))
+const VentasHistory = lazy(() => import('./components/VentasHistory/VentasHistory').then(m => ({ default: m.VentasHistory })))
+const Configuracion = lazy(() => import('./components/Configuracion/Configuracion').then(m => ({ default: m.Configuracion })))
+const StockAvanzado = lazy(() => import('./components/StockAvanzado/StockAvanzado').then(m => ({ default: m.StockAvanzado })))
+const Carpetas = lazy(() => import('./components/Carpetas/Carpetas').then(m => ({ default: m.Carpetas })))
+const Seguimientos = lazy(() => import('./components/Seguimientos/Seguimientos').then(m => ({ default: m.Seguimientos })))
+const TNDashboard = lazy(() => import('./components/TNDashboard/TNDashboard').then(m => ({ default: m.TNDashboard })))
+const TNAnalytics = lazy(() => import('./components/TNAnalytics/TNAnalytics').then(m => ({ default: m.TNAnalytics })))
+const TNOrdenes = lazy(() => import('./components/TNOrdenes/TNOrdenes').then(m => ({ default: m.TNOrdenes })))
+const TNPreventa = lazy(() => import('./components/TNPreventa/TNPreventa').then(m => ({ default: m.TNPreventa })))
+const TNClientes = lazy(() => import('./components/TNClientes/TNClientes').then(m => ({ default: m.TNClientes })))
+const TNCupones = lazy(() => import('./components/TNCupones/TNCupones').then(m => ({ default: m.TNCupones })))
+const TNMails = lazy(() => import('./components/TNMails/TNMails').then(m => ({ default: m.TNMails })))
+const Rentabilidad = lazy(() => import('./components/Rentabilidad/Rentabilidad').then(m => ({ default: m.Rentabilidad })))
+const Empleados = lazy(() => import('./components/Empleados/Empleados').then(m => ({ default: m.Empleados })))
+const MisHoras = lazy(() => import('./components/MisHoras/MisHoras').then(m => ({ default: m.MisHoras })))
+const Caja = lazy(() => import('./components/Caja/Caja').then(m => ({ default: m.Caja })))
+const Proveedores = lazy(() => import('./components/Proveedores/Proveedores').then(m => ({ default: m.Proveedores })))
+const Devoluciones = lazy(() => import('./components/Devoluciones/Devoluciones').then(m => ({ default: m.Devoluciones })))
+const CrmInbox = lazy(() => import('./components/CRM/CrmInbox/CrmInbox'))
+const CrmDashboard = lazy(() => import('./components/CRM/CrmDashboard/CrmDashboard').then(m => ({ default: m.CrmDashboard })))
+const PhotoSender = lazy(() => import('./components/CRM/PhotoSender/PhotoSender').then(m => ({ default: m.PhotoSender })))
+const AiChat = lazy(() => import('./components/AiChat/AiChat').then(m => ({ default: m.AiChat })))
 import { usePreloadFirstPhotos } from './hooks/usePreloadFirstPhotos'
 import { useTNSync } from './hooks/useTNSync'
 import { useCarrito } from './hooks/useCarrito'
@@ -50,10 +60,6 @@ import { useFichajeActual } from './hooks/useFichajeActual'
 import { fetchConfiguracionFichajes } from './services/configuracionFichajes'
 import { cerrarFichajesVencidos } from './services/fichajes'
 import { cerrarCajaPorCorteDeTurno } from './services/caja'
-import { AiChat } from './components/AiChat/AiChat'
-import CrmInbox from './components/CRM/CrmInbox/CrmInbox'
-import { CrmDashboard } from './components/CRM/CrmDashboard/CrmDashboard'
-import { PhotoSender } from './components/CRM/PhotoSender/PhotoSender'
 import { FeedbackButton } from './components/FeedbackButton/FeedbackButton'
 import { setupGlobalErrorHandler } from './services/errorReporter'
 import './App.css'
@@ -268,6 +274,7 @@ export function App() {
         )
       )}
 
+      <Suspense fallback={<div className="app-preload-screen"><div className="spinner" /></div>}>
       {activePage === 'carpetas' && <Carpetas modelos={modelos} />}
       {activePage === 'clientes_locales' && (
         <ClientesLocales
@@ -328,6 +335,7 @@ export function App() {
         />
       )}
       {activePage === 'crm_dashboard' && role === 'dueno' && <CrmDashboard />}
+      </Suspense>
 
       <ModelForm
         isOpen={showForm}
@@ -384,32 +392,44 @@ export function App() {
         onDone={reload}
       />
 
-      <PhotoSearch
-        isOpen={showPhotoSearch}
-        onClose={() => setShowPhotoSearch(false)}
-        modelos={modelos}
-        onSelectModelo={m => { setShowPhotoSearch(false); handleEdit(m) }}
-      />
+      {/* Estos 4 modales solo se montan (y por lo tanto solo bajan su chunk)
+          la primera vez que se abren, no en la carga inicial de Stock. */}
+      <Suspense fallback={null}>
+        {showPhotoSearch && (
+          <PhotoSearch
+            isOpen={showPhotoSearch}
+            onClose={() => setShowPhotoSearch(false)}
+            modelos={modelos}
+            onSelectModelo={m => { setShowPhotoSearch(false); handleEdit(m) }}
+          />
+        )}
 
-      <TiendaNubeImport
-        isOpen={showImport}
-        onClose={() => setShowImport(false)}
-        onImported={reload}
-      />
+        {showImport && (
+          <TiendaNubeImport
+            isOpen={showImport}
+            onClose={() => setShowImport(false)}
+            onImported={reload}
+          />
+        )}
 
-      <ImportFotos
-        isOpen={showImportFotos}
-        onClose={() => setShowImportFotos(false)}
-        modelos={modelos}
-        onDone={reload}
-      />
+        {showImportFotos && (
+          <ImportFotos
+            isOpen={showImportFotos}
+            onClose={() => setShowImportFotos(false)}
+            modelos={modelos}
+            onDone={reload}
+          />
+        )}
 
-      <ImportExcel
-        isOpen={showImportExcel}
-        onClose={() => setShowImportExcel(false)}
-        modelos={modelos}
-        onDone={reload}
-      />
+        {showImportExcel && (
+          <ImportExcel
+            isOpen={showImportExcel}
+            onClose={() => setShowImportExcel(false)}
+            modelos={modelos}
+            onDone={reload}
+          />
+        )}
+      </Suspense>
 
       <Modal
         isOpen={showClearConfirm}
@@ -433,18 +453,20 @@ export function App() {
           </div>
         </div>
       </Modal>
-      {photoSender && (
-        <PhotoSender
-          isOpen={true}
-          onClose={() => setPhotoSender(null)}
-          tipo={photoSender.tipo}
-          talle={photoSender.talle}
-          conversacionId={photoSender.conversacionId}
-          empleadoId={empleadoId}
-          onSendPhotos={async () => { setPhotoSender(null) }}
-        />
-      )}
-      <AiChat onReload={reload} />
+      <Suspense fallback={null}>
+        {photoSender && (
+          <PhotoSender
+            isOpen={true}
+            onClose={() => setPhotoSender(null)}
+            tipo={photoSender.tipo}
+            talle={photoSender.talle}
+            conversacionId={photoSender.conversacionId}
+            empleadoId={empleadoId}
+            onSendPhotos={async () => { setPhotoSender(null) }}
+          />
+        )}
+        <AiChat onReload={reload} />
+      </Suspense>
       <FeedbackButton />
     </Layout>
   )
