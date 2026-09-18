@@ -331,11 +331,19 @@ async function upsertClienteServerSide(c: TNRawCustomer): Promise<void> {
 // Ahora recibe la orden ya fetcheada, con product_id/variant_id reales por
 // línea, y matchea contra modelo_talles.tn_variant_id (fuente de verdad del
 // talle, no hace falta parsear ningún label).
+//
+// La idempotencia y el descuento de stock viven en registrar_venta_tn
+// (supabase/migrations/032_ingreso_y_venta_tn_atomicos.sql), por LÍNEA de
+// producto (item.id), no por pedido completo: antes, si un pedido con dos
+// productos tenía la primera línea procesada y la segunda fallaba, el
+// reintento de TN veía "ya existe una venta con este tn_order_id" y
+// descartaba el pedido entero, dejando la segunda línea sin procesar para
+// siempre. También evita que dos invocaciones concurrentes del mismo
+// webhook (TN reintenta si no responde 200 a tiempo) descuenten el mismo
+// stock dos veces — la resolución de qué modelo/talle corresponde sigue
+// acá (es la parte que ya funcionaba bien), solo el paso final de
+// insertar-la-venta-y-descontar-stock se movió a la base.
 async function descontarStockPorOrden(order: TNRawOrder): Promise<void> {
-  const dupCheck = await sbFetch(`ventas?tn_order_id=eq.${order.id}&select=id&limit=1`)
-  const existing = await dupCheck.json() as unknown[]
-  if (existing.length > 0) return // idempotencia: ya procesada
-
   for (const item of order.products) {
     let talleRow: { id: string; cantidad: number; talle_arg: number } | undefined
     let modeloRow: { id: string; precio_costo: number } | undefined
@@ -376,25 +384,23 @@ async function descontarStockPorOrden(order: TNRawOrder): Promise<void> {
 
     if (!talleRow) continue
 
-    const nuevaCantidad = Math.max(0, talleRow.cantidad - item.quantity)
-    await sbFetch(`modelo_talles?id=eq.${talleRow.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ cantidad: nuevaCantidad }),
-    })
-
     const precioVenta = parseFloat(item.price) * item.quantity
     const ganancia = precioVenta - (modeloRow.precio_costo * item.quantity)
 
-    await sbFetch('ventas', {
+    // item.id es el ID de esta línea puntual del pedido (no el pedido
+    // entero) — la función solo inserta/descuenta si esa línea específica
+    // no se procesó todavía, sin importar el estado del resto del pedido.
+    await sbFetch('rpc/registrar_venta_tn', {
       method: 'POST',
       body: JSON.stringify({
-        modelo_id: modeloRow.id,
-        talle_arg: talleRow.talle_arg,
-        fecha: new Date().toISOString(),
-        precio_venta: precioVenta,
-        medio_pago: 'TiendaNube',
-        ganancia: Math.max(0, ganancia),
-        tn_order_id: order.id,
+        p_tn_order_id: order.id,
+        p_tn_order_line_id: item.id,
+        p_modelo_id: modeloRow.id,
+        p_talle_id: talleRow.id,
+        p_talle_arg: talleRow.talle_arg,
+        p_cantidad: item.quantity,
+        p_precio_venta: precioVenta,
+        p_ganancia: Math.max(0, ganancia),
       }),
     })
   }

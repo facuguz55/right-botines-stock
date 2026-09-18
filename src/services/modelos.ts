@@ -130,32 +130,29 @@ export async function sellCarrito(
   if (error) throw error
 }
 
+// El ajuste de stock y el registro en `ingresos` viven en la función
+// registrar_ingreso_stock (supabase/migrations/032_ingreso_y_venta_tn_atomicos.sql):
+// antes esto leía `cantidad` del talle en el navegador y mandaba el total ya
+// sumado — dos ingresos del mismo talle casi al mismo tiempo (o un ingreso
+// mientras se vende ese talle) podían pisarse y perder stock. Ahora la suma
+// se hace en la base sobre el valor que haya en ese momento, no sobre uno
+// leído antes acá. `cantidadActual` ya no se usa para calcular nada (queda
+// en la firma para no tener que tocar los dos lugares que llaman a esto).
 export async function addIngreso(
   modeloId: string,
   talleArg: number,
   talleUs: number,
-  cantidadActual: number,
+  _cantidadActual: number,
   cantidad: number,
   costoTotal: number,
   talleId?: string
 ): Promise<void> {
-  if (talleId) {
-    const { error } = await supabase
-      .from('modelo_talles')
-      .update({ cantidad: cantidadActual + cantidad })
-      .eq('id', talleId)
-    if (error) throw error
-  } else {
-    const { error } = await supabase
-      .from('modelo_talles')
-      .insert([{ modelo_id: modeloId, talle_us: talleUs, talle_arg: talleArg, cantidad, stock_minimo: 1 }])
-    if (error) throw error
-  }
-
-  const { error: ingErr } = await supabase.from('ingresos').insert([{
-    modelo_id: modeloId, talle_arg: talleArg, cantidad, costo_total: costoTotal,
-  }])
-  if (ingErr) throw ingErr
+  const { error } = await supabase.rpc('registrar_ingreso_stock', {
+    p_modelo_id: modeloId,
+    p_items: [{ talle_id: talleId ?? null, talle_arg: talleArg, talle_us: talleUs, cantidad_delta: cantidad, stock_minimo: 1 }],
+    p_costo_total: costoTotal,
+  })
+  if (error) throw error
 }
 
 export async function addIngresoBatch(
@@ -164,37 +161,23 @@ export async function addIngresoBatch(
   newTalle: { talleArg: number; talleUs: number; cantidad: number } | null,
   costoTotal: number
 ): Promise<{ newTalleId: string | null }> {
-  for (const c of changes) {
-    const { error } = await supabase
-      .from('modelo_talles')
-      .update({ cantidad: c.cantidadActual + c.delta })
-      .eq('id', c.talleId)
-    if (error) throw error
-  }
+  const items = [
+    ...changes.map(c => ({ talle_id: c.talleId, talle_arg: c.talleArg, talle_us: c.talleUs, cantidad_delta: c.delta, stock_minimo: 1 })),
+    ...(newTalle ? [{ talle_id: null, talle_arg: newTalle.talleArg, talle_us: newTalle.talleUs, cantidad_delta: newTalle.cantidad, stock_minimo: 1 }] : []),
+  ]
 
-  let newTalleId: string | null = null
-  if (newTalle) {
-    const { data, error } = await supabase
-      .from('modelo_talles')
-      .insert([{ modelo_id: modeloId, talle_us: newTalle.talleUs, talle_arg: newTalle.talleArg, cantidad: newTalle.cantidad, stock_minimo: 1 }])
-      .select('id')
-      .single()
-    if (error) throw error
-    newTalleId = data.id
-  }
+  const { data, error } = await supabase.rpc('registrar_ingreso_stock', {
+    p_modelo_id: modeloId,
+    p_items: items,
+    p_costo_total: costoTotal,
+  })
+  if (error) throw error
 
-  const totalCantidad = changes.reduce((s, c) => s + c.delta, 0) + (newTalle?.cantidad ?? 0)
-  const refTalleArg = changes[0]?.talleArg ?? newTalle?.talleArg ?? 0
-
-  if (totalCantidad > 0) {
-    const { error } = await supabase.from('ingresos').insert([{
-      modelo_id: modeloId,
-      talle_arg: refTalleArg,
-      cantidad: totalCantidad,
-      costo_total: costoTotal,
-    }])
-    if (error) throw error
-  }
+  // newTalle siempre va último en `items` — tomar el último resultado en vez
+  // de buscar por talle_arg evita ambigüedad si algún talle existente
+  // coincidiera casualmente con el mismo talle_arg del nuevo.
+  const resultado = (data ?? []) as { talle_arg: number; talle_id: string }[]
+  const newTalleId = newTalle ? resultado[resultado.length - 1]?.talle_id ?? null : null
 
   return { newTalleId }
 }
@@ -215,10 +198,18 @@ export async function bulkUpdatePrecio(
   items: { id: string; precioActual: number; precioNuevo: number }[],
   campo: 'precio_venta' | 'precio_costo'
 ): Promise<void> {
+  // Promise.allSettled, no Promise.all: antes, si un ítem del lote fallaba
+  // (constraint, RLS, timeout), Promise.all rechazaba entero pero los demás
+  // ítems del MISMO lote que ya habían resuelto bien quedaban aplicados en
+  // la base igual — sin ninguna forma de saber cuáles. Ahora se sigue
+  // procesando todo, se cuentan los que fallaron, y se avisa con el detalle
+  // en vez de un error genérico que deja la duda de qué se aplicó.
   const BATCH = 20
+  const fallidos: { id: string; error: string }[] = []
   for (let i = 0; i < items.length; i += BATCH) {
-    await Promise.all(
-      items.slice(i, i + BATCH).map(async ({ id, precioActual, precioNuevo }) => {
+    const lote = items.slice(i, i + BATCH)
+    const resultados = await Promise.allSettled(
+      lote.map(async ({ id, precioActual, precioNuevo }) => {
         const { error } = await supabase.from('modelos').update({ [campo]: precioNuevo }).eq('id', id)
         if (error) throw error
         if (campo === 'precio_venta') {
@@ -229,6 +220,16 @@ export async function bulkUpdatePrecio(
           }])
         }
       })
+    )
+    resultados.forEach((r, idx) => {
+      if (r.status === 'rejected') {
+        fallidos.push({ id: lote[idx].id, error: r.reason instanceof Error ? r.reason.message : String(r.reason) })
+      }
+    })
+  }
+  if (fallidos.length > 0) {
+    throw new Error(
+      `Se actualizaron ${items.length - fallidos.length} de ${items.length} — ${fallidos.length} no se pudieron cambiar (reintentá solo esos, no todo de nuevo, para no duplicar el ajuste).`
     )
   }
 }
@@ -247,12 +248,28 @@ export async function bulkUpdateStockTalles(
       return { id: t.id, cantidad: nueva }
     })
   )
+  // Ver el comentario de bulkUpdatePrecio: mismo cambio de Promise.all a
+  // Promise.allSettled, para no dejar un fallo parcial silencioso — acá es
+  // más delicado todavía, porque con "sumar"/"restar" reintentar ciegamente
+  // todo el lote duplicaría el ajuste de los que sí se aplicaron.
   const BATCH = 20
+  const fallidos: { id: string; error: string }[] = []
   for (let i = 0; i < updates.length; i += BATCH) {
-    await Promise.all(
-      updates.slice(i, i + BATCH).map(({ id, cantidad }) =>
+    const lote = updates.slice(i, i + BATCH)
+    const resultados = await Promise.allSettled(
+      lote.map(({ id, cantidad }) =>
         supabase.from('modelo_talles').update({ cantidad }).eq('id', id).then(({ error }) => { if (error) throw error })
       )
+    )
+    resultados.forEach((r, idx) => {
+      if (r.status === 'rejected') {
+        fallidos.push({ id: lote[idx].id, error: r.reason instanceof Error ? r.reason.message : String(r.reason) })
+      }
+    })
+  }
+  if (fallidos.length > 0) {
+    throw new Error(
+      `Se actualizaron ${updates.length - fallidos.length} de ${updates.length} talles — ${fallidos.length} no se pudieron cambiar (reintentá solo esos, no todo de nuevo, para no duplicar el ajuste si era "sumar" o "restar").`
     )
   }
 }
