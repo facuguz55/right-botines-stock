@@ -535,6 +535,8 @@ export function StockAvanzado({ modelos, onReload }: { modelos: Modelo[]; onRelo
                         src={foto}
                         alt=""
                         className="sa-thumb"
+                        loading="lazy"
+                        decoding="async"
                         onClick={() => setLightboxFoto({ src: foto, alt: `${m.marca} ${m.modelo}` })}
                       />
                     ) : <div className="sa-thumb-ph">⚽</div>}

@@ -104,7 +104,7 @@ export function PhotoSearch({ isOpen, onClose, modelos, onSelectModelo }: PhotoS
                     <div className="ps-results-grid">
                       {exactResults.map(({ modelo }) => (
                         <button key={modelo.id} className="ps-result-card" onClick={() => { onSelectModelo(modelo); onClose() }}>
-                          <div className="ps-result-img">{modelo.modelo_fotos[0] ? <img src={modelo.modelo_fotos[0].foto_url} alt={modelo.modelo} /> : <span>⚽</span>}</div>
+                          <div className="ps-result-img">{modelo.modelo_fotos[0] ? <img src={modelo.modelo_fotos[0].foto_url} alt={modelo.modelo} loading="lazy" decoding="async" /> : <span>⚽</span>}</div>
                           <div className="ps-result-info">
                             <p className="ps-result-marca">{modelo.marca}</p>
                             <p className="ps-result-modelo">{modelo.modelo}</p>
@@ -125,7 +125,7 @@ export function PhotoSearch({ isOpen, onClose, modelos, onSelectModelo }: PhotoS
                     <div className="ps-results-grid">
                       {similarResults.slice(0, 6).map(({ modelo }) => (
                         <button key={modelo.id} className="ps-result-card" onClick={() => { onSelectModelo(modelo); onClose() }}>
-                          <div className="ps-result-img">{modelo.modelo_fotos[0] ? <img src={modelo.modelo_fotos[0].foto_url} alt={modelo.modelo} /> : <span>⚽</span>}</div>
+                          <div className="ps-result-img">{modelo.modelo_fotos[0] ? <img src={modelo.modelo_fotos[0].foto_url} alt={modelo.modelo} loading="lazy" decoding="async" /> : <span>⚽</span>}</div>
                           <div className="ps-result-info">
                             <p className="ps-result-marca">{modelo.marca}</p>
                             <p className="ps-result-modelo">{modelo.modelo}</p>

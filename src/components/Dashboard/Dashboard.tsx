@@ -129,7 +129,7 @@ export function Dashboard({ role }: DashboardProps) {
                 <div key={m.modelo_id} className="top-modelo-row">
                   <span className="top-rank">{i + 1}</span>
                   {m.foto_url ? (
-                    <img src={m.foto_url} alt={m.nombre} className="top-thumb" />
+                    <img src={m.foto_url} alt={m.nombre} className="top-thumb" loading="lazy" decoding="async" />
                   ) : (
                     <div className="top-thumb-placeholder">⚽</div>
                   )}
@@ -170,7 +170,7 @@ export function Dashboard({ role }: DashboardProps) {
             {data.alertasStock.map(({ modelo, tallesAlerta }) => (
               <div key={modelo.id} className="alerta-item">
                 {modelo.modelo_fotos[0] && (
-                  <img src={modelo.modelo_fotos[0].foto_url} alt={modelo.modelo} className="alerta-thumb" />
+                  <img src={modelo.modelo_fotos[0].foto_url} alt={modelo.modelo} className="alerta-thumb" loading="lazy" decoding="async" />
                 )}
                 <div className="alerta-info">
                   <p className="alerta-nombre">{modelo.marca} {modelo.modelo}</p>

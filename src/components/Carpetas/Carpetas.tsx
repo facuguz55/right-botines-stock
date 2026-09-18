@@ -284,7 +284,7 @@ export function Carpetas({ modelos }: CarpetasProps) {
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleFoto(f.foto_url) } }}
                           title={sel ? 'Quitar selección' : 'Seleccionar'}
                         >
-                          <img src={f.foto_url} alt={m.modelo} />
+                          <img src={f.foto_url} alt={m.modelo} loading="lazy" decoding="async" />
                           <div className="foto-check">
                             {sel ? <CheckSquare size={16} /> : <Square size={16} />}
                           </div>
