@@ -321,19 +321,35 @@ export function StockAvanzado({ modelos, onReload }: { modelos: Modelo[]; onRelo
   }
 
   // Handlers
+  // Antes sin try/catch (a diferencia de handleBulkDelete, que sí lo tenía):
+  // si bulkUpdatePrecio/bulkUpdateStockTalles fallaban a mitad de camino, el
+  // modal quedaba colgado sin ningún aviso, y como esas funciones ahora
+  // pueden lanzar con un fallo PARCIAL (parte sí se aplicó), hay que cerrar
+  // el modal y recargar en ambos casos para reflejar lo que sí cambió, y
+  // mostrar el detalle en el toast en vez de tragarse el error.
   const handleBulkPrecio = async (campo: 'precio_venta' | 'precio_costo', items: { id: string; precioActual: number; precioNuevo: number }[]) => {
-    await bulkUpdatePrecio(items, campo)
-    setModal(null); setSeleccion(new Set()); onReload()
-    showToast(true, `Precio actualizado en ${items.length} modelo${items.length !== 1 ? 's' : ''}.`)
+    try {
+      await bulkUpdatePrecio(items, campo)
+      showToast(true, `Precio actualizado en ${items.length} modelo${items.length !== 1 ? 's' : ''}.`)
+    } catch (e) {
+      showToast(false, e instanceof Error ? e.message : 'Error al actualizar precios.')
+    } finally {
+      setModal(null); setSeleccion(new Set()); onReload()
+    }
   }
 
   const handleBulkStock = async (
     items: { modeloId: string; talles: { id: string; cantidadActual: number }[] }[],
     op: StockOp, valor: number
   ) => {
-    await bulkUpdateStockTalles(items, op, valor)
-    setModal(null); setSeleccion(new Set()); onReload()
-    showToast(true, `Stock actualizado en ${items.length} modelo${items.length !== 1 ? 's' : ''}.`)
+    try {
+      await bulkUpdateStockTalles(items, op, valor)
+      showToast(true, `Stock actualizado en ${items.length} modelo${items.length !== 1 ? 's' : ''}.`)
+    } catch (e) {
+      showToast(false, e instanceof Error ? e.message : 'Error al actualizar stock.')
+    } finally {
+      setModal(null); setSeleccion(new Set()); onReload()
+    }
   }
 
   const handleBulkDelete = async () => {
