@@ -22,7 +22,17 @@
   overflow: hidden;
 }
 
-.card-image { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; cursor: zoom-in; }
+.card-image {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform 0.4s ease; cursor: zoom-in;
+  /* Sin esto, arrancar el gesto de scroll justo sobre la foto podía ser
+     interpretado como un drag de imagen en vez de un swipe de la página
+     (sobre todo en mobile) — con touch-action el navegador prioriza el
+     scroll vertical siempre, y ya no hace falta "esquivar" las fotos. */
+  touch-action: pan-y;
+  -webkit-user-drag: none;
+  user-select: none;
+}
 .model-card:hover .card-image { transform: scale(1.04); }
 
 .card-image-skeleton {

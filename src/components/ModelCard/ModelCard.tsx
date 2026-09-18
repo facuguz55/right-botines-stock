@@ -41,6 +41,7 @@ export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, pu
               className="card-image"
               loading="lazy"
               decoding="async"
+              draggable={false}
               onLoad={() => setImgLoaded(true)}
               onError={() => setImgError(true)}
               onClick={() => setLightboxOpen(true)}
