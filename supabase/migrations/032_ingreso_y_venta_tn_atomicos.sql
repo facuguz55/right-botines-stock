@@ -105,9 +105,14 @@ GRANT EXECUTE ON FUNCTION registrar_ingreso_stock(uuid, jsonb, numeric) TO anon,
 
 -- ── 2) Venta por TiendaNube atómica, idempotente por línea de producto ──
 
--- tn_order_id ya existía y sigue igual (varias líneas de un mismo pedido
--- comparten el mismo tn_order_id); esta columna nueva identifica la LÍNEA
--- puntual del pedido (item.id en la API de TN), única de verdad.
+-- tn_order_id nunca había llegado a existir en `ventas` en la base real
+-- (solo estaba en `tn_ordenes`, una tabla distinta) — el webhook ya estaba
+-- fallando al insertar antes de este fix, por una columna inexistente, sin
+-- relación con la condición de carrera que motivó esta migración.
+-- tn_order_line_id es nueva: identifica la LÍNEA puntual del pedido
+-- (item.id en la API de TN), única de verdad — varias líneas de un mismo
+-- pedido van a compartir el mismo tn_order_id pero no el mismo line_id.
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS tn_order_id bigint;
 ALTER TABLE ventas ADD COLUMN IF NOT EXISTS tn_order_line_id bigint;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ventas_tn_order_line_id
   ON ventas (tn_order_line_id) WHERE tn_order_line_id IS NOT NULL;
