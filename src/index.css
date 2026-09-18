@@ -54,6 +54,23 @@ body {
 
 * { overscroll-behavior: contain; }
 
+/* En pantallas táctiles (sobre todo notebooks con touchscreen), arrancar
+   un swipe justo sobre texto —el nombre de un cliente, un precio, lo que
+   sea— se interpretaba como "seleccionar texto" en vez de scrollear la
+   página, obligando a deslizar desde un huequito vacío entre elementos.
+   Como esta es una app de uso interno (no una página para leer/copiar
+   texto), se desactiva la selección por defecto y se reactiva solo donde
+   hace falta: inputs, textareas y contenido editable. */
+*, *::before, *::after {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea, select, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 button { cursor: pointer; font-family: inherit; font-size: inherit; }
 input, select, textarea { font-family: inherit; font-size: inherit; }
 a { color: var(--accent); text-decoration: none; }
