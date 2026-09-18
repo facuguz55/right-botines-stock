@@ -52,7 +52,18 @@ body {
 
 #root { overflow: hidden; }
 
-* { overscroll-behavior: contain; }
+/* OJO: acá había un "* { overscroll-behavior: contain }" que parecía
+   inofensivo pero rompía el scroll con la rueda del mouse en la mayoría
+   de la app. Cualquier elemento con overflow:hidden (las cards de
+   producto, el wrap de una foto, etc.) cuenta como "contenedor de
+   scroll" a los ojos de overscroll-behavior aunque no tenga nada para
+   scrollear — con "contain" puesto ahí, el navegador probaba scrollear
+   ESE elemento, no tenía nada que mover, y como estaba "contenido" no
+   dejaba pasar la rueda al padre: resultado, tenías que apuntar
+   justo al huequito entre cards para que el scroll llegara al
+   contenedor real. body ya tiene overflow:hidden + overscroll-behavior:
+   none (más arriba), que alcanza solo para que la página nunca "rebote"
+   — no hace falta repetirlo en cada elemento de la app. */
 
 /* En pantallas táctiles (sobre todo notebooks con touchscreen), arrancar
    un swipe justo sobre texto —el nombre de un cliente, un precio, lo que
