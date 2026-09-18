@@ -245,7 +245,11 @@ export function VentasHistory({ role }: VentasHistoryProps) {
                     </span>
                     {v.medio_pago === 'Mixto' && (
                       <span className="mixto-detalle">
-                        ${(v.monto_efectivo ?? 0).toLocaleString('es-AR')} efec. + ${(v.monto_transferencia ?? 0).toLocaleString('es-AR')} transf.
+                        {[
+                          v.monto_efectivo ? `$${v.monto_efectivo.toLocaleString('es-AR')} efec.` : null,
+                          v.monto_transferencia ? `$${v.monto_transferencia.toLocaleString('es-AR')} transf.` : null,
+                          v.monto_tarjeta ? `$${v.monto_tarjeta.toLocaleString('es-AR')} tarjeta` : null,
+                        ].filter(Boolean).join(' + ')}
                       </span>
                     )}
                   </td>

@@ -74,7 +74,7 @@ export async function fetchTotalesEfectivoDia(fecha: string): Promise<TotalesEfe
   // arqueo no contaba, mostrando una "diferencia" que no existe.
   const { data, error } = await supabase
     .from('ventas')
-    .select('precio_venta, medio_pago, venta_grupo_id, monto_efectivo, monto_transferencia')
+    .select('precio_venta, medio_pago, venta_grupo_id, monto_efectivo, monto_transferencia, monto_tarjeta')
     .gte('fecha', inicioDiaLocalISO(fecha))
     .lte('fecha', finDiaLocalISO(fecha))
   if (error) throw error
@@ -92,6 +92,7 @@ export async function fetchTotalesEfectivoDia(fecha: string): Promise<TotalesEfe
       mixtoGruposVistos.add(v.venta_grupo_id)
       totales.efectivo += Number(v.monto_efectivo ?? 0)
       totales.transferencia += Number(v.monto_transferencia ?? 0)
+      totales.tarjeta += Number(v.monto_tarjeta ?? 0)
     }
   }
   return totales

@@ -107,6 +107,7 @@ export async function sellCarrito(
   empleadoId: string | null,
   montoEfectivo: number | null = null,
   montoTransferencia: number | null = null,
+  montoTarjeta: number | null = null,
   montoRecibidoEfectivo: number | null = null,
   vueltoEfectivo: number | null = null,
 ): Promise<void> {
@@ -124,6 +125,7 @@ export async function sellCarrito(
     p_empleado_id: empleadoId,
     p_monto_efectivo: montoEfectivo,
     p_monto_transferencia: montoTransferencia,
+    p_monto_tarjeta: montoTarjeta,
     p_monto_recibido_efectivo: montoRecibidoEfectivo,
     p_vuelto_efectivo: vueltoEfectivo,
   })
