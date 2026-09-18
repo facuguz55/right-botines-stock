@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import type { Modelo, TiendaNubeModelo } from '../../types'
 import { Modal } from '../Modal/Modal'
-import { createModelo, getUniqueCodigoBase, upsertTalle, clearAllModelos } from '../../services/modelos'
+import { createModelo, getUniqueCodigoBase, upsertTalle, bulkDeleteModelos } from '../../services/modelos'
 import { buildCodigoBase } from '../../utils/codigos'
 import { detectColumns, groupByModelo } from '../../utils/tiendanube'
 import './ImportExcel.css'
@@ -14,7 +14,7 @@ interface ImportExcelProps {
   onDone: () => void
 }
 
-type Step = 'upload' | 'preview' | 'importing' | 'done'
+type Step = 'upload' | 'preview' | 'importing' | 'done' | 'done_sin_borrar'
 
 function parseFile(buffer: ArrayBuffer): { headers: string[]; rows: string[][] } {
   const wb = XLSX.read(buffer, { type: 'array' })
@@ -33,7 +33,7 @@ export function ImportExcel({ isOpen, onClose, modelos, onDone }: ImportExcelPro
   const [grupos, setGrupos] = useState<TiendaNubeModelo[]>([])
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
-  const [result, setResult] = useState({ ok: 0, errors: 0 })
+  const [result, setResult] = useState<{ ok: number; errors: number; errorDetails: string[] }>({ ok: 0, errors: 0, errorDetails: [] })
   const fileRef = useRef<HTMLInputElement>(null)
 
   const reset = () => { setStep('upload'); setGrupos([]); setProgress(0); setProgressLabel('') }
@@ -63,13 +63,20 @@ export function ImportExcel({ isOpen, onClose, modelos, onDone }: ImportExcelPro
   const validGrupos = grupos.filter(g => !g.errors.length)
   const invalidCount = grupos.filter(g => g.errors.length > 0).length
 
+  // Antes esto borraba TODO el catálogo actual primero y recién después
+  // cargaba el nuevo, uno por uno: si el navegador se cerraba, se cortaba
+  // la conexión, o el Excel tenía tantas filas que el proceso tardaba
+  // minutos y algo fallaba a mitad, el negocio se quedaba con una fracción
+  // del catálogo nuevo y sin ningún respaldo del anterior — sin forma de
+  // deshacer. Ahora se carga primero todo lo nuevo, y solo si el proceso
+  // de carga llegó al final (con o sin errores puntuales de alguna fila,
+  // que ya se toleraban antes) se borran los modelos viejos — nunca se
+  // pierde el catálogo anterior mientras el nuevo todavía se está armando.
   const handleConfirm = async () => {
     setStep('importing')
     let ok = 0, errors = 0
-
-    setProgressLabel('Borrando stock actual...')
-    setProgress(0)
-    await clearAllModelos()
+    const errorDetails: string[] = []
+    const idsViejos = modelos.map(m => m.id)
 
     for (let i = 0; i < validGrupos.length; i++) {
       const g = validGrupos[i]
@@ -92,12 +99,28 @@ export function ImportExcel({ isOpen, onClose, modelos, onDone }: ImportExcelPro
           })
         }
         ok++
-      } catch { errors++ }
+      } catch (e) {
+        errors++
+        errorDetails.push(`${g.marca} ${g.modelo}: ${e instanceof Error ? e.message : String(e)}`)
+      }
       setProgress(Math.round(((i + 1) / validGrupos.length) * 100))
     }
 
-    setResult({ ok, errors })
-    setStep('done')
+    try {
+      setProgressLabel('Borrando el stock anterior...')
+      if (idsViejos.length > 0) await bulkDeleteModelos(idsViejos)
+      setResult({ ok, errors, errorDetails })
+      setStep('done')
+    } catch (e) {
+      // El catálogo nuevo ya quedó cargado (arriba) — si el borrado del
+      // viejo falla acá, no hay que perder ese trabajo ni dejar la pantalla
+      // colgada: se avisa que conviven los dos catálogos por ahora.
+      setResult({
+        ok, errors,
+        errorDetails: [...errorDetails, `No se pudo borrar el stock anterior: ${e instanceof Error ? e.message : String(e)}`],
+      })
+      setStep('done_sin_borrar')
+    }
     onDone()
   }
 
@@ -195,6 +218,29 @@ export function ImportExcel({ isOpen, onClose, modelos, onDone }: ImportExcelPro
               {result.ok} modelo{result.ok !== 1 ? 's' : ''} importado{result.ok !== 1 ? 's' : ''}
               {result.errors > 0 && <> · <span className="ix-err-inline">{result.errors} con error</span></>}.
             </p>
+            {result.errorDetails.length > 0 && (
+              <ul className="ix-error-list">
+                {result.errorDetails.map((msg, i) => <li key={i}>{msg}</li>)}
+              </ul>
+            )}
+            <button className="btn btn-primary" onClick={handleClose}>Cerrar</button>
+          </div>
+        )}
+
+        {step === 'done_sin_borrar' && (
+          <div className="ix-done">
+            <div className="ix-done-icon">⚠️</div>
+            <p className="ix-done-title">Se cargó el catálogo nuevo, pero falta borrar el anterior</p>
+            <p className="ix-done-detail">
+              {result.ok} modelo{result.ok !== 1 ? 's' : ''} nuevo{result.ok !== 1 ? 's' : ''} ya están cargados. El stock
+              anterior <strong>no se pudo borrar</strong> — por ahora conviven los dos catálogos. Volvé a intentar el
+              borrado desde Stock Avanzado, o probá importar de nuevo en un rato.
+            </p>
+            {result.errorDetails.length > 0 && (
+              <ul className="ix-error-list">
+                {result.errorDetails.map((msg, i) => <li key={i}>{msg}</li>)}
+              </ul>
+            )}
             <button className="btn btn-primary" onClick={handleClose}>Cerrar</button>
           </div>
         )}
