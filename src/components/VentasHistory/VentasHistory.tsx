@@ -3,12 +3,13 @@ import { useVentas } from '../../hooks/useVentas'
 import { deleteVenta } from '../../services/ventas'
 import { Modal } from '../Modal/Modal'
 import type { Role, Venta } from '../../types'
+import { toLocalISO } from '../../utils/fecha'
 import './VentasHistory.css'
 
 const MEDIO_ICONS: Record<string, string> = { Efectivo: '💵', Transferencia: '📲', Tarjeta: '💳', Mixto: '🔀' }
 const MEDIOS: Venta['medio_pago'][] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Mixto']
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
+function toISO(d: Date) { return toLocalISO(d) }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()

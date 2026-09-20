@@ -1,5 +1,6 @@
 ﻿import { fetchModelos, updateModelo, addIngreso } from './modelos'
 import { fetchVentas } from './ventas'
+import { toLocalISO } from '../utils/fecha'
 
 const API_URL = 'https://api.anthropic.com/v1/messages'
 const MODEL = 'claude-haiku-4-5-20251001'
@@ -124,7 +125,7 @@ async function executeTool(name: string, input: any): Promise<string> {
       const dias = Number(input.dias ?? 7)
       const start = new Date()
       start.setDate(start.getDate() - dias)
-      const ventas = await fetchVentas(start.toISOString().split('T')[0])
+      const ventas = await fetchVentas(toLocalISO(start))
       return JSON.stringify({
         periodo: `Ultimos ${dias} dias`,
         cantidad_ventas: ventas.length,

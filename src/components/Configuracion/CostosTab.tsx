@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Trash2, Power, PauseCircle, Calendar, Repeat, Zap } from 'lucide-react'
 import type { CostoCanal, CostoModoValor, CostoTipo } from '../../types'
 import { useCostos } from '../../hooks/useCostos'
+import { hoyLocalISO } from '../../utils/fecha'
 
 const CANAL_LABEL: Record<CostoCanal, string> = { local: 'Local', web: 'Web', ambos: 'Ambos' }
 
@@ -10,7 +11,7 @@ function formatMonto(n: number) {
 }
 
 function hoyStr() {
-  return new Date().toISOString().slice(0, 10)
+  return hoyLocalISO()
 }
 
 interface ConfigFormState {

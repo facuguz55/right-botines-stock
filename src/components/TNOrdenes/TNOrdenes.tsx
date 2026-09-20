@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp, Search, Check } from 'lucide-react'
 import { paymentStatusLabel, paymentStatusClass, humanizePaymentMethod, formatARS, type TNOrder } from '../../services/tiendanubeService'
 import { fetchLocalTNOrdenes, syncTNOrdenes, marcarOrdenPreparada } from '../../services/tnOrdersSync'
+import { toLocalISO } from '../../utils/fecha'
 import './TNOrdenes.css'
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'cancelled'
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
+function toISO(d: Date) { return toLocalISO(d) }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()

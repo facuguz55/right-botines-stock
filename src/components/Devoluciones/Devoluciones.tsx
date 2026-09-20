@@ -4,10 +4,11 @@ import type { Modelo, MedioPago, TipoDevolucionCambio, Venta } from '../../types
 import { useDevoluciones } from '../../hooks/useDevoluciones'
 import { fetchVentas } from '../../services/ventas'
 import { getPrecioReal } from '../../utils/precios'
+import { toLocalISO } from '../../utils/fecha'
 import { Modal } from '../Modal/Modal'
 import './Devoluciones.css'
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
+function toISO(d: Date) { return toLocalISO(d) }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()

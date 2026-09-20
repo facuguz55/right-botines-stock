@@ -4,9 +4,10 @@ import type { Compra, Modelo } from '../../types'
 import type { useProveedores } from '../../hooks/useProveedores'
 import { useCompras } from '../../hooks/useCompras'
 import { Modal } from '../Modal/Modal'
+import { toLocalISO } from '../../utils/fecha'
 import './Proveedores.css'
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
+function toISO(d: Date) { return toLocalISO(d) }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()

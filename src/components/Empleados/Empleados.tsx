@@ -9,10 +9,11 @@ import { verifyOwnerPin } from '../../services/auth'
 import { fetchValoresHora, asignarValorHora } from '../../services/valoresHora'
 import { getSessionPin, setSessionPin } from '../../lib/pinSession'
 import { valorHoraEn, calcularPagos, type ValorHora } from '../../utils/valoresHora'
+import { toLocalISO, hoyLocalISO } from '../../utils/fecha'
 import { Modal } from '../Modal/Modal'
 import './Empleados.css'
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
+function toISO(d: Date) { return toLocalISO(d) }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()
@@ -69,7 +70,7 @@ function fmtMoney(n: number): string {
 }
 
 function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10)
+  return hoyLocalISO()
 }
 
 interface EmpleadosProps {

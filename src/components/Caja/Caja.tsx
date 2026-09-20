@@ -3,9 +3,10 @@ import { Wallet, Lock, Unlock, AlertTriangle, Receipt, MinusCircle, ClipboardChe
 import type { Role } from '../../types'
 import { useCaja } from '../../hooks/useCaja'
 import { Modal } from '../Modal/Modal'
+import { toLocalISO } from '../../utils/fecha'
 import './Caja.css'
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
+function toISO(d: Date) { return toLocalISO(d) }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()

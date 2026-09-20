@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { Clock } from 'lucide-react'
 import { useFichajes } from '../../hooks/useFichajes'
+import { toLocalISO } from '../../utils/fecha'
 import './MisHoras.css'
 
-function toISO(d: Date) { return d.toISOString().split('T')[0] }
+function toISO(d: Date) { return toLocalISO(d) }
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()
