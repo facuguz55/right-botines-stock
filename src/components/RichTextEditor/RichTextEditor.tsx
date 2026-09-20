@@ -2,7 +2,11 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Heading1, Heading2, Type, Bold, Italic, Palette } from 'lucide-react'
 import './RichTextEditor.css'
 
-const FONTS = ['Arial', 'Georgia', 'Courier New', 'Trebuchet MS', 'Verdana', 'Times New Roman']
+// Tipografías modernas nada más — nada de serif clásica (Georgia/Times,
+// "estilo griego") ni slab tipo máquina de escribir (Courier, "estilo
+// egipcio"). Inter/Poppins se suman vía Google Fonts en index.html; Plus
+// Jakarta Sans y Barlow Condensed ya las carga la app para su propia marca.
+const FONTS = ['Plus Jakarta Sans', 'Inter', 'Poppins', 'Barlow Condensed']
 const COLORS = ['#ffffff', '#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899']
 
 interface RichTextEditorProps {
