@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { CajaDia, CajaGasto, CajaVerificacion, TotalesEfectivoDia } from '../types'
+import { hoyLocalISO } from '../utils/fecha'
 
 const SELECT_CON_EMPLEADOS =
   '*, empleado_apertura:empleados!caja_dias_abierta_por_fkey(nombre), empleado_cierre:empleados!caja_dias_cerrada_por_fkey(nombre)'
@@ -14,11 +15,19 @@ export async function fetchCajaAbierta(): Promise<CajaDia | null> {
   return data as CajaDia | null
 }
 
+// Idempotente a propósito: si dos empleadas fichan entrada casi al mismo
+// instante y ninguna ve todavía una caja abierta, las dos terminan llamando
+// a esto casi juntas. El chequeo de acá arriba es de lectura (no alcanza a
+// evitar la carrera), así que la segunda inserción choca contra el índice
+// único de la base (una sola caja "abierta" a la vez) — en vez de tratar
+// eso como error, se devuelve la caja que ganó la carrera. Antes esto
+// tiraba un error crudo de Postgres que la que perdía la carrera nunca
+// atrapaba bien, y se quedaba sin fichaje creado (no podía vender).
 export async function abrirCaja(montoApertura: number, empleadoId: string | null): Promise<CajaDia> {
   const abierta = await fetchCajaAbierta()
-  if (abierta) throw new Error('Ya hay una caja abierta. Cerrala antes de abrir una nueva.')
+  if (abierta) return abierta
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyLocalISO()
   const { data, error } = await supabase
     .from('caja_dias')
     .insert([{
@@ -30,7 +39,14 @@ export async function abrirCaja(montoApertura: number, empleadoId: string | null
     }])
     .select(SELECT_CON_EMPLEADOS)
     .single()
-  if (error) throw error
+
+  if (error) {
+    if ((error as { code?: string }).code === '23505') {
+      const yaAbierta = await fetchCajaAbierta()
+      if (yaAbierta) return yaAbierta
+    }
+    throw error
+  }
   return data as CajaDia
 }
 
@@ -183,7 +199,7 @@ export async function cerrarCajaPorCorteDeTurno(horaCorteTurno: string | null): 
   const caja = await fetchCajaAbierta()
   if (!caja) return false
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyLocalISO()
   if (caja.fecha !== hoy) return false // cajas colgadas de días anteriores son otro problema, no se tocan acá
 
   const [hh, mm] = horaCorteTurno.split(':').map(Number)

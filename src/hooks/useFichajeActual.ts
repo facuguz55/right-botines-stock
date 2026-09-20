@@ -48,16 +48,13 @@ export function useFichajeActual(empleadoId: string | null) {
   // de la app hasta hacerlo (ver AperturaCajaGate).
   const requiereApertura = !loading && !fichaje && !cajaAbierta
 
+  // abrirCaja es idempotente (ver services/caja.ts): si dos empleadas fichan
+  // entrada casi juntas y ninguna caja está abierta todavía, cualquiera de
+  // las dos que "pierda" la carrera se entera de la que ya quedó abierta en
+  // vez de romper acá — así siempre llega a fichar su propia entrada.
   const abrirCajaYFichar = async (montoApertura: number) => {
     if (!empleadoId) return
-    try {
-      await abrirCaja(montoApertura, empleadoId)
-    } catch (e) {
-      // Carrera entre dos fichajes casi simultáneos: si otro empleado ya
-      // abrió la caja un instante antes, no es un error real — seguimos y
-      // fichamos entrada igual, sin pisar la apertura que ya se hizo.
-      if (!(e instanceof Error && e.message.includes('Ya hay una caja abierta'))) throw e
-    }
+    await abrirCaja(montoApertura, empleadoId)
     await abrirFichaje(empleadoId)
     await reload()
   }
