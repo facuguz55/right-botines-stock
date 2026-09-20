@@ -23,9 +23,9 @@
   inset: -20%;
   z-index: -1;
   background:
-    radial-gradient(closest-side, rgba(239, 68, 68, 0.16), transparent 70%) 20% 15% / 55% 55% no-repeat,
-    radial-gradient(closest-side, var(--accent-dim), transparent 70%) 85% 80% / 60% 60% no-repeat;
-  filter: blur(10px);
+    radial-gradient(closest-side, rgba(100, 116, 139, 0.14), transparent 70%) 18% 12% / 55% 55% no-repeat,
+    radial-gradient(closest-side, var(--accent-dim), transparent 70%) 85% 85% / 55% 55% no-repeat;
+  filter: blur(14px);
   pointer-events: none;
 }
 
@@ -50,15 +50,17 @@
   align-items: center;
   gap: 0.375rem;
   padding: 0.3125rem 0.75rem;
-  background: rgba(239, 68, 68, 0.12);
-  color: var(--danger);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
   border-radius: 999px;
   font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+
+.app-blocked-badge svg { color: var(--warning); }
 
 .app-blocked-mensaje {
   color: var(--text-secondary);
