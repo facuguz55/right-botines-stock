@@ -21,7 +21,11 @@ export function sanitizeHtml(html: string): string {
         if (el.tagName === 'FONT') {
           const span = document.createElement('span')
           const color = el.getAttribute('color')
-          if (color) span.setAttribute('style', `color: ${color}`)
+          // Setter del CSSOM, no string interpolado: el navegador valida el
+          // valor contra la gramática de `color` y si no es un color válido
+          // simplemente no lo aplica — no hay forma de que esto inyecte otra
+          // declaración CSS ni de que rompa el atributo.
+          if (color) span.style.color = color
           while (el.firstChild) span.appendChild(el.firstChild)
           parent.replaceChild(span, el)
           el = span
