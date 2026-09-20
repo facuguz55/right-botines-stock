@@ -12,7 +12,20 @@ export function sanitizeHtml(html: string): string {
   const walk = (parent: Node) => {
     Array.from(parent.childNodes).forEach(child => {
       if (child.nodeType === Node.ELEMENT_NODE) {
-        const el = child as HTMLElement
+        let el = child as HTMLElement
+        // <font color="…"> es lo que algunos navegadores generan todavía
+        // para execCommand('foreColor', …) en vez de style="color:…". No
+        // es un tag que querramos permitir tal cual, pero tampoco hay que
+        // tirar el color elegido — se migra a un <span> con el mismo color
+        // antes de aplicar el resto de las reglas.
+        if (el.tagName === 'FONT') {
+          const span = document.createElement('span')
+          const color = el.getAttribute('color')
+          if (color) span.setAttribute('style', `color: ${color}`)
+          while (el.firstChild) span.appendChild(el.firstChild)
+          parent.replaceChild(span, el)
+          el = span
+        }
         if (!ALLOWED_TAGS.has(el.tagName)) {
           while (el.firstChild) parent.insertBefore(el.firstChild, el)
           parent.removeChild(el)

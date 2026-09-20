@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Lock, Unlock, ShieldAlert, Loader2 } from 'lucide-react'
+import { Lock, Unlock, ShieldAlert, Loader2, KeyRound, Eye } from 'lucide-react'
 import { getAppLockStatus, setAppLock, setCreatorPin, verifyCreatorPin } from '../../services/creatorLock'
 import { RichTextEditor } from '../RichTextEditor/RichTextEditor'
+import { AppBlocked } from '../AppBlocked/AppBlocked'
 import { sanitizeHtml } from '../../utils/sanitizeHtml'
 import './CreatorLockPanel.css'
 
@@ -22,9 +23,11 @@ export function CreatorLockPanel() {
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
 
+  const [showPinChange, setShowPinChange] = useState(false)
   const [nuevoPin, setNuevoPin] = useState('')
   const [nuevoPinConfirm, setNuevoPinConfirm] = useState('')
   const [pinMsg, setPinMsg] = useState<string | null>(null)
+  const [savingPin, setSavingPin] = useState(false)
 
   const cargarEstado = async () => {
     setLoadingStatus(true)
@@ -65,7 +68,7 @@ export function CreatorLockPanel() {
       const ok = await setAppLock(pin, nuevoLocked, sanitizeHtml(mensaje))
       if (ok) {
         setLocked(nuevoLocked)
-        setSaveMsg(nuevoLocked ? 'App bloqueada para todos los usuarios.' : 'App desbloqueada.')
+        setSaveMsg(nuevoLocked ? '✓ App bloqueada para todos los usuarios.' : '✓ App desbloqueada.')
       } else {
         setSaveMsg('El pin dejó de ser válido, volvé a ingresar.')
         setAuthed(false)
@@ -87,28 +90,31 @@ export function CreatorLockPanel() {
       setPinMsg('Los pines no coinciden.')
       return
     }
+    setSavingPin(true)
     try {
       const ok = await setCreatorPin(pin, nuevoPin)
       if (ok) {
         setPin(nuevoPin)
         setNuevoPin('')
         setNuevoPinConfirm('')
-        setPinMsg('Pin actualizado.')
+        setPinMsg('✓ Pin actualizado.')
       } else {
         setPinMsg('El pin actual no es válido.')
       }
     } catch {
       setPinMsg('No se pudo cambiar el pin.')
+    } finally {
+      setSavingPin(false)
     }
   }
 
   if (!authed) {
     return (
-      <div className="creator-lock-screen">
-        <div className="creator-lock-box">
-          <ShieldAlert size={32} />
+      <div className="clp-gate">
+        <div className="clp-gate-card">
+          <div className="clp-gate-icon"><ShieldAlert size={26} /></div>
           <h1>Panel de creadores</h1>
-          <p>Acceso restringido. Ingresá el pin de creador.</p>
+          <p>Acceso restringido. Ingresá el pin de creador para continuar.</p>
           <input
             type="password"
             autoFocus
@@ -117,9 +123,9 @@ export function CreatorLockPanel() {
             onKeyDown={e => e.key === 'Enter' && ingresar()}
             placeholder="Pin de creador"
           />
-          {authError && <p className="creator-lock-error">{authError}</p>}
-          <button onClick={ingresar} disabled={checking || !pin}>
-            {checking ? <Loader2 size={16} className="spin" /> : 'Entrar'}
+          {authError && <p className="clp-gate-error">{authError}</p>}
+          <button className="clp-btn clp-btn-primary" onClick={ingresar} disabled={checking || !pin}>
+            {checking ? <Loader2 size={16} className="clp-spin" /> : 'Entrar'}
           </button>
         </div>
       </div>
@@ -127,61 +133,83 @@ export function CreatorLockPanel() {
   }
 
   return (
-    <div className="creator-lock-screen">
-      <div className="creator-lock-box creator-lock-panel">
-        <ShieldAlert size={32} />
-        <h1>Panel de creadores</h1>
+    <div className="clp-page">
+      <header className="clp-header">
+        <div className="clp-header-title">
+          <ShieldAlert size={20} />
+          <h1>Panel de creadores</h1>
+        </div>
+        {!loadingStatus && (
+          <span className={`clp-status ${locked ? 'is-locked' : 'is-open'}`}>
+            {locked ? <Lock size={13} /> : <Unlock size={13} />}
+            {locked ? 'App bloqueada' : 'App abierta'}
+          </span>
+        )}
+      </header>
 
-        {loadingStatus ? (
-          <p>Cargando estado...</p>
-        ) : (
-          <>
-            <div className={`creator-lock-status ${locked ? 'is-locked' : 'is-open'}`}>
-              {locked ? <Lock size={18} /> : <Unlock size={18} />}
-              <span>La app está actualmente {locked ? 'BLOQUEADA' : 'abierta'}</span>
-            </div>
+      {loadingStatus ? (
+        <p className="clp-loading">Cargando estado...</p>
+      ) : (
+        <div className="clp-main">
+          <section className="clp-editor-col">
+            <p className="clp-section-label">Mensaje para los usuarios bloqueados</p>
+            <RichTextEditor value={mensaje} onChange={setMensaje} />
 
-            <label className="creator-lock-label">
-              Mensaje que verán los usuarios bloqueados
-              <RichTextEditor value={mensaje} onChange={setMensaje} />
-            </label>
-
-            <div className="creator-lock-actions">
+            <div className="clp-actions">
               {locked ? (
-                <button className="creator-lock-btn-unlock" disabled={saving} onClick={() => guardar(false)}>
-                  <Unlock size={16} /> Desbloquear app
+                <button className="clp-btn clp-btn-unlock" disabled={saving} onClick={() => guardar(false)}>
+                  <Unlock size={16} /> {saving ? 'Guardando...' : 'Desbloquear app'}
                 </button>
               ) : (
-                <button className="creator-lock-btn-lock" disabled={saving} onClick={() => guardar(true)}>
-                  <Lock size={16} /> Bloquear app para todos
+                <button className="clp-btn clp-btn-lock" disabled={saving} onClick={() => guardar(true)}>
+                  <Lock size={16} /> {saving ? 'Guardando...' : 'Bloquear app para todos'}
                 </button>
               )}
             </div>
 
-            {saveMsg && <p className="creator-lock-savemsg">{saveMsg}</p>}
-          </>
-        )}
+            {saveMsg && <p className="clp-savemsg">{saveMsg}</p>}
+          </section>
 
-        <hr />
-
-        <div className="creator-lock-pin-change">
-          <p className="creator-lock-label-title">Cambiar pin de creador</p>
-          <input
-            type="password"
-            value={nuevoPin}
-            onChange={e => setNuevoPin(e.target.value)}
-            placeholder="Pin nuevo (mín. 6 caracteres)"
-          />
-          <input
-            type="password"
-            value={nuevoPinConfirm}
-            onChange={e => setNuevoPinConfirm(e.target.value)}
-            placeholder="Repetir pin nuevo"
-          />
-          <button onClick={cambiarPin} disabled={!nuevoPin || !nuevoPinConfirm}>Actualizar pin</button>
-          {pinMsg && <p className="creator-lock-savemsg">{pinMsg}</p>}
+          <section className="clp-preview-col">
+            <p className="clp-section-label"><Eye size={13} /> Así lo van a ver</p>
+            <div className="clp-preview-frame">
+              <div className="clp-preview-chrome">
+                <span /><span /><span />
+              </div>
+              <div className="clp-preview-body">
+                <AppBlocked mensaje={mensaje} preview />
+              </div>
+            </div>
+          </section>
         </div>
-      </div>
+      )}
+
+      <footer className="clp-footer">
+        <button className="clp-pinchange-toggle" onClick={() => setShowPinChange(v => !v)}>
+          <KeyRound size={13} /> Cambiar pin de creador
+        </button>
+
+        {showPinChange && (
+          <div className="clp-pinchange">
+            <input
+              type="password"
+              value={nuevoPin}
+              onChange={e => setNuevoPin(e.target.value)}
+              placeholder="Pin nuevo (mín. 6 caracteres)"
+            />
+            <input
+              type="password"
+              value={nuevoPinConfirm}
+              onChange={e => setNuevoPinConfirm(e.target.value)}
+              placeholder="Repetir pin nuevo"
+            />
+            <button className="clp-btn clp-btn-secondary" onClick={cambiarPin} disabled={!nuevoPin || !nuevoPinConfirm || savingPin}>
+              {savingPin ? 'Guardando...' : 'Actualizar pin'}
+            </button>
+            {pinMsg && <p className="clp-savemsg">{pinMsg}</p>}
+          </div>
+        )}
+      </footer>
     </div>
   )
 }

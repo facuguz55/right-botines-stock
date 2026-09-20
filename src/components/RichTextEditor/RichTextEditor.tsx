@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Heading1, Heading2, Type, Bold, Italic } from 'lucide-react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { Heading1, Heading2, Type, Bold, Italic, Palette } from 'lucide-react'
 import './RichTextEditor.css'
 
 const FONTS = ['Arial', 'Georgia', 'Courier New', 'Trebuchet MS', 'Verdana', 'Times New Roman']
@@ -16,62 +16,106 @@ interface RichTextEditorProps {
 // alcance es mínimo: unos pocos botones, no un editor de documentos.
 export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const [lastColor, setLastColor] = useState(COLORS[0])
+  const [empty, setEmpty] = useState(!value?.trim())
 
   useEffect(() => {
     if (ref.current && ref.current.innerHTML !== value) {
       ref.current.innerHTML = value || ''
     }
+    setEmpty(!value?.trim())
   }, [value])
 
-  const emitChange = () => onChange(ref.current?.innerHTML ?? '')
+  const emitChange = () => {
+    const html = ref.current?.innerHTML ?? ''
+    setEmpty(!html.trim() || html === '<br>')
+    onChange(html)
+  }
 
   const exec = (cmd: string, arg?: string) => {
     ref.current?.focus()
+    // Sin esto, foreColor en Chrome a veces genera <font color="…"> en vez
+    // de <span style="color:…">. El sanitizador (a propósito) no conoce
+    // <font> — lo descarta por seguridad — así que el color elegido
+    // desaparecía en la vista previa y en la pantalla real sin ningún
+    // aviso. styleWithCSS fuerza el HTML moderno que sí sobrevive.
+    document.execCommand('styleWithCSS', false, 'true')
     document.execCommand(cmd, false, arg)
     emitChange()
   }
 
+  const pickColor = (c: string) => {
+    setLastColor(c)
+    exec('foreColor', c)
+  }
+
+  // Clave para que los botones de la barra funcionen: por default, al
+  // clickear un botón fuera del contentEditable el navegador dispara
+  // mousedown → blur → se pierde/colapsa la selección de texto — así que
+  // cuando el onClick llama a exec(), ya no queda nada seleccionado para
+  // aplicarle el formato. preventDefault en mousedown evita ese blur.
+  const keepSelection = (e: MouseEvent) => e.preventDefault()
+
   return (
     <div className="rte">
       <div className="rte-toolbar">
-        <button type="button" onClick={() => exec('formatBlock', 'h1')} title="Título"><Heading1 size={15} /></button>
-        <button type="button" onClick={() => exec('formatBlock', 'h2')} title="Subtítulo"><Heading2 size={15} /></button>
-        <button type="button" onClick={() => exec('formatBlock', 'p')} title="Texto normal"><Type size={15} /></button>
+        <div className="rte-group">
+          <button type="button" onMouseDown={keepSelection} onClick={() => exec('formatBlock', 'h1')} title="Título"><Heading1 size={15} /></button>
+          <button type="button" onMouseDown={keepSelection} onClick={() => exec('formatBlock', 'h2')} title="Subtítulo"><Heading2 size={15} /></button>
+          <button type="button" onMouseDown={keepSelection} onClick={() => exec('formatBlock', 'p')} title="Texto normal"><Type size={15} /></button>
+        </div>
         <span className="rte-sep" />
-        <button type="button" onClick={() => exec('bold')} title="Negrita"><Bold size={15} /></button>
-        <button type="button" onClick={() => exec('italic')} title="Cursiva"><Italic size={15} /></button>
+        <div className="rte-group">
+          <button type="button" onMouseDown={keepSelection} onClick={() => exec('bold')} title="Negrita"><Bold size={15} /></button>
+          <button type="button" onMouseDown={keepSelection} onClick={() => exec('italic')} title="Cursiva"><Italic size={15} /></button>
+        </div>
         <span className="rte-sep" />
-        <select className="rte-font" defaultValue="" onChange={e => { if (e.target.value) exec('fontName', e.target.value); e.target.value = '' }}>
+        <select
+          className="rte-font"
+          defaultValue=""
+          onMouseDown={e => e.stopPropagation()}
+          onChange={e => { if (e.target.value) exec('fontName', e.target.value); e.target.value = '' }}
+        >
           <option value="" disabled>Fuente…</option>
           {FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
         </select>
         <div className="rte-colors">
+          <Palette size={13} className="rte-colors-icon" />
           {COLORS.map(c => (
             <button
               key={c}
               type="button"
-              className="rte-color-swatch"
+              className={`rte-color-swatch${lastColor === c ? ' active' : ''}`}
               style={{ background: c }}
-              onClick={() => exec('foreColor', c)}
+              onMouseDown={keepSelection}
+              onClick={() => pickColor(c)}
               title={c}
             />
           ))}
-          <input
-            type="color"
-            className="rte-color-custom"
-            onChange={e => exec('foreColor', e.target.value)}
-            title="Color personalizado"
-          />
+          <label className="rte-color-custom" style={{ background: lastColor }} title="Color personalizado" onMouseDown={keepSelection}>
+            <input
+              type="color"
+              value={lastColor}
+              onChange={e => pickColor(e.target.value)}
+            />
+          </label>
         </div>
       </div>
-      <div
-        ref={ref}
-        className="rte-content"
-        contentEditable
-        suppressContentEditableWarning
-        onInput={emitChange}
-        onBlur={emitChange}
-      />
+      <div className="rte-content-wrap">
+        <div
+          ref={ref}
+          className="rte-content"
+          contentEditable
+          suppressContentEditableWarning
+          onInput={emitChange}
+          onBlur={emitChange}
+        />
+        {empty && (
+          <p className="rte-placeholder">
+            Escribí acá el mensaje que van a ver los usuarios bloqueados. Probá el título y algún color para que se note.
+          </p>
+        )}
+      </div>
     </div>
   )
 }
