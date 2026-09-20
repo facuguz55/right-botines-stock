@@ -18,8 +18,23 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [lastColor, setLastColor] = useState(COLORS[0])
   const [empty, setEmpty] = useState(!value?.trim())
+  // Último HTML que ESTE editor emitió — para distinguir "el padre me
+  // mandó un value nuevo de afuera" (hay que sincronizar el DOM) de "el
+  // value nuevo es el eco de mi propio onChange" (el DOM ya está así, no
+  // hay que tocarlo). Sin esto, cada Título/color/etc. terminaba
+  // reemplazando por completo el innerHTML del contentEditable en cuanto
+  // el estado volvía a bajar por props — eso invalida cualquier Selection
+  // que apunte a esos nodos, así que si el usuario encadenaba una segunda
+  // selección o click rápido, podía terminar aplicándose sobre el texto
+  // equivocado (ej. el bloque de abajo) porque el DOM se reconstruía por
+  // debajo de la selección justo en el medio.
+  const lastEmitted = useRef<string | null>(null)
 
   useEffect(() => {
+    if (value === lastEmitted.current) {
+      setEmpty(!value?.trim())
+      return
+    }
     if (ref.current && ref.current.innerHTML !== value) {
       ref.current.innerHTML = value || ''
     }
@@ -28,6 +43,7 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
 
   const emitChange = () => {
     const html = ref.current?.innerHTML ?? ''
+    lastEmitted.current = html
     setEmpty(!html.trim() || html === '<br>')
     onChange(html)
   }
