@@ -5,9 +5,11 @@ const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANO
 const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN ?? ''
 const WA_PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID ?? ''
 const WA_APP_SECRET = process.env.WA_APP_SECRET ?? ''
-const AI_API_KEY = process.env.AI_API_KEY ?? ''
-const AI_API_URL = process.env.AI_API_URL ?? ''
-const AI_MODEL = process.env.AI_MODEL ?? ''
+// Reutiliza la misma key de Anthropic que ya usa el asistente de stock
+// (src/services/aiChat.ts) — nunca se configuraron AI_API_KEY/AI_API_URL acá,
+// así que la clasificación automática de mensajes jamás se había ejecutado.
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY ?? ''
+const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001'
 
 // Verifica que el POST venga realmente de Meta: recalcula el HMAC-SHA256 del
 // body crudo con el App Secret y lo compara contra el header que manda Meta
@@ -122,39 +124,39 @@ async function getOrCreateConversation(
 }
 
 async function classifyWithAI(text: string, conversacionId: string, messageId: string) {
-  if (!AI_API_URL || !AI_API_KEY || !AI_MODEL) return
+  if (!ANTHROPIC_API_KEY) return
 
   try {
-    const res = await fetch(AI_API_URL, {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_API_KEY}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
       body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: `Sos un clasificador de mensajes de WhatsApp para una tienda de botines de fútbol (Right Botines). Categorías: Urgente, Pedido de talles, Normal, Spam, Postventa/Reclamos, Mayorista.
-Respondé SOLO en JSON con este formato:
+        model: ANTHROPIC_MODEL,
+        max_tokens: 300,
+        system: `Sos un clasificador de mensajes de WhatsApp para una tienda de botines de fútbol (Right Botines). Categorías: Urgente, Pedido de talles, Normal, Spam, Postventa/Reclamos, Mayorista.
+Respondé SOLO en JSON con este formato, sin texto extra antes ni después:
 {"categoria":"...","intencion":"...","tipo_detectado":"f11|f5|futsal|null","talle_detectado":number|null,"respuesta_sugerida":"..."}
 - intencion: "pedido_talle", "consulta_precio", "consulta_envio", "reclamo", "saludo", "spam", "otro"
 - tipo_detectado: si pide un tipo de botín específico (f11, f5, futsal)
-- talle_detectado: si menciona un talle específico (número)
+- talle_detectado: si menciona un talle específico (número, en talle argentino)
 - respuesta_sugerida: una respuesta corta y amigable en español argentino informal`,
-          },
-          { role: 'user', content: text },
-        ],
-        max_tokens: 300,
-        temperature: 0.3,
+        messages: [{ role: 'user', content: text }],
       }),
     })
 
     if (!res.ok) return
 
-    const data = await res.json() as { choices?: { message?: { content?: string } }[] }
-    const raw = data.choices?.[0]?.message?.content?.trim()
+    const data = await res.json() as { content?: { type: string; text?: string }[] }
+    const raw = data.content?.find(b => b.type === 'text')?.text?.trim()
     if (!raw) return
 
-    const parsed = JSON.parse(raw)
+    const jsonMatch = raw.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return
+    const parsed = JSON.parse(jsonMatch[0])
 
     await sbFetch('wsp_ia_sugerencias', {
       method: 'POST',

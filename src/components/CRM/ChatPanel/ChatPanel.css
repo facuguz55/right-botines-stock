@@ -184,16 +184,15 @@
 }
 
 /* ── Mensajes ──
-   Antes esto era flex:1, así que con pocos mensajes se estiraba a ocupar
-   TODA la altura disponible del panel, dejando un hueco vacío enorme entre
-   la conversación y el input de abajo. Ahora se ajusta al contenido (una
-   conversación corta ocupa solo lo que necesita) con un máximo razonable
-   para que una conversación larga no empuje el input fuera de pantalla —
-   ahí adentro sí scrollea. */
+   flex:1 para que el panel ocupe toda la altura disponible (y así pueda
+   scrollear de verdad con muchos mensajes) — el hueco vacío que se veía
+   con conversaciones cortas no lo arregla el alto del contenedor, sino
+   justify-content:flex-end: los mensajes se apilan pegados al input de
+   abajo (como cualquier chat), y el espacio de sobra queda arriba, no
+   como un bloque vacío raro entre la charla y donde escribís. */
 .chat-panel-messages {
-  flex: 0 1 auto;
-  min-height: 220px;
-  max-height: 60vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 20px 24px;
   display: flex;
@@ -237,12 +236,83 @@
 }
 
 .chat-panel-msg-bubble {
-  padding: 10px 14px;
+  position: relative;
+  padding: 10px 30px 10px 14px;
   border-radius: var(--radius-lg);
   font-family: var(--font-body);
   font-size: 13.5px;
   line-height: 1.55;
   word-break: break-word;
+}
+
+/* Menú de tres puntitos — invisible hasta que se pasa el mouse por el
+   mensaje, así no ensucia la burbuja con un ícono siempre prendido. */
+.chat-panel-msg-menu {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  transition: opacity .12s;
+}
+
+.chat-panel-msg-bubble:hover .chat-panel-msg-menu,
+.chat-panel-msg-menu:has(.chat-panel-msg-menu-dropdown) {
+  opacity: 1;
+}
+
+.chat-panel-msg-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.chat-panel-msg-menu-btn:hover {
+  background: rgba(0, 0, 0, .18);
+  color: var(--text-primary);
+}
+
+.chat-panel-msg-menu-dropdown {
+  position: absolute;
+  top: 22px;
+  right: 0;
+  min-width: 130px;
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  padding: 4px;
+  z-index: 5;
+}
+
+.chat-panel-msg-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  text-align: left;
+}
+
+.chat-panel-msg-menu-item:hover {
+  background: var(--bg-surface-2);
+}
+
+.chat-panel-msg-menu-item--danger {
+  color: var(--danger, #ef4444);
 }
 
 .chat-panel-msg--in .chat-panel-msg-bubble {
@@ -282,6 +352,50 @@
 }
 
 /* ── Sugerencia IA ── */
+/* ── Alerta de talle detectado por la IA ── */
+.chat-panel-talle-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--accent-dim);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-panel-talle-alert-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.chat-panel-talle-alert-text {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--text-primary);
+}
+
+.chat-panel-talle-alert-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #000;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity .15s;
+}
+
+.chat-panel-talle-alert-btn:hover {
+  opacity: .85;
+}
+
 .chat-panel-suggestion {
   display: flex;
   align-items: center;

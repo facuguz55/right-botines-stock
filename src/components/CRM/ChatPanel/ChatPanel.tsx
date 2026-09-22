@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2 } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import './ChatPanel.css'
@@ -44,8 +44,16 @@ export default function ChatPanel({
   onBack,
 }: ChatPanelProps) {
   const [text, setText] = useState('')
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (!openMenuId) return
+    const closeMenu = () => setOpenMenuId(null)
+    window.addEventListener('click', closeMenu)
+    return () => window.removeEventListener('click', closeMenu)
+  }, [openMenuId])
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -169,17 +177,30 @@ export default function ChatPanel({
             {mensajes.map((msg) => (
               <div key={msg.id} className={`chat-panel-msg chat-panel-msg--${msg.direccion}`}>
                 <div className="chat-panel-msg-bubble">
-                  <button
-                    className="chat-panel-msg-delete"
-                    title="Borrar del historial del CRM"
-                    onClick={() => {
-                      if (window.confirm('¿Borrar este mensaje del historial? Esto no lo elimina del WhatsApp del cliente.')) {
-                        onDeleteMensaje(msg.id)
-                      }
-                    }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  <div className="chat-panel-msg-menu">
+                    <button
+                      className="chat-panel-msg-menu-btn"
+                      title="Opciones"
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(prev => prev === msg.id ? null : msg.id) }}
+                    >
+                      <MoreVertical size={13} />
+                    </button>
+                    {openMenuId === msg.id && (
+                      <div className="chat-panel-msg-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className="chat-panel-msg-menu-item chat-panel-msg-menu-item--danger"
+                          onClick={() => {
+                            setOpenMenuId(null)
+                            if (window.confirm('¿Borrar este mensaje del historial? Esto no lo elimina del WhatsApp del cliente.')) {
+                              onDeleteMensaje(msg.id)
+                            }
+                          }}
+                        >
+                          <Trash2 size={13} /> Borrar
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {msg.tipo === 'image' && msg.media_url && (
                     <img
                       src={msg.media_url}
@@ -205,6 +226,19 @@ export default function ChatPanel({
           </>
         )}
       </div>
+
+      {sugerencia && sugerencia.talle_detectado != null && (
+        <div className="chat-panel-talle-alert">
+          <Footprints size={16} className="chat-panel-talle-alert-icon" />
+          <span className="chat-panel-talle-alert-text">
+            Preguntó por el talle <strong>{sugerencia.talle_detectado}</strong>
+            {sugerencia.tipo_detectado ? ` (${sugerencia.tipo_detectado})` : ''}
+          </span>
+          <button className="chat-panel-talle-alert-btn" onClick={onOpenPhotos}>
+            <Camera size={14} /> Mandar disponibles
+          </button>
+        </div>
+      )}
 
       {sugerencia && sugerencia.respuesta_sugerida && (
         <div className="chat-panel-suggestion">
