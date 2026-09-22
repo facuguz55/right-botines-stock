@@ -35,16 +35,17 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   }, [])
 
   const handleSend = useCallback(async (text: string) => {
-    if (!selectedId) return
+    if (!selectedId || !selectedConv) return
     setSending(true)
     try {
-      await sendTextMessage(selectedId, text, empleadoId)
+      await sendTextMessage(selectedId, text, empleadoId, selectedConv.wa_contact_id)
     } catch (err) {
       console.error('Error enviando mensaje:', err)
+      alert(err instanceof Error ? err.message : 'No se pudo enviar el mensaje por WhatsApp')
     } finally {
       setSending(false)
     }
-  }, [selectedId, empleadoId])
+  }, [selectedId, selectedConv, empleadoId])
 
   const handleChangeCategoria = useCallback(async (cat: CrmCategoria) => {
     if (!selectedConv) return

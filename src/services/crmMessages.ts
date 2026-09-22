@@ -11,11 +11,32 @@ export async function fetchMensajes(conversacionId: string): Promise<WspMensaje[
   return (data || []) as WspMensaje[]
 }
 
+// Manda el mensaje de verdad por WhatsApp (Meta Cloud API) antes de
+// guardarlo — antes esta función solo insertaba la fila en wsp_mensajes,
+// así que el mensaje aparecía en el CRM pero nunca salía por WhatsApp.
+// Si el envío real falla, se corta acá y no queda un mensaje "fantasma"
+// en la bandeja que diga que se mandó sin haberse mandado.
+async function sendViaWhatsApp(waContactId: string, body: Record<string, unknown>): Promise<string | null> {
+  const res = await fetch('/api/whatsapp-send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: waContactId, ...body }),
+  })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) {
+    throw new Error(data?.error?.error?.message || data?.error || 'No se pudo enviar el mensaje por WhatsApp')
+  }
+  return data?.data?.messages?.[0]?.id ?? null
+}
+
 export async function sendTextMessage(
   conversacionId: string,
   contenido: string,
   empleadoId: string | null,
+  waContactId: string,
 ): Promise<WspMensaje> {
+  const waMessageId = await sendViaWhatsApp(waContactId, { type: 'text', text: contenido })
+
   const { data: msg, error: msgErr } = await supabase
     .from('wsp_mensajes')
     .insert([{
@@ -24,6 +45,7 @@ export async function sendTextMessage(
       tipo: 'text',
       contenido,
       enviado_por: empleadoId,
+      wa_message_id: waMessageId,
     }])
     .select('*, empleados(nombre)')
     .single()
@@ -46,7 +68,10 @@ export async function sendImageMessage(
   mediaUrl: string,
   caption: string | null,
   empleadoId: string | null,
+  waContactId: string,
 ): Promise<WspMensaje> {
+  const waMessageId = await sendViaWhatsApp(waContactId, { type: 'image', imageUrl: mediaUrl, caption: caption || undefined })
+
   const { data: msg, error } = await supabase
     .from('wsp_mensajes')
     .insert([{
@@ -56,6 +81,7 @@ export async function sendImageMessage(
       contenido: caption,
       media_url: mediaUrl,
       enviado_por: empleadoId,
+      wa_message_id: waMessageId,
     }])
     .select('*, empleados(nombre)')
     .single()
