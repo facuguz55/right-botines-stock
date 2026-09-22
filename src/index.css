@@ -150,6 +150,15 @@ a { color: var(--accent); text-decoration: none; }
 
 .page-enter {
   animation: page-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Sin esto, cualquier página que dependa de un height:100% encadenado
+     (como el CRM, que necesita que solo los MENSAJES scrolleen y el resto
+     del chat quede fijo) no tenía de dónde sacar esa altura — este div sin
+     alto propio la cortaba, y terminaba scrolleando toda la página entera
+     en vez de solo la lista de mensajes. Páginas que no lo necesitan
+     (la mayoría) siguen funcionando igual: el contenido puede seguir
+     siendo más alto que esto y .main-content sigue scrolleando normal. */
+  height: 100%;
+  min-height: 0;
 }
 
 .btn {
