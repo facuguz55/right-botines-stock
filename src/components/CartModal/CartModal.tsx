@@ -15,7 +15,7 @@ interface CartModalProps {
   addCliente: (input: { nombre: string; telefono: string | null; email: string | null; dni: string | null; notas: string | null }) => Promise<ClienteLocal>
   onSell: (
     items: CartItem[], medioPago: MedioPago, clienteId: string, tarjeta: string | null, cuotas: number | null,
-    recargoPct: number, montoEfectivo: number | null, montoTransferencia: number | null,
+    recargoPct: number, montoEfectivo: number | null, montoTransferencia: number | null, montoTarjeta: number | null,
     montoRecibidoEfectivo: number | null, vueltoEfectivo: number | null,
   ) => Promise<void>
 }
@@ -32,7 +32,12 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const [medioPago, setMedioPago] = useState<MedioPago | null>(null)
   const [tarjeta, setTarjeta] = useState<string | null>(null)
   const [cuotas, setCuotas] = useState<number | null>(null)
+  // Mixto: tres montos libres — no solo efectivo+transferencia. Cada uno
+  // puede quedar en 0/vacío; tienen que sumar el subtotal entre los tres
+  // (el recargo de la porción tarjeta se agrega aparte, no cuenta para esa suma).
   const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('')
+  const [montoTransferenciaMixto, setMontoTransferenciaMixto] = useState('')
+  const [montoTarjetaMixto, setMontoTarjetaMixto] = useState('')
   const [montoRecibidoEfectivo, setMontoRecibidoEfectivo] = useState('')
   // Ajuste manual del total en efectivo (ej. redondear para abajo o un
   // descuento puntual negociado). Vacío = usar el precio de lista tal cual.
@@ -50,27 +55,58 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
 
   const esTarjeta = medioPago === 'Tarjeta'
   const esMixto = medioPago === 'Mixto'
+  const esEfectivo = medioPago === 'Efectivo'
   const hayRecargosConfigurados = recargos.some(r => r.activo)
   const tarjetas = tarjetasDisponibles(recargos)
   const cuotasParaTarjeta = tarjeta ? cuotasDisponibles(recargos, tarjeta) : []
-  // Mientras no haya ningún recargo cargado, se usa el 10% fijo de siempre.
-  // En cuanto haya al menos uno, hace falta elegir tarjeta+cuotas para saber el %.
-  const faltaElegirRecargo = esTarjeta && hayRecargosConfigurados && (!tarjeta || !cuotas)
-  const recargoPct = getRecargoPct(recargos, tarjeta, cuotas)
 
   const subtotal = items.reduce((s, i) => s + getPrecioItem(i) * i.cantidad, 0)
+
+  // Mixto ya no es "un monto en efectivo y el resto transferencia": son tres
+  // montos libres (efectivo/transferencia/tarjeta), cada uno opcional, que
+  // tienen que sumar el subtotal exacto entre los tres — así se puede cubrir
+  // cualquier combinación real (efectivo+tarjeta, transferencia+tarjeta,
+  // los tres juntos), no solo efectivo+transferencia.
   const montoEfectivoMixtoNum = montoEfectivoMixto ? Number(montoEfectivoMixto) : 0
-  const montoTransferenciaMixtoNum = Math.max(0, subtotal - montoEfectivoMixtoNum)
-  const mixtoInvalido = esMixto && (montoEfectivoMixto === '' || montoEfectivoMixtoNum < 0 || montoEfectivoMixtoNum > subtotal)
-  const total = esTarjeta && !faltaElegirRecargo
-    ? items.reduce((s, i) => s + getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct, i.precioManual) * i.cantidad, 0)
-    : subtotal
+  const montoTransferenciaMixtoNum = montoTransferenciaMixto ? Number(montoTransferenciaMixto) : 0
+  const montoTarjetaMixtoNum = montoTarjetaMixto ? Number(montoTarjetaMixto) : 0
+  const hayTarjetaEnMixto = esMixto && montoTarjetaMixtoNum > 0
+
+  // Tarjeta+cuotas hace falta tanto si el medio es "Tarjeta" puro como si
+  // hay una porción tarjeta dentro de un Mixto — el recargo se calcula igual.
+  const necesitaTarjetaYCuotas = esTarjeta || hayTarjetaEnMixto
+  // Mientras no haya ningún recargo cargado, se usa el 10% fijo de siempre.
+  // En cuanto haya al menos uno, hace falta elegir tarjeta+cuotas para saber el %.
+  const faltaElegirRecargo = necesitaTarjetaYCuotas && hayRecargosConfigurados && (!tarjeta || !cuotas)
+  const recargoPct = getRecargoPct(recargos, tarjeta, cuotas)
+
+  // Los tres montos (sin el recargo de la porción tarjeta) tienen que cerrar
+  // exacto contra el subtotal: el recargo se suma aparte, no es parte de
+  // "cómo se reparte el precio del botín" entre los medios de pago.
+  const sumaMixtoSinRecargo = montoEfectivoMixtoNum + montoTransferenciaMixtoNum + montoTarjetaMixtoNum
+  const mixtoDesbalanceado = esMixto && Math.round(sumaMixtoSinRecargo * 100) !== Math.round(subtotal * 100)
+  const mixtoInvalido = esMixto && (
+    montoEfectivoMixtoNum < 0 || montoTransferenciaMixtoNum < 0 || montoTarjetaMixtoNum < 0 || mixtoDesbalanceado
+  )
+
+  const total = faltaElegirRecargo
+    ? subtotal
+    : esTarjeta
+      ? items.reduce((s, i) => s + getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct, i.precioManual) * i.cantidad, 0)
+      : hayTarjetaEnMixto
+        ? subtotal + montoTarjetaMixtoNum * (recargoPct / 100)
+        : subtotal
   const recargo = total - subtotal
   // % efectivo mostrado junto al monto: puede diferir un poco del % nominal
   // configurado cuando el precio viene del real de TiendaNube (Crédito 3 cuotas).
-  const recargoPctMostrado = subtotal > 0 ? (recargo / subtotal) * 100 : recargoPct
+  const recargoPctMostrado = esTarjeta && subtotal > 0 ? (recargo / subtotal) * 100 : recargoPct
 
-  const esEfectivo = medioPago === 'Efectivo'
+  // Lo que realmente se guarda como "monto tarjeta" incluye el recargo de
+  // esa porción (igual que precio_venta ya lo incluye en una venta 100%
+  // tarjeta) — es lo que de verdad se cobró por esa vía, no la parte "de
+  // lista" que se usa arriba solo para chequear que los tres montos cierren.
+  const montoTarjetaMixtoConRecargoNum = hayTarjetaEnMixto ? montoTarjetaMixtoNum + recargo : montoTarjetaMixtoNum
+
   // Ajuste manual del total, solo para pago 100% en efectivo (ej. cobrar
   // menos por un descuento negociado en el momento, o redondear). Vacío o
   // inválido = se usa el precio de lista (`total`) sin tocar nada.
@@ -87,6 +123,9 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const vuelto = hayRecibido ? montoRecibidoEfectivoNum - baseEfectivo : 0
   const recibidoInvalido = hayRecibido && montoRecibidoEfectivoNum < baseEfectivo
 
+  // La ganancia no suma el recargo de una porción tarjeta dentro de un
+  // Mixto (igual que ya pasaba antes de este cambio): solo se calcula sobre
+  // precio de lista + recargo cuando el medio es 100% Tarjeta.
   const ganancia = items.reduce((s, i) => {
     const precioFinal = esTarjeta && !faltaElegirRecargo ? getPrecioConRecargo(i.modelo, tarjeta, cuotas, recargoPct, i.precioManual) : getPrecioItem(i)
     const precioFinalAjustado = esEfectivo ? precioFinal * factorAjuste : precioFinal
@@ -111,6 +150,8 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setTarjeta(null)
     setCuotas(null)
     setMontoEfectivoMixto('')
+    setMontoTransferenciaMixto('')
+    setMontoTarjetaMixto('')
     setMontoRecibidoEfectivo('')
     setTotalAjustadoStr('')
     resetCliente()
@@ -122,6 +163,8 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
     setTarjeta(null)
     setCuotas(null)
     setMontoEfectivoMixto('')
+    setMontoTransferenciaMixto('')
+    setMontoTarjetaMixto('')
     setMontoRecibidoEfectivo('')
     setTotalAjustadoStr('')
   }
@@ -157,11 +200,12 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
         : items
       await onSell(
         itemsAEnviar, medioPago, clienteId,
-        esTarjeta && !faltaElegirRecargo ? tarjeta : null,
-        esTarjeta && !faltaElegirRecargo ? cuotas : null,
+        !faltaElegirRecargo && necesitaTarjetaYCuotas ? tarjeta : null,
+        !faltaElegirRecargo && necesitaTarjetaYCuotas ? cuotas : null,
         recargoPct,
         esMixto ? montoEfectivoMixtoNum : null,
         esMixto ? montoTransferenciaMixtoNum : null,
+        esMixto ? montoTarjetaMixtoConRecargoNum : null,
         (esEfectivo || esMixto) && hayRecibido ? montoRecibidoEfectivoNum : null,
         (esEfectivo || esMixto) && hayRecibido ? vuelto : null,
       )
@@ -191,7 +235,57 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
             </div>
           </div>
 
-          {esTarjeta && hayRecargosConfigurados && (
+          {esMixto && (
+            <div className="sell-section">
+              <p className="sell-label">Repartí el subtotal (${subtotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}) entre los medios que corresponda</p>
+              <div className="mixto-montos">
+                <div className="mixto-monto-item">
+                  <span className="mixto-monto-label">💵 Efectivo</span>
+                  <div className="config-input-wrap">
+                    <input
+                      type="number" className="config-input" min={0}
+                      value={montoEfectivoMixto} onChange={e => { setMontoEfectivoMixto(e.target.value); setMontoRecibidoEfectivo('') }}
+                      placeholder="0" autoFocus
+                    />
+                    <span className="config-input-suffix">ARS</span>
+                  </div>
+                </div>
+                <div className="mixto-monto-item">
+                  <span className="mixto-monto-label">📲 Transferencia</span>
+                  <div className="config-input-wrap">
+                    <input
+                      type="number" className="config-input" min={0}
+                      value={montoTransferenciaMixto} onChange={e => setMontoTransferenciaMixto(e.target.value)}
+                      placeholder="0"
+                    />
+                    <span className="config-input-suffix">ARS</span>
+                  </div>
+                </div>
+                <div className="mixto-monto-item">
+                  <span className="mixto-monto-label">💳 Tarjeta</span>
+                  <div className="config-input-wrap">
+                    <input
+                      type="number" className="config-input" min={0}
+                      value={montoTarjetaMixto} onChange={e => setMontoTarjetaMixto(e.target.value)}
+                      placeholder="0"
+                    />
+                    <span className="config-input-suffix">ARS</span>
+                  </div>
+                </div>
+              </div>
+              {mixtoDesbalanceado ? (
+                <p className="sell-error">
+                  {sumaMixtoSinRecargo < subtotal
+                    ? `Falta cubrir $${(subtotal - sumaMixtoSinRecargo).toLocaleString('es-AR', { maximumFractionDigits: 0 })}.`
+                    : `Sobran $${(sumaMixtoSinRecargo - subtotal).toLocaleString('es-AR', { maximumFractionDigits: 0 })} de más — no pueden sumar más que el subtotal.`}
+                </p>
+              ) : (
+                <p className="sell-mixto-resto">✓ Cubre el subtotal entre los tres.</p>
+              )}
+            </div>
+          )}
+
+          {necesitaTarjetaYCuotas && hayRecargosConfigurados && (
             <div className="sell-section">
               <p className="sell-label">Tarjeta</p>
               <div className="medio-pago-options">
@@ -217,30 +311,10 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
             </div>
           )}
 
-          {esTarjeta && !faltaElegirRecargo && (
+          {necesitaTarjetaYCuotas && !faltaElegirRecargo && (
             <div className="sell-recargo-notice">
-              <span>+{recargoPctMostrado.toFixed(2)}% recargo tarjeta</span>
+              <span>+{recargoPctMostrado.toFixed(2)}% recargo tarjeta{esMixto && ' (sobre la porción tarjeta)'}</span>
               <span className="recargo-amount">+${recargo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
-            </div>
-          )}
-
-          {esMixto && (
-            <div className="sell-section">
-              <p className="sell-label">Monto en efectivo</p>
-              <div className="config-input-wrap">
-                <input
-                  type="number" className="config-input" min={0} max={subtotal}
-                  value={montoEfectivoMixto} onChange={e => { setMontoEfectivoMixto(e.target.value); setMontoRecibidoEfectivo('') }}
-                  placeholder="0" autoFocus
-                />
-                <span className="config-input-suffix">ARS</span>
-              </div>
-              <p className="sell-mixto-resto">
-                Resto en transferencia: <strong>${montoTransferenciaMixtoNum.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</strong>
-              </p>
-              {mixtoInvalido && montoEfectivoMixto !== '' && (
-                <p className="sell-error">El monto en efectivo no puede superar el total.</p>
-              )}
             </div>
           )}
 

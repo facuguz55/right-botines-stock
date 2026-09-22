@@ -162,7 +162,7 @@ export function useModelos() {
   const venderCarrito = async (
     items: CartItem[], medioPago: MedioPago, clienteId: string,
     tarjeta: string | null, cuotas: number | null, recargoPct: number, empleadoId: string | null,
-    montoEfectivo: number | null = null, montoTransferencia: number | null = null,
+    montoEfectivo: number | null = null, montoTransferencia: number | null = null, montoTarjeta: number | null = null,
     montoRecibidoEfectivo: number | null = null, vueltoEfectivo: number | null = null,
   ) => {
     const resolved = items.map(item => {
@@ -173,7 +173,7 @@ export function useModelos() {
 
     await sellCarrito(
       resolved, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId,
-      montoEfectivo, montoTransferencia, montoRecibidoEfectivo, vueltoEfectivo,
+      montoEfectivo, montoTransferencia, montoTarjeta, montoRecibidoEfectivo, vueltoEfectivo,
     )
 
     setModelos(prev => prev.map(m => {
@@ -297,16 +297,25 @@ export function filterModelos(modelos: Modelo[], filters: ModeloFilters): Modelo
     if (filters.marca && m.marca.toLowerCase() !== filters.marca.toLowerCase()) return false
     if (filters.categoria && m.categoria !== filters.categoria) return false
     if (filters.gama && m.gama !== filters.gama) return false
-    if (filters.talle && !m.modelo_talles.some(t => String(t.talle_arg) === filters.talle)) return false
-    const total = m.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
-    if (filters.disponibilidad === 'disponible' && total <= 0) return false
-    if (filters.disponibilidad === 'agotado' && total > 0) return false
+
+    // Con un talle elegido, "Disponible/Agotado" tiene que mirar el stock
+    // DE ESE TALLE, no el total del modelo — si no, un modelo con 0 en el
+    // talle 41 pero pares en el 44 aparecía igual al filtrar "talle 41 +
+    // Disponibles", porque el total general sí era > 0.
+    const tallesRelevantes = filters.talle
+      ? m.modelo_talles.filter(t => String(t.talle_arg) === filters.talle)
+      : m.modelo_talles
+    if (filters.talle && tallesRelevantes.length === 0) return false
+
+    const stockRelevante = tallesRelevantes.reduce((s, t) => s + t.cantidad, 0)
+    if (filters.disponibilidad === 'disponible' && stockRelevante <= 0) return false
+    if (filters.disponibilidad === 'agotado' && stockRelevante > 0) return false
+
     if (filters.search) {
       const haystackWords = `${m.marca} ${m.modelo} ${m.codigo_base}`.toLowerCase().split(/\s+/).filter(Boolean)
       const palabras = filters.search.toLowerCase().split(/\s+/).filter(Boolean)
       if (!palabras.every(p => palabraAproximada(p, haystackWords))) return false
     }
-    if (filters.talle && !m.modelo_talles.some(t => String(t.talle_arg) === filters.talle)) return false
     return true
   })
 }
