@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import type { CrmCategoria, CrmEstado } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
-import { sendTextMessage, markSuggestionUsed } from '../../../services/crmMessages'
+import { sendTextMessage, markSuggestionUsed, deleteMensaje } from '../../../services/crmMessages'
 import { markAsRead, updateCategoria, updateEstado } from '../../../services/crmConversations'
 import ConversationList from '../ConversationList/ConversationList'
 import ChatPanel from '../ChatPanel/ChatPanel'
@@ -10,7 +10,7 @@ import './CrmInbox.css'
 
 interface CrmInboxProps {
   empleadoId: string | null
-  onOpenPhotoSender: (conversacionId: string, tipo: string | null, talle: number | null) => void
+  onOpenPhotoSender: (conversacionId: string, tipo: string | null, talle: number | null, waContactId: string) => void
   onCreateVenta: (conversacionId: string) => void
   onSendMpLink: (conversacionId: string) => void
 }
@@ -21,7 +21,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const [sending, setSending] = useState(false)
 
   const { conversaciones, loading: loadingConvs, search, setSearch } = useConversations(categoriaFilter)
-  const { mensajes, loading: loadingMsgs, sugerencia, setSugerencia } = useMessages(selectedId)
+  const { mensajes, loading: loadingMsgs, sugerencia, setSugerencia, reload: reloadMensajes } = useMessages(selectedId)
 
   const selectedConv = conversaciones.find((c) => c.id === selectedId) || null
 
@@ -64,6 +64,16 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
       console.error('Error actualizando estado:', err)
     }
   }, [selectedId])
+
+  const handleDeleteMensaje = useCallback(async (mensajeId: string) => {
+    try {
+      await deleteMensaje(mensajeId)
+      await reloadMensajes()
+    } catch (err) {
+      console.error('Error borrando mensaje:', err)
+      alert('No se pudo borrar el mensaje.')
+    }
+  }, [reloadMensajes])
 
   const handleUseSugerencia = useCallback(async () => {
     if (!sugerencia) return
@@ -108,14 +118,15 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onChangeCategoria={handleChangeCategoria}
           onChangeEstado={handleChangeEstado}
           onOpenPhotos={() => {
-            if (!selectedId) return
+            if (!selectedId || !selectedConv) return
             const sug = sugerencia
-            onOpenPhotoSender(selectedId, sug?.tipo_detectado || null, sug?.talle_detectado || null)
+            onOpenPhotoSender(selectedId, sug?.tipo_detectado || null, sug?.talle_detectado || null, selectedConv.wa_contact_id)
           }}
           onCreateVenta={() => { if (selectedId) onCreateVenta(selectedId) }}
           onSendMpLink={() => { if (selectedId) onSendMpLink(selectedId) }}
           onUseSugerencia={handleUseSugerencia}
           onDismissSugerencia={handleDismissSugerencia}
+          onDeleteMensaje={handleDeleteMensaje}
           sending={sending}
           onBack={handleBack}
         />

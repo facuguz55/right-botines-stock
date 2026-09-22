@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2 } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import './ChatPanel.css'
@@ -17,6 +17,7 @@ interface ChatPanelProps {
   onSendMpLink: () => void
   onUseSugerencia: () => void
   onDismissSugerencia: () => void
+  onDeleteMensaje: (mensajeId: string) => void
   sending: boolean
   onBack?: () => void
 }
@@ -38,6 +39,7 @@ export default function ChatPanel({
   onSendMpLink,
   onUseSugerencia,
   onDismissSugerencia,
+  onDeleteMensaje,
   sending,
   onBack,
 }: ChatPanelProps) {
@@ -62,10 +64,12 @@ export default function ChatPanel({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && e.ctrlKey) {
+    if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault()
       handleSend()
     }
+    // Ctrl+Enter (o Shift+Enter) inserta un salto de línea — el comportamiento
+    // por default del textarea ya hace eso, no hace falta código extra acá.
   }
 
   const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -156,11 +160,26 @@ export default function ChatPanel({
       <div className="chat-panel-messages">
         {loading ? (
           <div className="chat-panel-loading">Cargando mensajes...</div>
+        ) : mensajes.length === 0 ? (
+          <div className="chat-panel-messages-empty">
+            No se mandó ningún mensaje todavía.<br />Iniciá la conversación.
+          </div>
         ) : (
           <>
             {mensajes.map((msg) => (
               <div key={msg.id} className={`chat-panel-msg chat-panel-msg--${msg.direccion}`}>
                 <div className="chat-panel-msg-bubble">
+                  <button
+                    className="chat-panel-msg-delete"
+                    title="Borrar del historial del CRM"
+                    onClick={() => {
+                      if (window.confirm('¿Borrar este mensaje del historial? Esto no lo elimina del WhatsApp del cliente.')) {
+                        onDeleteMensaje(msg.id)
+                      }
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
                   {msg.tipo === 'image' && msg.media_url && (
                     <img
                       src={msg.media_url}
@@ -169,9 +188,12 @@ export default function ChatPanel({
                       loading="lazy"
                     />
                   )}
-                  {msg.tipo === 'audio' && (
+                  {msg.tipo === 'audio' && msg.media_url && (
+                    <audio controls src={msg.media_url} className="chat-panel-msg-audio-player" />
+                  )}
+                  {msg.tipo === 'audio' && !msg.media_url && (
                     <div className="chat-panel-msg-audio">
-                      {msg.transcripcion || '(audio sin transcripcion)'}
+                      {msg.transcripcion || '(audio sin transcripción)'}
                     </div>
                   )}
                   {msg.contenido && <span>{msg.contenido}</span>}
@@ -204,7 +226,7 @@ export default function ChatPanel({
         <textarea
           ref={textareaRef}
           className="chat-panel-textarea"
-          placeholder="Escribir mensaje... (Ctrl+Enter para enviar)"
+          placeholder="Escribir mensaje... (Enter para enviar, Ctrl+Enter para saltar de línea)"
           value={text}
           onChange={handleTextareaInput}
           onKeyDown={handleKeyDown}

@@ -35,6 +35,46 @@ async function verifyMetaSignature(req: Request, rawBody: string): Promise<boole
   } catch { return false }
 }
 
+// Meta manda solo un media id en el mensaje (image.id / audio.id) — hay que
+// pedirle a la Graph API la URL temporal real (vence en minutos) y bajar los
+// bytes con el mismo token, para recién ahí poder subirlo a nuestro storage
+// y tener una URL pública estable que el CRM pueda mostrar después.
+async function descargarYSubirMedia(mediaId: string, mimeType: string): Promise<string | null> {
+  const WA_TOKEN = process.env.WA_TOKEN ?? ''
+  if (!WA_TOKEN) return null
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${WA_TOKEN}` },
+    })
+    if (!metaRes.ok) return null
+    const meta = await metaRes.json() as { url?: string }
+    if (!meta.url) return null
+
+    const fileRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${WA_TOKEN}` } })
+    if (!fileRes.ok) return null
+    const bytes = await fileRes.arrayBuffer()
+
+    const ext = mimeType.split('/')[1]?.split(';')[0] || 'bin'
+    const path = `${mediaId}.${ext}`
+    const uploadRes = await fetch(`${SB_URL}/storage/v1/object/crm-media/${path}`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${SB_KEY}`,
+        'Content-Type': mimeType,
+        'x-upsert': 'true',
+      },
+      body: bytes,
+    })
+    if (!uploadRes.ok) return null
+
+    return `${SB_URL}/storage/v1/object/public/crm-media/${path}`
+  } catch (err) {
+    console.error('Error descargando media de WhatsApp:', err)
+    return null
+  }
+}
+
 async function sbFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
     ...options,
@@ -211,8 +251,10 @@ export default async function handler(req: Request): Promise<Response> {
           } else if (msg.type === 'image' && msg.image) {
             contenido = msg.image.caption || null
             tipo = 'image'
+            mediaUrl = await descargarYSubirMedia(msg.image.id, msg.image.mime_type)
           } else if (msg.type === 'audio' && msg.audio) {
             tipo = 'audio'
+            mediaUrl = await descargarYSubirMedia(msg.audio.id, msg.audio.mime_type)
           }
 
           const insertRes = await sbFetch('wsp_mensajes', {

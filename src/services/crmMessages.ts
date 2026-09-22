@@ -99,6 +99,17 @@ export async function sendImageMessage(
   return msg as WspMensaje
 }
 
+// Borra el mensaje del historial del CRM. Ojo: esto NO lo "desmanda" del
+// WhatsApp real del cliente (Meta no da API para eso pasado un rato muy
+// corto) — solo lo saca de la vista acá.
+export async function deleteMensaje(mensajeId: string): Promise<void> {
+  const { error } = await supabase
+    .from('wsp_mensajes')
+    .delete()
+    .eq('id', mensajeId)
+  if (error) throw error
+}
+
 export async function markSuggestionUsed(sugerenciaId: string): Promise<void> {
   const { error } = await supabase
     .from('wsp_ia_sugerencias')

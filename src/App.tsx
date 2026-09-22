@@ -54,6 +54,8 @@ import { AiChat } from './components/AiChat/AiChat'
 import CrmInbox from './components/CRM/CrmInbox/CrmInbox'
 import { CrmDashboard } from './components/CRM/CrmDashboard/CrmDashboard'
 import { PhotoSender } from './components/CRM/PhotoSender/PhotoSender'
+import { sendImageMessage } from './services/crmMessages'
+import type { PhotoMatch } from './types/crm'
 import { FeedbackButton } from './components/FeedbackButton/FeedbackButton'
 import { setupGlobalErrorHandler } from './services/errorReporter'
 import './App.css'
@@ -160,7 +162,7 @@ export function App() {
   const [showImportExcel, setShowImportExcel] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [clearing, setClearing] = useState(false)
-  const [photoSender, setPhotoSender] = useState<{ conversacionId: string; tipo: string | null; talle: number | null } | null>(null)
+  const [photoSender, setPhotoSender] = useState<{ conversacionId: string; tipo: string | null; talle: number | null; waContactId: string } | null>(null)
 
   const handleAdd = () => { setEditTarget(null); setShowForm(true) }
   const handleEdit = (m: Modelo) => { setEditTarget(m); setShowForm(true) }
@@ -322,7 +324,7 @@ export function App() {
       {activePage === 'crm_inbox' && (
         <CrmInbox
           empleadoId={empleadoId}
-          onOpenPhotoSender={(conversacionId: string, tipo: string | null, talle: number | null) => setPhotoSender({ conversacionId, tipo, talle })}
+          onOpenPhotoSender={(conversacionId: string, tipo: string | null, talle: number | null, waContactId: string) => setPhotoSender({ conversacionId, tipo, talle, waContactId })}
           onCreateVenta={() => {}}
           onSendMpLink={() => {}}
         />
@@ -441,7 +443,15 @@ export function App() {
           talle={photoSender.talle}
           conversacionId={photoSender.conversacionId}
           empleadoId={empleadoId}
-          onSendPhotos={async () => { setPhotoSender(null) }}
+          onSendPhotos={async (items: PhotoMatch[]) => {
+            const waContactId = photoSender.waContactId
+            for (const item of items) {
+              const fotoUrl = item.fotos[0]?.foto_url
+              if (!fotoUrl) continue
+              const caption = `${item.marca} ${item.modelo} — $${item.precio_real.toLocaleString('es-AR')}`
+              await sendImageMessage(photoSender.conversacionId, fotoUrl, caption, empleadoId, waContactId)
+            }
+          }}
         />
       )}
       <AiChat onReload={reload} />

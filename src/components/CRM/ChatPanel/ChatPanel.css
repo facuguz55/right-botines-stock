@@ -183,14 +183,34 @@
   border-color: var(--border-light);
 }
 
-/* ── Mensajes ── */
+/* ── Mensajes ──
+   Antes esto era flex:1, así que con pocos mensajes se estiraba a ocupar
+   TODA la altura disponible del panel, dejando un hueco vacío enorme entre
+   la conversación y el input de abajo. Ahora se ajusta al contenido (una
+   conversación corta ocupa solo lo que necesita) con un máximo razonable
+   para que una conversación larga no empuje el input fuera de pantalla —
+   ahí adentro sí scrollea. */
 .chat-panel-messages {
-  flex: 1;
+  flex: 0 1 auto;
+  min-height: 220px;
+  max-height: 60vh;
   overflow-y: auto;
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 6px;
+}
+
+.chat-panel-messages-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+  padding: 2rem;
 }
 
 .chat-panel-loading {
