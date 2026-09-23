@@ -124,7 +124,10 @@ async function getOrCreateConversation(
 }
 
 async function classifyWithAI(text: string, conversacionId: string, messageId: string) {
-  if (!ANTHROPIC_API_KEY) return
+  if (!ANTHROPIC_API_KEY) {
+    console.error('classifyWithAI: falta ANTHROPIC_API_KEY / VITE_ANTHROPIC_API_KEY')
+    return
+  }
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -148,14 +151,23 @@ Respondé SOLO en JSON con este formato, sin texto extra antes ni después:
       }),
     })
 
-    if (!res.ok) return
+    if (!res.ok) {
+      console.error('classifyWithAI: Anthropic respondió', res.status, await res.text().catch(() => ''))
+      return
+    }
 
     const data = await res.json() as { content?: { type: string; text?: string }[] }
     const raw = data.content?.find(b => b.type === 'text')?.text?.trim()
-    if (!raw) return
+    if (!raw) {
+      console.error('classifyWithAI: sin texto en la respuesta de Anthropic', JSON.stringify(data))
+      return
+    }
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return
+    if (!jsonMatch) {
+      console.error('classifyWithAI: no se encontró JSON en la respuesta:', raw)
+      return
+    }
     const parsed = JSON.parse(jsonMatch[0])
 
     await sbFetch('wsp_ia_sugerencias', {
