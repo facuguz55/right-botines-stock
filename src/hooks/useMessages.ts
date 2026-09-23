@@ -1,24 +1,33 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { WspMensaje, WspIaSugerencia } from '../types/crm'
-import { fetchMensajes, fetchLatestSugerencia } from '../services/crmMessages'
+import { fetchMensajes, fetchLatestSugerencia, fetchSugerenciasPorMensaje } from '../services/crmMessages'
 import { playNotificationSound } from '../services/crmNotification'
 
 export function useMessages(conversacionId: string | null) {
   const [mensajes, setMensajes] = useState<WspMensaje[]>([])
   const [loading, setLoading] = useState(false)
   const [sugerencia, setSugerencia] = useState<WspIaSugerencia | null>(null)
+  // Por mensaje_id, para poder pegar el botón "mandar disponibles" al lado
+  // del mensaje puntual donde el cliente preguntó por un talle.
+  const [sugerenciasPorMensaje, setSugerenciasPorMensaje] = useState<Record<string, WspIaSugerencia>>({})
 
   const load = useCallback(async () => {
     if (!conversacionId) { setMensajes([]); return }
     setLoading(true)
     try {
-      const [msgs, sug] = await Promise.all([
+      const [msgs, sug, sugsPorMsg] = await Promise.all([
         fetchMensajes(conversacionId),
         fetchLatestSugerencia(conversacionId),
+        fetchSugerenciasPorMensaje(conversacionId),
       ])
       setMensajes(msgs)
       setSugerencia(sug as WspIaSugerencia | null)
+      const map: Record<string, WspIaSugerencia> = {}
+      for (const s of sugsPorMsg as WspIaSugerencia[]) {
+        if (s.mensaje_id) map[s.mensaje_id] = s
+      }
+      setSugerenciasPorMensaje(map)
     } catch (err) {
       console.error('Error cargando mensajes:', err)
     } finally {
@@ -78,8 +87,16 @@ export function useMessages(conversacionId: string | null) {
     setMensajes(prev => prev.map(m => m.id === mensajeId ? { ...m, transcripcion: texto } : m))
   }, [])
 
+  // Borrar es "optimista con demora": el mensaje se oculta al toque, pero el
+  // DELETE real a la base se manda recién si nadie lo deshace a tiempo (ver
+  // handleDeleteMensaje en CrmInbox, que arma la ventana de "Deshacer").
+  const setMensajeOculto = useCallback((mensajeId: string, oculto: boolean) => {
+    setMensajes(prev => prev.map(m => m.id === mensajeId ? { ...m, _hidden: oculto } : m))
+  }, [])
+
   return {
-    mensajes, loading, reload: load, sugerencia, setSugerencia,
+    mensajes, loading, reload: load, sugerencia, setSugerencia, sugerenciasPorMensaje,
     addPendingMensaje, resolvePendingMensaje, failPendingMensaje, setMensajeTranscripcion,
+    setMensajeOculto,
   }
 }

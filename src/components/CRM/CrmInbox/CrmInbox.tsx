@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { CrmCategoria, CrmEstado, WspMensaje } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
@@ -27,9 +27,16 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
 
   const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones } = useConversations(categoriaFilter)
   const {
-    mensajes, loading: loadingMsgs, sugerencia, setSugerencia, reload: reloadMensajes,
+    mensajes, loading: loadingMsgs, sugerencia, setSugerencia, sugerenciasPorMensaje,
     addPendingMensaje, resolvePendingMensaje, failPendingMensaje, setMensajeTranscripcion,
+    setMensajeOculto,
   } = useMessages(selectedId)
+
+  // Deshacer borrado: el mensaje se oculta al toque, pero el DELETE real
+  // recién se manda si nadie lo deshace dentro de este tiempo.
+  const UNDO_MS = 5000
+  const [undoDelete, setUndoDelete] = useState<{ mensajeId: string } | null>(null)
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const selectedConv = conversaciones.find((c) => c.id === selectedId) || null
 
@@ -119,15 +126,35 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     }
   }, [selectedId])
 
-  const handleDeleteMensaje = useCallback(async (mensajeId: string) => {
+  // Si ya había otro borrado esperando "deshacer" y llega uno nuevo, el
+  // anterior se confirma ya (no se acumulan ventanas de deshacer).
+  const finalizarBorrado = useCallback(async (mensajeId: string) => {
     try {
       await deleteMensaje(mensajeId)
-      await reloadMensajes()
     } catch (err) {
       console.error('Error borrando mensaje:', err)
-      alert('No se pudo borrar el mensaje.')
     }
-  }, [reloadMensajes])
+  }, [])
+
+  const handleDeleteMensaje = useCallback((mensajeId: string) => {
+    if (undoDelete && undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current)
+      finalizarBorrado(undoDelete.mensajeId)
+    }
+    setMensajeOculto(mensajeId, true)
+    setUndoDelete({ mensajeId })
+    undoTimerRef.current = setTimeout(() => {
+      finalizarBorrado(mensajeId)
+      setUndoDelete(null)
+    }, UNDO_MS)
+  }, [undoDelete, finalizarBorrado, setMensajeOculto])
+
+  const handleUndoDelete = useCallback(() => {
+    if (!undoDelete) return
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    setMensajeOculto(undoDelete.mensajeId, false)
+    setUndoDelete(null)
+  }, [undoDelete, setMensajeOculto])
 
   const handleUseSugerencia = useCallback(async () => {
     if (!sugerencia) return
@@ -172,10 +199,9 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onSend={handleSend}
           onChangeCategoria={handleChangeCategoria}
           onChangeEstado={handleChangeEstado}
-          onOpenPhotos={() => {
+          onOpenPhotos={(tipo, talle) => {
             if (!selectedId || !selectedConv) return
-            const sug = sugerencia
-            onOpenPhotoSender(selectedId, sug?.tipo_detectado || null, sug?.talle_detectado || null, selectedConv.wa_contact_id)
+            onOpenPhotoSender(selectedId, tipo ?? null, talle ?? null, selectedConv.wa_contact_id)
           }}
           onCreateVenta={() => { if (selectedId) onCreateVenta(selectedId) }}
           onSendMpLink={() => { if (selectedId) onSendMpLink(selectedId) }}
@@ -184,6 +210,9 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onDeleteMensaje={handleDeleteMensaje}
           onRename={handleRename}
           onTranscribed={setMensajeTranscripcion}
+          sugerenciasPorMensaje={sugerenciasPorMensaje}
+          undoDelete={undoDelete}
+          onUndoDelete={handleUndoDelete}
           sending={sending}
           onBack={handleBack}
         />

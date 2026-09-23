@@ -13,7 +13,7 @@ interface ChatPanelProps {
   onSend: (text: string) => Promise<void>
   onChangeCategoria: (cat: CrmCategoria) => void
   onChangeEstado: (estado: CrmEstado) => void
-  onOpenPhotos: () => void
+  onOpenPhotos: (tipo?: string | null, talle?: number | null) => void
   onCreateVenta: () => void
   onSendMpLink: () => void
   onUseSugerencia: () => void
@@ -21,6 +21,9 @@ interface ChatPanelProps {
   onDeleteMensaje: (mensajeId: string) => void
   onRename: (nombre: string) => void
   onTranscribed: (mensajeId: string, texto: string) => void
+  sugerenciasPorMensaje: Record<string, WspIaSugerencia>
+  undoDelete: { mensajeId: string } | null
+  onUndoDelete: () => void
   sending: boolean
   onBack?: () => void
 }
@@ -45,6 +48,9 @@ export default function ChatPanel({
   onDeleteMensaje,
   onRename,
   onTranscribed,
+  sugerenciasPorMensaje,
+  undoDelete,
+  onUndoDelete,
   sending,
   onBack,
 }: ChatPanelProps) {
@@ -186,7 +192,7 @@ export default function ChatPanel({
         </div>
 
         <div className="chat-panel-header-actions">
-          <button className="chat-panel-action-btn" onClick={onOpenPhotos} title="Enviar fotos">
+          <button className="chat-panel-action-btn" onClick={() => onOpenPhotos()} title="Enviar fotos">
             <Camera size={16} />
           </button>
           <button className="chat-panel-action-btn" onClick={onCreateVenta} title="Crear venta">
@@ -201,17 +207,20 @@ export default function ChatPanel({
       <div className="chat-panel-messages">
         {loading ? (
           <div className="chat-panel-loading">Cargando mensajes...</div>
-        ) : mensajes.length === 0 ? (
+        ) : mensajes.filter(m => !m._hidden).length === 0 ? (
           <div className="chat-panel-messages-empty">
             No se mandó ningún mensaje todavía.<br />Iniciá la conversación.
           </div>
         ) : (
           <>
-            {mensajes.map((msg) => (
+            {mensajes.filter(m => !m._hidden).map((msg) => {
+              const sugTalle = sugerenciasPorMensaje[msg.id]
+              return (
               <div
                 key={msg.id}
                 className={`chat-panel-msg chat-panel-msg--${msg.direccion}${msg._pending ? ' chat-panel-msg--pending' : ''}${msg._failed ? ' chat-panel-msg--failed' : ''}`}
               >
+                <div className="chat-panel-msg-row">
                 <div className="chat-panel-msg-bubble">
                   <div className="chat-panel-msg-menu">
                     <button
@@ -225,12 +234,7 @@ export default function ChatPanel({
                       <div className="chat-panel-msg-menu-dropdown" onClick={(e) => e.stopPropagation()}>
                         <button
                           className="chat-panel-msg-menu-item chat-panel-msg-menu-item--danger"
-                          onClick={() => {
-                            setOpenMenuId(null)
-                            if (window.confirm('¿Borrar este mensaje del historial? Esto no lo elimina del WhatsApp del cliente.')) {
-                              onDeleteMensaje(msg.id)
-                            }
-                          }}
+                          onClick={() => { setOpenMenuId(null); onDeleteMensaje(msg.id) }}
                         >
                           <Trash2 size={13} /> Borrar
                         </button>
@@ -260,26 +264,31 @@ export default function ChatPanel({
                   )}
                   {msg.contenido && <span>{msg.contenido}</span>}
                 </div>
+                {sugTalle?.talle_detectado != null && (
+                  <button
+                    className="chat-panel-msg-talle-btn"
+                    title={`Preguntó por el talle ${sugTalle.talle_detectado} — mandar disponibles`}
+                    onClick={() => onOpenPhotos(sugTalle.tipo_detectado, sugTalle.talle_detectado)}
+                  >
+                    <Footprints size={15} />
+                  </button>
+                )}
+                </div>
                 <span className="chat-panel-msg-time">
                   {msg._pending ? 'Enviando...' : msg._failed ? 'No se pudo enviar' : formatTime(msg.timestamp)}
                 </span>
               </div>
-            ))}
+              )
+            })}
             <div ref={messagesEndRef} />
           </>
         )}
       </div>
 
-      {sugerencia && sugerencia.talle_detectado != null && (
-        <div className="chat-panel-talle-alert">
-          <Footprints size={16} className="chat-panel-talle-alert-icon" />
-          <span className="chat-panel-talle-alert-text">
-            Preguntó por el talle <strong>{sugerencia.talle_detectado}</strong>
-            {sugerencia.tipo_detectado ? ` (${sugerencia.tipo_detectado})` : ''}
-          </span>
-          <button className="chat-panel-talle-alert-btn" onClick={onOpenPhotos}>
-            <Camera size={14} /> Mandar disponibles
-          </button>
+      {undoDelete && (
+        <div className="chat-panel-undo-snackbar">
+          <span>Mensaje borrado del historial.</span>
+          <button onClick={onUndoDelete}>Deshacer</button>
         </div>
       )}
 

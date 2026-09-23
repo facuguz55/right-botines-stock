@@ -421,48 +421,72 @@
 }
 
 /* ── Sugerencia IA ── */
-/* ── Alerta de talle detectado por la IA ── */
-.chat-panel-talle-alert {
+
+/* Fila que envuelve la burbuja del mensaje + el botón de talle al lado
+   (afuera de la burbuja, no adentro, para que no se mezcle con el texto). */
+.chat-panel-msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.chat-panel-msg--out .chat-panel-msg-row {
+  flex-direction: row-reverse;
+}
+
+/* Botón de "preguntó por el talle X" pegado al mensaje puntual — una
+   fotito de un botín chiquita en vez de un cartel largo, como pidió el
+   dueño: aparece solo en el mensaje donde la IA detectó el talle. */
+.chat-panel-msg-talle-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
   background: var(--accent-dim);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.chat-panel-talle-alert-icon {
+  border: 1px solid var(--accent);
   color: var(--accent);
+  cursor: pointer;
   flex-shrink: 0;
+  transition: transform .12s, background .12s;
 }
 
-.chat-panel-talle-alert-text {
-  flex: 1;
+.chat-panel-msg-talle-btn:hover {
+  background: var(--accent);
+  color: #000;
+  transform: scale(1.1);
+}
+
+/* ── Snackbar de "deshacer" al borrar un mensaje ── */
+.chat-panel-undo-snackbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--bg-surface-3);
+  border-top: 1px solid var(--border);
   font-family: var(--font-body);
   font-size: 12.5px;
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  animation: chat-msg-in .18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.chat-panel-talle-alert-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--accent);
+.chat-panel-undo-snackbar button {
+  background: none;
   border: none;
-  border-radius: var(--radius-md);
-  color: #000;
+  color: var(--accent);
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  padding: 6px 12px;
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity .15s;
 }
 
-.chat-panel-talle-alert-btn:hover {
-  opacity: .85;
+.chat-panel-undo-snackbar button:hover {
+  text-decoration: underline;
 }
 
 .chat-panel-suggestion {

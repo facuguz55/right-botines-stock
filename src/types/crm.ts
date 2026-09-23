@@ -69,6 +69,7 @@ export interface WspMensaje {
   // en segundo plano, en vez de esperar el viaje de ida y vuelta completo.
   _pending?: boolean
   _failed?: boolean
+  _hidden?: boolean
 }
 
 export interface WspIaSugerencia {

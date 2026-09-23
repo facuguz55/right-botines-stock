@@ -129,3 +129,17 @@ export async function fetchLatestSugerencia(conversacionId: string) {
   if (error) throw error
   return data
 }
+
+// Todas las sugerencias de la conversación (no solo la última) — para poder
+// mostrar el botón de "mandar disponibles" pegado al mensaje puntual donde
+// se preguntó por un talle, en vez de un cartel general arriba del input
+// que no aclaraba a qué mensaje se refería.
+export async function fetchSugerenciasPorMensaje(conversacionId: string) {
+  const { data, error } = await supabase
+    .from('wsp_ia_sugerencias')
+    .select('*')
+    .eq('conversacion_id', conversacionId)
+    .not('mensaje_id', 'is', null)
+  if (error) throw error
+  return data || []
+}
