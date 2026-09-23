@@ -28,7 +28,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones } = useConversations(categoriaFilter)
   const {
     mensajes, loading: loadingMsgs, sugerencia, setSugerencia, reload: reloadMensajes,
-    addPendingMensaje, resolvePendingMensaje, failPendingMensaje,
+    addPendingMensaje, resolvePendingMensaje, failPendingMensaje, setMensajeTranscripcion,
   } = useMessages(selectedId)
 
   const selectedConv = conversaciones.find((c) => c.id === selectedId) || null
@@ -183,6 +183,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onDismissSugerencia={handleDismissSugerencia}
           onDeleteMensaje={handleDeleteMensaje}
           onRename={handleRename}
+          onTranscribed={setMensajeTranscripcion}
           sending={sending}
           onBack={handleBack}
         />

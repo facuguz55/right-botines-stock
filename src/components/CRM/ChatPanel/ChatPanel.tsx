@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
+import { AudioMessage } from './AudioMessage'
 import './ChatPanel.css'
 
 interface ChatPanelProps {
@@ -19,6 +20,7 @@ interface ChatPanelProps {
   onDismissSugerencia: () => void
   onDeleteMensaje: (mensajeId: string) => void
   onRename: (nombre: string) => void
+  onTranscribed: (mensajeId: string, texto: string) => void
   sending: boolean
   onBack?: () => void
 }
@@ -42,6 +44,7 @@ export default function ChatPanel({
   onDismissSugerencia,
   onDeleteMensaje,
   onRename,
+  onTranscribed,
   sending,
   onBack,
 }: ChatPanelProps) {
@@ -243,7 +246,12 @@ export default function ChatPanel({
                     />
                   )}
                   {msg.tipo === 'audio' && msg.media_url && (
-                    <audio controls src={msg.media_url} className="chat-panel-msg-audio-player" />
+                    <AudioMessage
+                      mensajeId={msg.id}
+                      mediaUrl={msg.media_url}
+                      transcripcion={msg.transcripcion}
+                      onTranscribed={onTranscribed}
+                    />
                   )}
                   {msg.tipo === 'audio' && !msg.media_url && (
                     <div className="chat-panel-msg-audio">

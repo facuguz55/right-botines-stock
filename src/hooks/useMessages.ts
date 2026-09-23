@@ -72,8 +72,14 @@ export function useMessages(conversacionId: string | null) {
     setMensajes(prev => prev.map(m => m.id === tempId ? { ...m, _pending: false, _failed: true } : m))
   }, [])
 
+  // El endpoint de transcripción ya guarda el texto en la base — esto solo
+  // refleja el resultado al toque sin esperar a que llegue por realtime.
+  const setMensajeTranscripcion = useCallback((mensajeId: string, texto: string) => {
+    setMensajes(prev => prev.map(m => m.id === mensajeId ? { ...m, transcripcion: texto } : m))
+  }, [])
+
   return {
     mensajes, loading, reload: load, sugerencia, setSugerencia,
-    addPendingMensaje, resolvePendingMensaje, failPendingMensaje,
+    addPendingMensaje, resolvePendingMensaje, failPendingMensaje, setMensajeTranscripcion,
   }
 }

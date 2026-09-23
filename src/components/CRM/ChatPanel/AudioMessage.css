@@ -1,0 +1,103 @@
+.audio-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.audio-msg audio {
+  display: none;
+}
+
+.audio-msg-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audio-msg-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: #000;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform .1s;
+}
+
+.audio-msg-play-btn:active {
+  transform: scale(.9);
+}
+
+.audio-msg-progress {
+  flex: 1;
+  min-width: 0;
+}
+
+.audio-msg-progress-track {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--bg-surface-3);
+  overflow: hidden;
+}
+
+.audio-msg-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width .1s linear;
+}
+
+.audio-msg-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* El texto transcripto ES el botón, tal cual como en WhatsApp — no hay un
+   botón separado con la etiqueta "Transcribir" al lado del resultado. */
+.audio-msg-transcript {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.audio-msg-transcribe-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 0 0;
+  cursor: pointer;
+}
+
+.audio-msg-transcribe-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.audio-msg-transcribe-btn:disabled {
+  cursor: default;
+  opacity: .7;
+}
+
+.audio-msg-spin {
+  animation: audio-msg-spin .8s linear infinite;
+}
+
+@keyframes audio-msg-spin {
+  to { transform: rotate(360deg); }
+}
