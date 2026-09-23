@@ -43,7 +43,11 @@ export function useMessages(conversacionId: string | null) {
         },
         (payload) => {
           const newMsg = payload.new as WspMensaje
-          setMensajes(prev => [...prev, newMsg])
+          // El mensaje que YO mando ya se agrega "optimista" (ver
+          // addPendingMensaje) y después se reemplaza a mano con la fila
+          // real (resolvePendingMensaje) — sin este chequeo, cuando el
+          // realtime de este mismo insert llega, se duplicaba en la lista.
+          setMensajes(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
           if (newMsg.direccion === 'in') playNotificationSound()
         }
       )
@@ -52,5 +56,24 @@ export function useMessages(conversacionId: string | null) {
     return () => { supabase.removeChannel(channel) }
   }, [conversacionId])
 
-  return { mensajes, loading, reload: load, sugerencia, setSugerencia }
+  // Muestra el mensaje en el chat al instante (antes de que termine de
+  // mandarse por WhatsApp) para que no se sienta como que tarda segundos en
+  // aparecer — se resuelve con la fila real cuando el envío efectivamente
+  // termina, o se marca como fallido si el envío no salió.
+  const addPendingMensaje = useCallback((msg: WspMensaje) => {
+    setMensajes(prev => [...prev, msg])
+  }, [])
+
+  const resolvePendingMensaje = useCallback((tempId: string, real: WspMensaje) => {
+    setMensajes(prev => prev.map(m => m.id === tempId ? real : m))
+  }, [])
+
+  const failPendingMensaje = useCallback((tempId: string) => {
+    setMensajes(prev => prev.map(m => m.id === tempId ? { ...m, _pending: false, _failed: true } : m))
+  }, [])
+
+  return {
+    mensajes, loading, reload: load, sugerencia, setSugerencia,
+    addPendingMensaje, resolvePendingMensaje, failPendingMensaje,
+  }
 }

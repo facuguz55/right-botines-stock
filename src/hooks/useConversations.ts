@@ -34,7 +34,11 @@ export function useConversations(categoriaFilter?: CrmCategoria) {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const newConv = payload.new as WspConversacion
-            setConversaciones(prev => [newConv, ...prev])
+            // Si la conversación se creó desde acá mismo (ej. "Escribirle a
+            // un número nuevo"), el reload manual que sigue a ese insert
+            // puede llegar a la vez que este evento de tiempo real — sin
+            // este chequeo quedaba duplicada en la lista.
+            setConversaciones(prev => prev.some(c => c.id === newConv.id) ? prev : [newConv, ...prev])
             playNotificationSound()
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new as WspConversacion

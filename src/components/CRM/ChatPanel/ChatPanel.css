@@ -252,10 +252,48 @@
   font-size: 13px;
 }
 
+@keyframes chat-msg-in {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .chat-panel-msg {
   max-width: 65%;
   display: flex;
   flex-direction: column;
+  animation: chat-msg-in .22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.chat-panel-msg--pending .chat-panel-msg-bubble {
+  opacity: .6;
+}
+
+.chat-panel-msg--pending .chat-panel-msg-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-panel-msg--pending .chat-panel-msg-time::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-muted);
+  border-top-color: transparent;
+  animation: chat-msg-spin .7s linear infinite;
+}
+
+@keyframes chat-msg-spin {
+  to { transform: rotate(360deg); }
+}
+
+.chat-panel-msg--failed .chat-panel-msg-bubble {
+  border: 1px solid rgba(239,68,68,.4) !important;
+}
+
+.chat-panel-msg--failed .chat-panel-msg-time {
+  color: #ef4444;
 }
 
 .chat-panel-msg--in {
@@ -527,17 +565,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
+  transition: background .15s, transform .1s;
   flex-shrink: 0;
 }
 
-.chat-panel-send-btn:hover {
+.chat-panel-send-btn:hover:not(:disabled) {
   background: #06B6D4;
+  transform: scale(1.06);
+}
+
+.chat-panel-send-btn:active:not(:disabled) {
+  transform: scale(.92);
 }
 
 .chat-panel-send-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* El input crece/achica de a poco con el texto (ver handleTextareaInput) —
+   sin la transición, el salto de altura entre líneas se sentía brusco. */
+.chat-panel-textarea {
+  transition: height .1s ease-out;
 }
 
 @media (max-width: 768px) {

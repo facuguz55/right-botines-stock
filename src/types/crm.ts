@@ -64,6 +64,11 @@ export interface WspMensaje {
   enviado_por: string | null
   timestamp: string
   empleados?: { nombre: string } | null
+  // Solo en el cliente, nunca se guarda en la base — para mostrar el mensaje
+  // en el chat al instante mientras todavía se está mandando por WhatsApp
+  // en segundo plano, en vez de esperar el viaje de ida y vuelta completo.
+  _pending?: boolean
+  _failed?: boolean
 }
 
 export interface WspIaSugerencia {

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import type { CrmCategoria, CrmEstado } from '../../../types/crm'
+import type { CrmCategoria, CrmEstado, WspMensaje } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { sendTextMessage, markSuggestionUsed, deleteMensaje } from '../../../services/crmMessages'
@@ -26,7 +26,10 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const [sending, setSending] = useState(false)
 
   const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones } = useConversations(categoriaFilter)
-  const { mensajes, loading: loadingMsgs, sugerencia, setSugerencia, reload: reloadMensajes } = useMessages(selectedId)
+  const {
+    mensajes, loading: loadingMsgs, sugerencia, setSugerencia, reload: reloadMensajes,
+    addPendingMensaje, resolvePendingMensaje, failPendingMensaje,
+  } = useMessages(selectedId)
 
   const selectedConv = conversaciones.find((c) => c.id === selectedId) || null
 
@@ -41,16 +44,38 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
 
   const handleSend = useCallback(async (text: string) => {
     if (!selectedId || !selectedConv) return
+
+    // Aparece en el chat al toque (con un ícono de "enviando") en vez de
+    // esperar el viaje completo a la API de WhatsApp + guardado en la base,
+    // que es lo que hacía sentir la demora de unos segundos.
+    const tempId = `temp-${Date.now()}`
+    const optimistic: WspMensaje = {
+      id: tempId,
+      conversacion_id: selectedId,
+      direccion: 'out',
+      tipo: 'text',
+      contenido: text,
+      transcripcion: null,
+      media_url: null,
+      wa_message_id: null,
+      enviado_por: empleadoId,
+      timestamp: new Date().toISOString(),
+      _pending: true,
+    }
+    addPendingMensaje(optimistic)
+
     setSending(true)
     try {
-      await sendTextMessage(selectedId, text, empleadoId, selectedConv.wa_contact_id)
+      const real = await sendTextMessage(selectedId, text, empleadoId, selectedConv.wa_contact_id)
+      resolvePendingMensaje(tempId, real)
     } catch (err) {
       console.error('Error enviando mensaje:', err)
+      failPendingMensaje(tempId)
       alert(err instanceof Error ? err.message : 'No se pudo enviar el mensaje por WhatsApp')
     } finally {
       setSending(false)
     }
-  }, [selectedId, selectedConv, empleadoId])
+  }, [selectedId, selectedConv, empleadoId, addPendingMensaje, resolvePendingMensaje, failPendingMensaje])
 
   const handleChangeCategoria = useCallback(async (cat: CrmCategoria) => {
     if (!selectedConv) return

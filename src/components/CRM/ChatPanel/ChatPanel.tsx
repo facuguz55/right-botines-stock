@@ -205,7 +205,10 @@ export default function ChatPanel({
         ) : (
           <>
             {mensajes.map((msg) => (
-              <div key={msg.id} className={`chat-panel-msg chat-panel-msg--${msg.direccion}`}>
+              <div
+                key={msg.id}
+                className={`chat-panel-msg chat-panel-msg--${msg.direccion}${msg._pending ? ' chat-panel-msg--pending' : ''}${msg._failed ? ' chat-panel-msg--failed' : ''}`}
+              >
                 <div className="chat-panel-msg-bubble">
                   <div className="chat-panel-msg-menu">
                     <button
@@ -249,7 +252,9 @@ export default function ChatPanel({
                   )}
                   {msg.contenido && <span>{msg.contenido}</span>}
                 </div>
-                <span className="chat-panel-msg-time">{formatTime(msg.timestamp)}</span>
+                <span className="chat-panel-msg-time">
+                  {msg._pending ? 'Enviando...' : msg._failed ? 'No se pudo enviar' : formatTime(msg.timestamp)}
+                </span>
               </div>
             ))}
             <div ref={messagesEndRef} />
