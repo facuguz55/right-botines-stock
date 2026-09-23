@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { MessageCircle, Mail, Plus, Pencil, Trash2 } from 'lucide-react'
+import { MessageCircle, Mail, Plus, Pencil, Trash2, Inbox } from 'lucide-react'
 import type { ClienteLocal, Venta } from '../../types'
 import { useVentas } from '../../hooks/useVentas'
 import { filterClientes } from '../../hooks/useClientesLocales'
@@ -14,6 +14,7 @@ interface ClientesLocalesProps {
   addCliente: (input: ClienteInput) => Promise<ClienteLocal>
   editCliente: (id: string, updates: Partial<ClienteInput>) => Promise<ClienteLocal>
   removeCliente: (id: string) => Promise<void>
+  onOpenInCrm?: (numero: string, nombre: string | null) => void
 }
 
 // WhatsApp necesita el número en formato internacional (código de país +
@@ -32,7 +33,7 @@ function fmtFecha(fecha: string) {
   return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-export function ClientesLocales({ clientes, loading, addCliente, editCliente, removeCliente }: ClientesLocalesProps) {
+export function ClientesLocales({ clientes, loading, addCliente, editCliente, removeCliente, onOpenInCrm }: ClientesLocalesProps) {
   const { ventas } = useVentas()
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -182,6 +183,16 @@ export function ClientesLocales({ clientes, loading, addCliente, editCliente, re
                     <td className="price-cell">${(stats?.total ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
                     <td>{stats ? fmtFecha(stats.ultima) : <span className="cell-muted">—</span>}</td>
                     <td className="clientes-actions">
+                      {onOpenInCrm && c.telefono && (
+                        <button
+                          className="icon-btn"
+                          onClick={e => { e.stopPropagation(); onOpenInCrm(c.telefono!, c.nombre) }}
+                          aria-label="Abrir en CRM"
+                          title="Abrir conversación en el CRM"
+                        >
+                          <Inbox size={14} />
+                        </button>
+                      )}
                       <button className="icon-btn" onClick={e => { e.stopPropagation(); openEdit(c) }} aria-label="Editar"><Pencil size={14} /></button>
                       <button className="icon-btn danger" onClick={e => { e.stopPropagation(); setDeleteTarget(c) }} aria-label="Eliminar"><Trash2 size={14} /></button>
                     </td>

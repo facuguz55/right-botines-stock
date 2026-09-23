@@ -164,6 +164,16 @@ export function App() {
   const [clearing, setClearing] = useState(false)
   const [photoSender, setPhotoSender] = useState<{ conversacionId: string; tipo: string | null; talle: number | null; waContactId: string } | null>(null)
 
+  // Deep link "Abrir en CRM" desde Preventa/Clientes locales: guarda el
+  // número + nombre de la persona, cambia a la página del CRM, y CrmInbox
+  // se encarga de buscar o crear la conversación y seleccionarla apenas
+  // detecta este valor (ver el useEffect ahí adentro).
+  const [crmOpenTarget, setCrmOpenTarget] = useState<{ numero: string; nombre: string | null } | null>(null)
+  const handleOpenInCrm = (numero: string, nombre: string | null) => {
+    setCrmOpenTarget({ numero, nombre })
+    setActivePage('crm_inbox')
+  }
+
   const handleAdd = () => { setEditTarget(null); setShowForm(true) }
   const handleEdit = (m: Modelo) => { setEditTarget(m); setShowForm(true) }
 
@@ -278,6 +288,7 @@ export function App() {
           addCliente={clientesLocales.addCliente}
           editCliente={clientesLocales.editCliente}
           removeCliente={clientesLocales.removeCliente}
+          onOpenInCrm={handleOpenInCrm}
         />
       )}
       {activePage === 'dashboard' && <Dashboard role={role} />}
@@ -313,7 +324,7 @@ export function App() {
       {activePage === 'tn_dashboard' && <TNDashboard />}
       {activePage === 'tn_analytics' && <TNAnalytics />}
       {activePage === 'tn_ordenes'   && <TNOrdenes empleadoId={empleadoId} />}
-      {activePage === 'tn_preventa'  && <TNPreventa />}
+      {activePage === 'tn_preventa'  && <TNPreventa onOpenInCrm={handleOpenInCrm} />}
       {activePage === 'tn_clientes'  && <TNClientes />}
       {activePage === 'tn_cupones'   && <TNCupones />}
       {activePage === 'tn_mails'     && <TNMails />}
@@ -327,6 +338,8 @@ export function App() {
           onOpenPhotoSender={(conversacionId: string, tipo: string | null, talle: number | null, waContactId: string) => setPhotoSender({ conversacionId, tipo, talle, waContactId })}
           onCreateVenta={() => {}}
           onSendMpLink={() => {}}
+          openTarget={crmOpenTarget}
+          onOpenTargetHandled={() => setCrmOpenTarget(null)}
         />
       )}
       {activePage === 'crm_dashboard' && role === 'dueno' && <CrmDashboard />}

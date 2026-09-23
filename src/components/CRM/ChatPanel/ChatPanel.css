@@ -131,6 +131,37 @@
   line-height: 1.2;
 }
 
+.chat-panel-header-name--editable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.chat-panel-header-rename-icon {
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity .12s;
+  flex-shrink: 0;
+}
+
+.chat-panel-header-name--editable:hover .chat-panel-header-rename-icon {
+  opacity: 1;
+}
+
+.chat-panel-header-rename-input {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  width: 100%;
+  max-width: 220px;
+}
+
 .chat-panel-header-phone {
   font-size: 12px;
   color: var(--text-secondary);

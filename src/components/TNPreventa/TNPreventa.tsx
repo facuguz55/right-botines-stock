@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, ChevronDown, ChevronUp, Search, MessageCircle, Mail } from 'lucide-react'
+import { RefreshCw, ChevronDown, ChevronUp, Search, MessageCircle, Mail, Inbox } from 'lucide-react'
 import { paymentStatusLabel, paymentStatusClass, formatARS } from '../../services/tiendanubeService'
 import { fetchPreventaOrders, syncTNOrdenes, syncTNClientes, type PreventaOrder } from '../../services/tnOrdersSync'
 import './TNPreventa.css'
@@ -11,7 +11,11 @@ const numeroWhatsApp = (s: string) => {
   return digitos.startsWith('54') ? digitos : `549${digitos}`
 }
 
-export function TNPreventa() {
+interface TNPreventaProps {
+  onOpenInCrm?: (numero: string, nombre: string | null) => void
+}
+
+export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
   const [orders, setOrders]     = useState<PreventaOrder[]>([])
   const [loading, setLoading]   = useState(true)
   const [syncing, setSyncing]   = useState(false)
@@ -144,6 +148,20 @@ export function TNPreventa() {
                       >
                         <Mail size={14} />
                       </a>
+                      {onOpenInCrm && (
+                        <button
+                          type="button"
+                          className="tn-contacto-btn tn-contacto-btn--crm"
+                          disabled={!order.clienteTelefono}
+                          onClick={e => {
+                            e.stopPropagation()
+                            if (order.clienteTelefono) onOpenInCrm(order.clienteTelefono, order.customer?.name ?? null)
+                          }}
+                          title={order.clienteTelefono ? 'Abrir conversación en el CRM' : 'Sin teléfono cargado'}
+                        >
+                          <Inbox size={14} />
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="tn-order-chevron" onClick={() => setExpanded(expanded === order.id ? null : order.id)}>

@@ -33,6 +33,12 @@
   color: #3b82f6;
 }
 
+.tn-contacto-btn--crm:not(:disabled):hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .tn-contacto-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;

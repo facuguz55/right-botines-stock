@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import './ChatPanel.css'
@@ -18,6 +18,7 @@ interface ChatPanelProps {
   onUseSugerencia: () => void
   onDismissSugerencia: () => void
   onDeleteMensaje: (mensajeId: string) => void
+  onRename: (nombre: string) => void
   sending: boolean
   onBack?: () => void
 }
@@ -40,11 +41,14 @@ export default function ChatPanel({
   onUseSugerencia,
   onDismissSugerencia,
   onDeleteMensaje,
+  onRename,
   sending,
   onBack,
 }: ChatPanelProps) {
   const [text, setText] = useState('')
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [renaming, setRenaming] = useState(false)
+  const [nombreDraft, setNombreDraft] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -62,6 +66,10 @@ export default function ChatPanel({
   useEffect(() => {
     scrollToBottom()
   }, [mensajes, scrollToBottom])
+
+  useEffect(() => {
+    setRenaming(false)
+  }, [conversacion?.id])
 
   const handleSend = async () => {
     const trimmed = text.trim()
@@ -122,9 +130,31 @@ export default function ChatPanel({
             </button>
           )}
           <div>
-            <div className="chat-panel-header-name">
-              {conversacion.nombre || conversacion.telefono || 'Sin nombre'}
-            </div>
+            {renaming ? (
+              <input
+                className="chat-panel-header-rename-input"
+                autoFocus
+                value={nombreDraft}
+                onChange={(e) => setNombreDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { onRename(nombreDraft); setRenaming(false) }
+                  if (e.key === 'Escape') setRenaming(false)
+                }}
+                onBlur={() => { onRename(nombreDraft); setRenaming(false) }}
+              />
+            ) : (
+              <div
+                className="chat-panel-header-name chat-panel-header-name--editable"
+                title="Click para renombrar (solo en el CRM)"
+                onClick={() => {
+                  setNombreDraft(conversacion.nombre_personalizado || conversacion.nombre || '')
+                  setRenaming(true)
+                }}
+              >
+                {conversacion.nombre_personalizado || conversacion.nombre || conversacion.telefono || 'Sin nombre'}
+                <Pencil size={11} className="chat-panel-header-rename-icon" />
+              </div>
+            )}
             {conversacion.telefono && (
               <div className="chat-panel-header-phone">{conversacion.telefono}</div>
             )}

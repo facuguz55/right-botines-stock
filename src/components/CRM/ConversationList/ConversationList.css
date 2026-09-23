@@ -38,6 +38,12 @@
   flex-shrink: 0;
 }
 
+.conv-list-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .conv-list-count {
   font-family: var(--font-body);
   font-size: 11px;
@@ -47,6 +53,78 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 3px 9px;
+}
+
+.conv-list-new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-dim);
+  border: 1px solid transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+
+.conv-list-new-btn:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+.conv-list-new-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+
+.conv-list-new-form input {
+  width: 100%;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  outline: none;
+}
+
+.conv-list-new-form input:focus {
+  border-color: var(--accent);
+}
+
+.conv-list-new-form-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #000;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.conv-list-new-form-btn:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.conv-list-spin {
+  animation: conv-list-spin 0.8s linear infinite;
+}
+
+@keyframes conv-list-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ── Búsqueda ── */

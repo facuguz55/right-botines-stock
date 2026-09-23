@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { CrmCategoria, CrmEstado } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { sendTextMessage, markSuggestionUsed, deleteMensaje } from '../../../services/crmMessages'
-import { markAsRead, updateCategoria, updateEstado } from '../../../services/crmConversations'
+import { markAsRead, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion } from '../../../services/crmConversations'
 import ConversationList from '../ConversationList/ConversationList'
 import ChatPanel from '../ChatPanel/ChatPanel'
 import './CrmInbox.css'
@@ -13,14 +13,19 @@ interface CrmInboxProps {
   onOpenPhotoSender: (conversacionId: string, tipo: string | null, talle: number | null, waContactId: string) => void
   onCreateVenta: (conversacionId: string) => void
   onSendMpLink: (conversacionId: string) => void
+  // Deep link desde otras secciones (Preventa, Clientes locales): al llegar
+  // un target nuevo, se busca/crea la conversación de ese número y se
+  // selecciona directo, sin que el usuario tenga que buscarla a mano.
+  openTarget?: { numero: string; nombre: string | null } | null
+  onOpenTargetHandled?: () => void
 }
 
-export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta, onSendMpLink }: CrmInboxProps) {
+export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta, onSendMpLink, openTarget, onOpenTargetHandled }: CrmInboxProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [categoriaFilter, setCategoriaFilter] = useState<CrmCategoria | undefined>(undefined)
   const [sending, setSending] = useState(false)
 
-  const { conversaciones, loading: loadingConvs, search, setSearch } = useConversations(categoriaFilter)
+  const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones } = useConversations(categoriaFilter)
   const { mensajes, loading: loadingMsgs, sugerencia, setSugerencia, reload: reloadMensajes } = useMessages(selectedId)
 
   const selectedConv = conversaciones.find((c) => c.id === selectedId) || null
@@ -65,6 +70,30 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     }
   }, [selectedId])
 
+  const handleStartConversacion = useCallback(async (numero: string, nombre: string | null) => {
+    const conv = await startOrGetConversacion(numero, nombre)
+    await reloadConversaciones()
+    setSelectedId(conv.id)
+  }, [reloadConversaciones])
+
+  useEffect(() => {
+    if (!openTarget) return
+    handleStartConversacion(openTarget.numero, openTarget.nombre)
+      .catch(err => { console.error('Error abriendo conversación desde deep link:', err); alert('No se pudo abrir la conversación.') })
+      .finally(() => onOpenTargetHandled?.())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openTarget])
+
+  const handleRename = useCallback(async (nombre: string) => {
+    if (!selectedId) return
+    try {
+      await renameConversacion(selectedId, nombre)
+    } catch (err) {
+      console.error('Error renombrando chat:', err)
+      alert('No se pudo renombrar el chat.')
+    }
+  }, [selectedId])
+
   const handleDeleteMensaje = useCallback(async (mensajeId: string) => {
     try {
       await deleteMensaje(mensajeId)
@@ -106,6 +135,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onCategoriaFilter={setCategoriaFilter}
           search={search}
           onSearch={setSearch}
+          onStartConversacion={handleStartConversacion}
         />
       </div>
       <div className={`crm-inbox-chat${isMobile && !selectedId ? ' crm-inbox-chat--hidden' : ''}`}>
@@ -127,6 +157,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onUseSugerencia={handleUseSugerencia}
           onDismissSugerencia={handleDismissSugerencia}
           onDeleteMensaje={handleDeleteMensaje}
+          onRename={handleRename}
           sending={sending}
           onBack={handleBack}
         />

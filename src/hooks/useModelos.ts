@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Modelo, ModeloFilters, PhotoSlot, TalleRow, MedioPago, CartItem } from '../types'
 import {
   fetchModelos, createModelo, updateModelo, deleteModelo,
@@ -15,16 +15,52 @@ import {
 
 type ModeloInput = Omit<Modelo, 'id' | 'created_at' | 'modelo_talles' | 'modelo_fotos'>
 
+// Antes cada vez que se entraba a Stock (o se volvía después de estar en
+// otra sección) esperabas los 10-20s del fetch completo de nuevo, con la
+// pantalla en blanco / los skeletons de carga, aunque los datos no hubieran
+// cambiado. Como App.tsx llama a useModelos() una sola vez para toda la
+// sesión, en rigor NO se re-pedía nada al navegar entre secciones — pero al
+// cerrar y volver a abrir la pestaña sí, siempre de cero. Este cache en
+// localStorage soluciona eso: al abrir la app se pinta al toque lo último
+// que se vio (sin esperar red) y en paralelo se pide la versión fresca —
+// cuando llega, reemplaza en silencio sin mostrar loaders de nuevo.
+const CACHE_KEY = 'rb_modelos_cache_v1'
+
+function loadModelosCache(): Modelo[] | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    return raw ? (JSON.parse(raw) as Modelo[]) : null
+  } catch {
+    return null
+  }
+}
+
+function saveModelosCache(modelos: Modelo[]) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(modelos))
+  } catch {
+    // localStorage lleno o deshabilitado (modo privado, etc.) — no es crítico,
+    // simplemente no hay cache esta vez.
+  }
+}
+
 export function useModelos() {
-  const [modelos, setModelos] = useState<Modelo[]>([])
-  const [loading, setLoading] = useState(true)
+  const cacheOnMount = useRef<Modelo[] | null | undefined>(undefined)
+  if (cacheOnMount.current === undefined) cacheOnMount.current = loadModelosCache()
+
+  const [modelos, setModelos] = useState<Modelo[]>(cacheOnMount.current ?? [])
+  // Si ya había algo en cache, no mostramos el loader de pantalla completa
+  // mientras se refresca en segundo plano — solo la primera vez que no hay
+  // nada que mostrar todavía.
+  const [loading, setLoading] = useState(cacheOnMount.current === null)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    setLoading(true)
     setError(null)
     try {
-      setModelos(await fetchModelos())
+      const fresh = await fetchModelos()
+      setModelos(fresh)
+      saveModelosCache(fresh)
     } catch (e) {
       setError((e as Error).message)
     } finally {

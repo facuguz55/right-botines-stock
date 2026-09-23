@@ -39,6 +39,7 @@ export interface WspConversacion {
   wa_contact_id: string
   crm_cliente_id: string | null
   nombre: string | null
+  nombre_personalizado: string | null
   telefono: string | null
   avatar_url: string | null
   categoria: CrmCategoria

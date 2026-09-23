@@ -1,4 +1,5 @@
-import { MessageCircle } from 'lucide-react'
+import { useState } from 'react'
+import { MessageCircle, Plus, X, Loader2 } from 'lucide-react'
 import type { WspConversacion, CrmCategoria } from '../../../types/crm'
 import { CRM_CATEGORIAS } from '../../../types/crm'
 import CategoryChip from '../CategoryChip/CategoryChip'
@@ -13,6 +14,7 @@ interface ConversationListProps {
   onCategoriaFilter: (cat: CrmCategoria | undefined) => void
   search: string
   onSearch: (term: string) => void
+  onStartConversacion: (numero: string, nombre: string | null) => Promise<void>
 }
 
 function timeAgo(dateStr: string): string {
@@ -41,7 +43,30 @@ export default function ConversationList({
   onCategoriaFilter,
   search,
   onSearch,
+  onStartConversacion,
 }: ConversationListProps) {
+  const [showNueva, setShowNueva] = useState(false)
+  const [nuevoNumero, setNuevoNumero] = useState('')
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [creando, setCreando] = useState(false)
+
+  const handleCrearConversacion = async () => {
+    const numero = nuevoNumero.trim()
+    if (!numero || creando) return
+    setCreando(true)
+    try {
+      await onStartConversacion(numero, nuevoNombre.trim() || null)
+      setShowNueva(false)
+      setNuevoNumero('')
+      setNuevoNombre('')
+    } catch (err) {
+      console.error('Error creando conversación:', err)
+      alert('No se pudo crear la conversación. Revisá el número.')
+    } finally {
+      setCreando(false)
+    }
+  }
+
   return (
     <div className="conv-list">
       <div className="conv-list-header">
@@ -51,10 +76,44 @@ export default function ConversationList({
           </span>
           WhatsApp
         </h2>
-        {conversaciones.length > 0 && (
-          <span className="conv-list-count">{conversaciones.length}</span>
-        )}
+        <div className="conv-list-header-right">
+          {conversaciones.length > 0 && (
+            <span className="conv-list-count">{conversaciones.length}</span>
+          )}
+          <button
+            className="conv-list-new-btn"
+            title="Escribirle a un número nuevo"
+            onClick={() => setShowNueva(v => !v)}
+          >
+            {showNueva ? <X size={15} /> : <Plus size={15} />}
+          </button>
+        </div>
       </div>
+
+      {showNueva && (
+        <div className="conv-list-new-form">
+          <input
+            type="text"
+            placeholder="Nombre (opcional)"
+            value={nuevoNombre}
+            onChange={(e) => setNuevoNombre(e.target.value)}
+          />
+          <input
+            type="tel"
+            placeholder="Número de WhatsApp (ej: 3424633285)"
+            value={nuevoNumero}
+            onChange={(e) => setNuevoNumero(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleCrearConversacion() }}
+          />
+          <button
+            className="conv-list-new-form-btn"
+            disabled={!nuevoNumero.trim() || creando}
+            onClick={handleCrearConversacion}
+          >
+            {creando ? <Loader2 size={14} className="conv-list-spin" /> : 'Escribirle'}
+          </button>
+        </div>
+      )}
 
       <div className="conv-list-search">
         <input
@@ -104,11 +163,11 @@ export default function ConversationList({
               onClick={() => onSelect(conv.id)}
             >
               <div className="conv-list-avatar">
-                {getInitial(conv.nombre)}
+                {getInitial(conv.nombre_personalizado || conv.nombre)}
               </div>
               <div className="conv-list-info">
                 <div className="conv-list-top">
-                  <span className="conv-list-name">{conv.nombre || conv.telefono || 'Sin nombre'}</span>
+                  <span className="conv-list-name">{conv.nombre_personalizado || conv.nombre || conv.telefono || 'Sin nombre'}</span>
                   <span className="conv-list-time">{timeAgo(conv.ultimo_mensaje_at)}</span>
                 </div>
                 <div className="conv-list-bottom">
