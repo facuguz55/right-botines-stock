@@ -38,4 +38,33 @@
   .crm-inbox-chat {
     width: 100%;
   }
+
+  /* Chat abierto en mobile: pantalla completa, por encima de la barra de
+     navegación de abajo (como WhatsApp). Alto y posición siguen al
+     visualViewport (ver CrmInbox.tsx), así el teclado no tapa el campo
+     de escribir ni el botón de enviar. */
+  .crm-inbox-chat--open {
+    position: fixed;
+    top: var(--crm-vv-top, 0px);
+    left: 0;
+    right: 0;
+    height: var(--crm-vv-height, 100dvh);
+    z-index: 150;
+    background: var(--bg-primary);
+    animation: crm-chat-slide-in .2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes crm-chat-slide-in {
+    from { opacity: 0; transform: translateX(28px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+}
+
+/* La lista de chats en mobile ocupa todo el ancho sin el margen que
+   llevan las demás secciones. */
+@media (max-width: 768px) {
+  .main-content:has(.crm-inbox) {
+    padding: 0;
+    padding-bottom: 68px;
+  }
 }

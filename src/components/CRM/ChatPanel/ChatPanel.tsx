@@ -68,13 +68,20 @@ export default function ChatPanel({
     return () => window.removeEventListener('click', closeMenu)
   }, [openMenuId])
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
   }, [])
 
+  // Al abrir una conversación el scroll tiene que caer directo abajo — antes
+  // hacía la animación "smooth" desde arriba atravesando toda la charla, que
+  // en un chat largo (y más en mobile) se veía como un viaje raro. Solo los
+  // mensajes nuevos que llegan con el chat ya abierto se animan.
+  const wasLoadingRef = useRef(true)
   useEffect(() => {
-    scrollToBottom()
-  }, [mensajes, scrollToBottom])
+    const justLoaded = wasLoadingRef.current && !loading
+    wasLoadingRef.current = loading
+    scrollToBottom(justLoaded ? 'auto' : 'smooth')
+  }, [mensajes, loading, scrollToBottom])
 
   useEffect(() => {
     setRenaming(false)
@@ -316,6 +323,9 @@ export default function ChatPanel({
           value={text}
           onChange={handleTextareaInput}
           onKeyDown={handleKeyDown}
+          // Cuando se abre el teclado el viewport se achica: esperar a que
+          // termine de animarse y dejar visible el último mensaje.
+          onFocus={() => setTimeout(() => scrollToBottom('smooth'), 300)}
           rows={1}
         />
         <button

@@ -169,11 +169,63 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     setSugerencia(null)
   }, [setSugerencia])
 
-  const handleBack = useCallback(() => {
-    setSelectedId(null)
+  // Reactivo: antes se calculaba una sola vez por render con window.innerWidth
+  // y no reaccionaba al girar el celular o cambiar el tamaño de la ventana.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const onChange = () => setIsMobile(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
   }, [])
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+  // El botón "atrás" del celular (o el gesto de volver) tiene que cerrar el
+  // chat y volver a la lista, no sacarte de la app. Al abrir un chat en
+  // mobile se agrega una entrada al historial; volver la consume.
+  const pushedHistoryRef = useRef(false)
+  useEffect(() => {
+    if (!isMobile || !selectedId) return
+    if (!pushedHistoryRef.current) {
+      window.history.pushState({ crmChat: true }, '')
+      pushedHistoryRef.current = true
+    }
+    const onPop = () => {
+      pushedHistoryRef.current = false
+      setSelectedId(null)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [isMobile, selectedId])
+
+  const handleBack = useCallback(() => {
+    if (pushedHistoryRef.current) window.history.back()
+    else setSelectedId(null)
+  }, [])
+
+  // Con el chat a pantalla completa en mobile, el teclado achica el viewport
+  // visible pero no el layout: sin esto el campo de escribir quedaba tapado
+  // por el teclado. Se sigue el visualViewport y se lo pasa por CSS.
+  useEffect(() => {
+    if (!isMobile || !selectedId) return
+    const vv = window.visualViewport
+    if (!vv) return
+    const root = document.documentElement
+    const update = () => {
+      root.style.setProperty('--crm-vv-height', `${vv.height}px`)
+      root.style.setProperty('--crm-vv-top', `${vv.offsetTop}px`)
+    }
+    update()
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+      root.style.removeProperty('--crm-vv-height')
+      root.style.removeProperty('--crm-vv-top')
+    }
+  }, [isMobile, selectedId])
 
   return (
     <div className="crm-inbox">
@@ -190,7 +242,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onStartConversacion={handleStartConversacion}
         />
       </div>
-      <div className={`crm-inbox-chat${isMobile && !selectedId ? ' crm-inbox-chat--hidden' : ''}`}>
+      <div className={`crm-inbox-chat${isMobile && !selectedId ? ' crm-inbox-chat--hidden' : ''}${isMobile && selectedId ? ' crm-inbox-chat--open' : ''}`}>
         <ChatPanel
           conversacion={selectedConv}
           mensajes={mensajes}

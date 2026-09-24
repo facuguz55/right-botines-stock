@@ -393,3 +393,46 @@
   color: var(--text-secondary);
   font-size: 13px;
 }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .conv-list-header {
+    padding: 14px 12px 10px;
+  }
+
+  .conv-list-title {
+    font-size: 1.3rem;
+  }
+
+  .conv-list-new-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  /* 16px en los campos: iOS hace zoom automático al enfocar cualquier input
+     con menos que eso. */
+  .conv-list-search,
+  .conv-list-new-form {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .conv-list-search input,
+  .conv-list-new-form input {
+    font-size: 16px;
+  }
+
+  .conv-list-new-form-btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .conv-list-item {
+    padding: 12px;
+  }
+
+  .conv-list-item:active {
+    background: var(--bg-surface-2);
+  }
+}

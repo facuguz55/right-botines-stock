@@ -299,7 +299,17 @@ export default async function handler(req: Request): Promise<Response> {
           })
 
           if (contenido) {
-            classifyWithAI(contenido, conversacionId, inserted.id).catch(console.error)
+            // OJO: hay que ESPERARLA antes de responder. En las funciones
+            // edge de Vercel, cuando se devuelve la Response el runtime corta
+            // cualquier promesa pendiente — lanzada "en segundo plano" la
+            // llamada a Anthropic moría a mitad de camino (sin fila en
+            // wsp_ia_sugerencias y sin ningún error en los logs), por eso la
+            // clasificación y el botón de talle nunca aparecían. El tope de 8s
+            // evita que una IA lenta demore de más la respuesta a Meta.
+            await Promise.race([
+              classifyWithAI(contenido, conversacionId, inserted.id),
+              new Promise<void>(resolve => setTimeout(resolve, 8000)),
+            ]).catch(console.error)
           }
         }
       }

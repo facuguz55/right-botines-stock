@@ -467,8 +467,16 @@ export function App() {
           }}
         />
       )}
-      <AiChat onReload={reload} />
-      <FeedbackButton />
+      {/* Los botones flotantes (asistente IA y reporte de errores) viven
+          fijos abajo a la derecha, justo donde en el CRM queda el botón de
+          enviar mensaje — lo tapaban tanto en mobile como en PC. En la
+          bandeja del CRM se ocultan (siguen montados, así el chat de la IA
+          no pierde su historial al ir y volver) y en el resto de las
+          secciones quedan como siempre. */}
+      <div className={`floating-tools${activePage === 'crm_inbox' ? ' floating-tools--hidden' : ''}`}>
+        <AiChat onReload={reload} />
+        <FeedbackButton />
+      </div>
     </Layout>
   )
 }

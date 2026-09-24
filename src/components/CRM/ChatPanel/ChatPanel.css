@@ -613,24 +613,107 @@
   transition: height .1s ease-out;
 }
 
+/* En pantallas táctiles no existe el hover: el menú de tres puntitos de cada
+   mensaje (invisible hasta pasar el mouse) nunca aparecía de forma
+   confiable. Acá queda siempre visible, pero discreto. */
+@media (hover: none) {
+  .chat-panel-msg-menu { opacity: .55; }
+  .chat-panel-header-rename-icon { opacity: .6; }
+}
+
+.chat-panel-messages {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media (max-width: 768px) {
   .chat-panel-back {
     display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-left: -6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .chat-panel-back:active {
+    background: var(--bg-surface-2);
   }
 
   .chat-panel-msg {
-    max-width: 85%;
+    max-width: 88%;
+  }
+
+  /* Header en dos filas: arriba nombre + acciones, abajo categoría y
+     estado (antes estaban directamente ocultos en celular, así que no había
+     forma de reclasificar ni cambiar el estado de un chat desde el móvil). */
+  .chat-panel-header {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    row-gap: 8px;
+  }
+
+  .chat-panel-header-info {
+    gap: 8px;
+  }
+
+  .chat-panel-header-name {
+    font-size: 1rem;
   }
 
   .chat-panel-header-selects {
-    display: none;
+    order: 3;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .chat-panel-select {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    font-size: 16px; /* 16px evita el zoom automático de iOS al tocarlo */
+  }
+
+  .chat-panel-header-actions {
+    gap: 6px;
+  }
+
+  .chat-panel-action-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
   }
 
   .chat-panel-messages {
-    padding: 16px;
+    padding: 12px;
   }
 
+  /* Barra de escribir: 16px en el textarea (si no, iOS hace zoom al
+     enfocarlo), botón de enviar con tamaño táctil cómodo, y respeta la
+     zona segura de abajo en celulares con barra de gestos. */
   .chat-panel-input {
-    padding: 12px 16px;
+    padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+
+  .chat-panel-textarea {
+    font-size: 16px;
+    padding: 10px 14px;
+    border-radius: 20px;
+  }
+
+  .chat-panel-send-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .chat-panel-suggestion,
+  .chat-panel-undo-snackbar {
+    padding: 8px 12px;
   }
 }
