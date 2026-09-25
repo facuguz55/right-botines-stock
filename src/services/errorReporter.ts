@@ -83,6 +83,9 @@ export function setupGlobalErrorHandler(): void {
 
   window.addEventListener('unhandledrejection', (e) => {
     const reason = e.reason
+    // Ruido del navegador, no un bug de la app: no pudo bajar sw.js para
+    // chequear actualizaciones (corte de red momentáneo). Ver pwaUpdate.ts.
+    if (String(reason?.message ?? reason).includes('Failed to update a ServiceWorker')) return
     reportError({
       donde: 'unhandledrejection',
       mensaje: reason?.message ?? String(reason),
