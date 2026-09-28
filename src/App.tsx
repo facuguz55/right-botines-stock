@@ -54,8 +54,9 @@ import { AiChat } from './components/AiChat/AiChat'
 import CrmInbox from './components/CRM/CrmInbox/CrmInbox'
 import { CrmDashboard } from './components/CRM/CrmDashboard/CrmDashboard'
 import { PhotoSender } from './components/CRM/PhotoSender/PhotoSender'
-import { sendImageMessage } from './services/crmMessages'
-import type { PhotoMatch } from './types/crm'
+import { sendImageMessage, sendTextMessage } from './services/crmMessages'
+import { linkClienteLocal } from './services/crmClients'
+import type { CrmVentaInfo, PhotoMatch } from './types/crm'
 import { FeedbackButton } from './components/FeedbackButton/FeedbackButton'
 import { setupGlobalErrorHandler } from './services/errorReporter'
 import './App.css'
@@ -164,6 +165,13 @@ export function App() {
   const [clearing, setClearing] = useState(false)
   const [photoSender, setPhotoSender] = useState<{ conversacionId: string; tipo: string | null; talle: number | null; waContactId: string } | null>(null)
 
+  // Venta iniciada con el "+" de un chat del CRM: mientras está seteado, se
+  // manda al empleado a armar el carrito en Stock igual que cualquier otra
+  // venta, pero con el cliente de esa conversación precargado en el cobro —
+  // y al confirmar, se vincula el cliente local, se avisa por WhatsApp y se
+  // vuelve directo a ese chat en vez de dejarlo perdido en Stock.
+  const [crmVenta, setCrmVenta] = useState<CrmVentaInfo | null>(null)
+
   // Deep link "Abrir en CRM" desde Preventa/Clientes locales: guarda el
   // número + nombre de la persona, cambia a la página del CRM, y CrmInbox
   // se encarga de buscar o crear la conversación y seleccionarla apenas
@@ -172,6 +180,16 @@ export function App() {
   const handleOpenInCrm = (numero: string, nombre: string | null) => {
     setCrmOpenTarget({ numero, nombre })
     setActivePage('crm_inbox')
+  }
+
+  const handleCancelCrmVenta = () => {
+    const info = crmVenta
+    setCrmVenta(null)
+    carrito.clear()
+    if (info) {
+      setCrmOpenTarget({ numero: info.waContactId, nombre: info.nombre })
+      setActivePage('crm_inbox')
+    }
   }
 
   const handleAdd = () => { setEditTarget(null); setShowForm(true) }
@@ -280,6 +298,13 @@ export function App() {
         )
       )}
 
+      {crmVenta && activePage === 'stock' && (
+        <div className="crm-venta-banner">
+          <span>Armando venta para <strong>{crmVenta.nombre || crmVenta.telefono || 'este cliente'}</strong> (CRM) — elegí los productos y cobrá como siempre.</span>
+          <button className="btn btn-secondary" onClick={handleCancelCrmVenta}>Cancelar y volver al chat</button>
+        </div>
+      )}
+
       {activePage === 'carpetas' && <Carpetas modelos={modelos} />}
       {activePage === 'clientes_locales' && (
         <ClientesLocales
@@ -336,8 +361,7 @@ export function App() {
         <CrmInbox
           empleadoId={empleadoId}
           onOpenPhotoSender={(conversacionId: string, tipo: string | null, talle: number | null, waContactId: string) => setPhotoSender({ conversacionId, tipo, talle, waContactId })}
-          onCreateVenta={() => {}}
-          onSendMpLink={() => {}}
+          onCreateVenta={(info) => { setCrmVenta(info); setActivePage('stock') }}
           openTarget={crmOpenTarget}
           onOpenTargetHandled={() => setCrmOpenTarget(null)}
         />
@@ -365,11 +389,37 @@ export function App() {
         clear={carrito.clear}
         clientes={clientesLocales.clientes}
         addCliente={clientesLocales.addCliente}
-        onSell={(items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia, montoTarjeta, montoRecibidoEfectivo, vueltoEfectivo) =>
-          venderCarrito(
+        initialClienteId={crmVenta?.clienteLocalId ?? null}
+        onSell={async (items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia, montoTarjeta, montoRecibidoEfectivo, vueltoEfectivo) => {
+          await venderCarrito(
             items, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId,
             montoEfectivo, montoTransferencia, montoTarjeta, montoRecibidoEfectivo, vueltoEfectivo,
-          )}
+          )
+
+          // Venta armada desde el "+" del CRM: vincular el cliente local
+          // elegido/creado en el cobro (puede ser otro distinto al que ya
+          // tenía linkeado, si el empleado lo cambió a mano) y avisar por
+          // WhatsApp — todo esto es best-effort, un fallo acá no debe hacer
+          // parecer que la venta (ya confirmada arriba) no se hizo.
+          if (crmVenta) {
+            const venta = crmVenta
+            try {
+              if (venta.crmClienteId && venta.clienteLocalId !== clienteId) {
+                await linkClienteLocal(venta.crmClienteId, clienteId)
+              }
+              const resumen = items
+                .map(i => `• ${i.modelo.marca} ${i.modelo.modelo} talle ${i.talleArg} x${i.cantidad}`)
+                .join('\n')
+              await sendTextMessage(venta.conversacionId, `✅ Venta registrada:\n${resumen}`, empleadoId, venta.waContactId)
+            } catch (err) {
+              console.error('No se pudo vincular el cliente o avisar la venta del CRM por WhatsApp:', err)
+            } finally {
+              setCrmVenta(null)
+              setCrmOpenTarget({ numero: venta.waContactId, nombre: venta.nombre })
+              setActivePage('crm_inbox')
+            }
+          }
+        }}
       />
 
       <VentaEnCurso

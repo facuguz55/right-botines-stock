@@ -85,6 +85,18 @@ export interface WspIaSugerencia {
   created_at: string
 }
 
+// Info que necesita App.tsx para armar una venta "desde" una conversación
+// del CRM (botón "+" del chat): a quién vincular/crear como cliente local
+// y a dónde avisar por WhatsApp cuando la venta se confirme.
+export interface CrmVentaInfo {
+  conversacionId: string
+  crmClienteId: string | null
+  clienteLocalId: string | null
+  nombre: string | null
+  telefono: string | null
+  waContactId: string
+}
+
 export interface WspEnvioFotos {
   id: string
   conversacion_id: string

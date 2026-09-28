@@ -1,18 +1,18 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import type { CrmCategoria, CrmEstado, WspMensaje } from '../../../types/crm'
+import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspMensaje } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { sendTextMessage, markSuggestionUsed, deleteMensaje } from '../../../services/crmMessages'
 import { markAsRead, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion } from '../../../services/crmConversations'
 import ConversationList from '../ConversationList/ConversationList'
 import ChatPanel from '../ChatPanel/ChatPanel'
+import { MpLinkModal } from '../MpLinkModal/MpLinkModal'
 import './CrmInbox.css'
 
 interface CrmInboxProps {
   empleadoId: string | null
   onOpenPhotoSender: (conversacionId: string, tipo: string | null, talle: number | null, waContactId: string) => void
-  onCreateVenta: (conversacionId: string) => void
-  onSendMpLink: (conversacionId: string) => void
+  onCreateVenta: (info: CrmVentaInfo) => void
   // Deep link desde otras secciones (Preventa, Clientes locales): al llegar
   // un target nuevo, se busca/crea la conversación de ese número y se
   // selecciona directo, sin que el usuario tenga que buscarla a mano.
@@ -20,10 +20,11 @@ interface CrmInboxProps {
   onOpenTargetHandled?: () => void
 }
 
-export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta, onSendMpLink, openTarget, onOpenTargetHandled }: CrmInboxProps) {
+export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta, openTarget, onOpenTargetHandled }: CrmInboxProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [categoriaFilter, setCategoriaFilter] = useState<CrmCategoria | undefined>(undefined)
   const [sending, setSending] = useState(false)
+  const [mpLinkOpen, setMpLinkOpen] = useState(false)
 
   const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones } = useConversations(categoriaFilter)
   const {
@@ -255,8 +256,18 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
             if (!selectedId || !selectedConv) return
             onOpenPhotoSender(selectedId, tipo ?? null, talle ?? null, selectedConv.wa_contact_id)
           }}
-          onCreateVenta={() => { if (selectedId) onCreateVenta(selectedId) }}
-          onSendMpLink={() => { if (selectedId) onSendMpLink(selectedId) }}
+          onCreateVenta={() => {
+            if (!selectedId || !selectedConv) return
+            onCreateVenta({
+              conversacionId: selectedId,
+              crmClienteId: selectedConv.crm_cliente_id,
+              clienteLocalId: selectedConv.crm_clientes?.cliente_local_id ?? null,
+              nombre: selectedConv.nombre_personalizado || selectedConv.nombre,
+              telefono: selectedConv.telefono,
+              waContactId: selectedConv.wa_contact_id,
+            })
+          }}
+          onSendMpLink={() => setMpLinkOpen(true)}
           onUseSugerencia={handleUseSugerencia}
           onDismissSugerencia={handleDismissSugerencia}
           onDeleteMensaje={handleDeleteMensaje}
@@ -269,6 +280,11 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onBack={handleBack}
         />
       </div>
+      <MpLinkModal
+        isOpen={mpLinkOpen}
+        onClose={() => setMpLinkOpen(false)}
+        onSend={handleSend}
+      />
     </div>
   )
 }

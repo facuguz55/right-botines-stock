@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CartItem, ClienteLocal, MedioPago, RecargoTarjeta } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { filterClientes } from '../../hooks/useClientesLocales'
@@ -18,11 +18,15 @@ interface CartModalProps {
     recargoPct: number, montoEfectivo: number | null, montoTransferencia: number | null, montoTarjeta: number | null,
     montoRecibidoEfectivo: number | null, vueltoEfectivo: number | null,
   ) => Promise<void>
+  // Venta iniciada desde el botón "+" de un chat del CRM: el cliente de esa
+  // conversación ya se sabe, así que se precarga en vez de obligar a
+  // buscarlo/cargarlo de nuevo a mano.
+  initialClienteId?: string | null
 }
 
 const MEDIOS: MedioPago[] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Mixto']
 
-export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, addCliente, onSell }: CartModalProps) {
+export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, addCliente, onSell, initialClienteId = null }: CartModalProps) {
   const [step, setStep] = useState<'pago' | 'cliente'>('pago')
   // Sin default: si nadie toca nada acá, no hay forma de confirmar la venta
   // sin elegir a propósito. Antes arrancaba en 'Efectivo' preseleccionado —
@@ -44,6 +48,14 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
   const [totalAjustadoStr, setTotalAjustadoStr] = useState('')
   const [search, setSearch] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
+
+  // Se precarga recién al abrir (no en cada render) para que elegir otro
+  // cliente a mano en el paso "cliente" no se pise solo por como quedó la
+  // prop del padre.
+  useEffect(() => {
+    if (isOpen) setSelectedClienteId(initialClienteId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
   const [showNewForm, setShowNewForm] = useState(false)
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')

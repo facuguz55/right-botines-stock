@@ -60,6 +60,28 @@ export function useMessages(conversacionId: string | null) {
           if (newMsg.direccion === 'in') playNotificationSound()
         }
       )
+      .on(
+        // La IA tarda unos segundos en clasificar el mensaje y recién ahí
+        // inserta la fila en wsp_ia_sugerencias — bastante después de que el
+        // mensaje ya se mostró. Sin este listener, el botón de "mandar
+        // talle" y el cartel de respuesta sugerida solo aparecían si se
+        // salía de la conversación y se volvía a entrar (lo que releía todo
+        // desde cero), nunca en vivo mientras el chat estaba abierto.
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'wsp_ia_sugerencias',
+          filter: `conversacion_id=eq.${conversacionId}`,
+        },
+        (payload) => {
+          const newSug = payload.new as WspIaSugerencia
+          if (newSug.mensaje_id) {
+            setSugerenciasPorMensaje(prev => ({ ...prev, [newSug.mensaje_id as string]: newSug }))
+          }
+          setSugerencia(prev => (!prev || newSug.created_at >= prev.created_at) ? newSug : prev)
+        }
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
