@@ -61,6 +61,11 @@ export function PhotoSender({
     })
   }
 
+  const todosSeleccionados = matches.length > 0 && selected.size === matches.length
+  function toggleSelectAll() {
+    setSelected(todosSeleccionados ? new Set() : new Set(matches.map(m => m.modelo_id)))
+  }
+
   async function handleSend() {
     const items = matches.filter(m => selected.has(m.modelo_id))
     if (items.length === 0) return
@@ -111,7 +116,19 @@ export function PhotoSender({
               No se encontraron modelos con stock para esta consulta.
             </div>
           ) : (
-            <div className="photo-sender-grid">
+            <>
+              <div className="photo-sender-select-all-row">
+                <button
+                  type="button"
+                  className="photo-sender-select-all-btn"
+                  onClick={toggleSelectAll}
+                  title={todosSeleccionados ? 'Deseleccionar todos los modelos de la lista' : 'Seleccionar todos los modelos de la lista para mandarlos juntos'}
+                >
+                  {todosSeleccionados ? <X size={14} /> : <Check size={14} />}
+                  {todosSeleccionados ? 'Deseleccionar todo' : `Seleccionar todo (${matches.length})`}
+                </button>
+              </div>
+              <div className="photo-sender-grid">
               {matches.map(m => (
                 <div
                   key={m.modelo_id}
@@ -147,7 +164,8 @@ export function PhotoSender({
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </div>
 

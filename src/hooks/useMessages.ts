@@ -96,7 +96,19 @@ export function useMessages(conversacionId: string | null) {
   }, [])
 
   const resolvePendingMensaje = useCallback((tempId: string, real: WspMensaje) => {
-    setMensajes(prev => prev.map(m => m.id === tempId ? real : m))
+    setMensajes(prev => {
+      // El listener de arriba ya se cuida de no duplicar cuando la fila real
+      // llega por realtime DESPUÉS de resolverse acá (chequea por id antes
+      // de agregar) — pero si llega ANTES (típico si el insert es más
+      // rápido que la respuesta HTTP del envío), esta función pisaba el
+      // mensaje optimista con la fila real sin fijarse que ya estaba
+      // agregada, y la burbuja quedaba dos veces. Si ya está, solo se saca
+      // el optimista en vez de agregar la real de nuevo.
+      if (prev.some(m => m.id === real.id)) {
+        return prev.filter(m => m.id !== tempId)
+      }
+      return prev.map(m => m.id === tempId ? real : m)
+    })
   }, [])
 
   const failPendingMensaje = useCallback((tempId: string) => {
