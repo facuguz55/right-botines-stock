@@ -512,8 +512,9 @@ export function App() {
             for (const item of items) {
               const fotoUrl = item.fotos[0]?.foto_url
               if (!fotoUrl) continue
-              const caption = `${item.marca} ${item.modelo} - $${item.precio_real.toLocaleString('es-AR')}`
-              await sendImageMessage(photoSender.conversacionId, fotoUrl, caption, empleadoId, waContactId)
+              // Solo la foto, sin nombre ni precio (pedido de Facu: que se vea
+              // como las manda una persona).
+              await sendImageMessage(photoSender.conversacionId, fotoUrl, null, empleadoId, waContactId)
             }
           }}
         />

@@ -7,7 +7,7 @@ export async function searchModelosByTalleDisponible(
 ): Promise<PhotoMatch[]> {
   let query = supabase
     .from('modelos')
-    .select('id, marca, modelo, categoria, precio_venta, precio_promocional, precio_efectivo, modelo_talles(talle_arg, cantidad), modelo_fotos(foto_url, orden)')
+    .select('id, marca, modelo, categoria, gama, precio_venta, precio_promocional, precio_efectivo, modelo_talles(talle_arg, cantidad), modelo_fotos(foto_url, orden)')
 
   if (tipo) {
     query = query.ilike('categoria', `%${tipo}%`)
@@ -35,6 +35,7 @@ export async function searchModelosByTalleDisponible(
       marca: m.marca,
       modelo: m.modelo,
       categoria: m.categoria,
+      gama: m.gama ?? null,
       precio_venta: m.precio_venta,
       precio_efectivo: m.precio_efectivo,
       // Mismo criterio que getPrecioReal (utils/precios.ts): efectivo si
@@ -45,7 +46,17 @@ export async function searchModelosByTalleDisponible(
     })
   }
 
-  return results
+  // Gama alta primero, después media y el resto — se muestran y se mandan
+  // en este orden (pedido de Facu). El sort es estable: dentro de cada gama
+  // queda el orden de siempre.
+  return results.sort((a, b) => rangoGama(a.gama) - rangoGama(b.gama))
+}
+
+function rangoGama(gama: string | null | undefined): number {
+  const g = (gama ?? '').toLowerCase()
+  if (g.includes('alta')) return 0
+  if (g.includes('media')) return 1
+  return 2
 }
 
 export async function logEnvioFotos(

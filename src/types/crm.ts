@@ -137,6 +137,7 @@ export interface PhotoMatch {
   marca: string
   modelo: string
   categoria: string
+  gama?: string | null
   precio_venta: number
   precio_efectivo: number | null
   // Precio real a cotizar (mismo criterio que getPrecioReal en utils/precios.ts:
