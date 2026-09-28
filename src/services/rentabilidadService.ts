@@ -8,7 +8,6 @@ import { supabase } from '../lib/supabase'
 import { fetchLocalTNOrdenes } from './tnOrdersSync'
 import { fetchCostosConfig, fetchCostosUnicos } from './costosService'
 import { verifyOwnerPin } from './auth'
-import { fetchFichajes } from './fichajes'
 import { fetchValoresHora } from './valoresHora'
 import { calcularPagos } from '../utils/valoresHora'
 import { inicioDiaLocalISO, finDiaLocalISO } from '../utils/fecha'
@@ -27,15 +26,27 @@ function emptyCanal(): RentabilidadCanal {
 // vez de confiar en que fetch_valores_hora devuelva algo, porque esa función
 // devuelve [] tanto con PIN incorrecto como sin valores cargados todavía, y
 // necesitamos distinguir "no autorizado" de "autorizado pero en $0".
-async function costoManoObraDelMes(pin: string | null, startDateStr: string, endDateStr: string): Promise<{ total: number; incluida: boolean }> {
+//
+// Se consulta `fichajes` directo (con los mismos límites start/end en hora
+// de Argentina que usa el resto del cálculo del mes) en vez de reusar
+// fetchFichajes con fechas "YYYY-MM-DD" sueltas — esas se comparan en UTC
+// contra hora_entrada y correrían la ventana ~3hs, exactamente el bug de
+// huso horario que utils/fecha.ts documenta para "el cierre de mes de
+// Rentabilidad".
+async function costoManoObraDelMes(pin: string | null, start: Date, end: Date): Promise<{ total: number; incluida: boolean }> {
   if (!pin) return { total: 0, incluida: false }
   const pinValido = await verifyOwnerPin(pin)
   if (!pinValido) return { total: 0, incluida: false }
-  const [fichajesMes, valores] = await Promise.all([
-    fetchFichajes(startDateStr, endDateStr),
+  const [fichajesRes, valores] = await Promise.all([
+    supabase
+      .from('fichajes')
+      .select('empleado_id, hora_entrada, hora_salida')
+      .gte('hora_entrada', start.toISOString())
+      .lte('hora_entrada', end.toISOString()),
     fetchValoresHora(pin),
   ])
-  const pagos = calcularPagos(fichajesMes, valores)
+  if (fichajesRes.error) throw fichajesRes.error
+  const pagos = calcularPagos(fichajesRes.data ?? [], valores)
   return { total: pagos.reduce((s, p) => s + p.importe, 0), incluida: true }
 }
 
@@ -135,7 +146,7 @@ export async function computeRentabilidadMes(mes: string, pin: string | null = n
   const [costosConfig, costosUnicos, manoObra] = await Promise.all([
     fetchCostosConfig(),
     fetchCostosUnicos(startDateStr, endDateStr),
-    costoManoObraDelMes(pin, startDateStr, endDateStr),
+    costoManoObraDelMes(pin, start, end),
   ])
 
   const vigentes = costosConfig.filter(c => {

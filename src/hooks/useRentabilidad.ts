@@ -42,5 +42,5 @@ export function useRentabilidad(mesInicial: string = mesActualStr()) {
     return true
   }, [])
 
-  return { data, mes, setMes, loading, error, reload: load, manoObraDesbloqueada: pin != null, desbloquearManoObra }
+  return { data, mes, setMes, loading, error, reload: load, desbloquearManoObra }
 }

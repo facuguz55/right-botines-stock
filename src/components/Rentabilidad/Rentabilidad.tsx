@@ -67,7 +67,12 @@ function CanalBreakdown({ titulo, color, canal, manoObraIncluida }: { titulo: st
 }
 
 export function Rentabilidad({ onConfigurarCostos }: RentabilidadProps) {
-  const { data, mes, setMes, loading, error, reload, manoObraDesbloqueada, desbloquearManoObra } = useRentabilidad()
+  const { data, mes, setMes, loading, error, reload, desbloquearManoObra } = useRentabilidad()
+  // Ojo: se basa en el resultado real de data.manoObraIncluida, no en si
+  // alguna vez se guardó un PIN en la sesión — si el PIN guardado quedó
+  // desactualizado (ej. el dueño lo cambió), sigue mostrando el botón para
+  // volver a pedirlo en vez de esconderlo con los sueldos igual bloqueados.
+  const manoObraDesbloqueada = data ? data.manoObraIncluida : false
 
   const [pinModalOpen, setPinModalOpen] = useState(false)
   const [pinInput, setPinInput] = useState('')
