@@ -68,6 +68,9 @@ export function Devoluciones({ modelos, empleadoId }: DevolucionesProps) {
   const [montoDiferencia, setMontoDiferencia] = useState('0')
   const [medioPagoDiferencia, setMedioPagoDiferencia] = useState<MedioPago>('Efectivo')
   const [diferenciaEditada, setDiferenciaEditada] = useState(false)
+  // Por defecto vuelve al stock — se destilda solo para un producto roto
+  // u otro caso en el que el par que se devuelve no se puede volver a vender.
+  const [devolverAStock, setDevolverAStock] = useState(true)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -79,7 +82,7 @@ export function Devoluciones({ modelos, empleadoId }: DevolucionesProps) {
     setModeloOriginal(null); setTalleOriginalId(''); setSearchOriginal('')
     setModeloNuevo(null); setTalleNuevoId(''); setSearchNuevo('')
     setCantidad(1); setMotivo(''); setMontoDiferencia('0'); setMedioPagoDiferencia('Efectivo')
-    setDiferenciaEditada(false); setError('')
+    setDiferenciaEditada(false); setDevolverAStock(true); setError('')
     setLoadingVentas(true)
     try {
       const desde = toISOLocal(new Date(Date.now() - 30 * 86400000))
@@ -163,6 +166,7 @@ export function Devoluciones({ modelos, empleadoId }: DevolucionesProps) {
         medioPagoDiferencia: diff !== 0 ? medioPagoDiferencia : null,
         motivo: motivo.trim(),
         empleadoId,
+        devolverAStock,
       })
       setModalOpen(false)
     } catch (e) {
@@ -225,6 +229,7 @@ export function Devoluciones({ modelos, empleadoId }: DevolucionesProps) {
                     <td>
                       {r.modelo_original ? <span><strong>{r.modelo_original.marca}</strong> {r.modelo_original.modelo}</span> : <span className="deleted-product">—</span>}
                       {r.tipo === 'cambio' && r.modelo_nuevo && <> → <strong>{r.modelo_nuevo.marca}</strong> {r.modelo_nuevo.modelo}</>}
+                      {!r.devuelto_a_stock && <span className="recargo-tag" title="No volvió al stock (ej: producto roto)"> descartado</span>}
                     </td>
                     <td className={r.monto_diferencia < 0 ? 'price-cell danger' : 'price-cell'}>
                       {r.monto_diferencia === 0 ? '—' : `${r.monto_diferencia > 0 ? '+' : ''}$${fmt(r.monto_diferencia)}`}
@@ -302,6 +307,17 @@ export function Devoluciones({ modelos, empleadoId }: DevolucionesProps) {
                   </button>
                 ))}
               </div>
+              <label className="config-label" style={{ marginTop: '.625rem', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="checkbox" checked={devolverAStock}
+                  onChange={e => setDevolverAStock(e.target.checked)}
+                  style={{ marginRight: '.375rem' }}
+                />
+                Devolver el par al stock
+              </label>
+              {!devolverAStock && (
+                <p className="sell-mixto-resto">No vuelve al stock — se descarta (ej: producto roto).</p>
+              )}
             </div>
           )}
 

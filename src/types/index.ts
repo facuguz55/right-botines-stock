@@ -430,6 +430,8 @@ export interface DevolucionCambio {
   medio_pago_diferencia: MedioPago | null
   motivo: string
   empleado_id: string | null
+  // false = el par no vuelve al stock (ej. producto roto que se desecha).
+  devuelto_a_stock: boolean
   fecha: string
   created_at: string
   modelo_original?: { modelo: string; marca: string } | null

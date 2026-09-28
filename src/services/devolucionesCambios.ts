@@ -25,11 +25,13 @@ export interface RegistrarDevolucionCambioInput {
   medioPagoDiferencia: MedioPago | null
   motivo: string
   empleadoId: string | null
+  // false = el par del talle original no vuelve al stock (ej. roto, se desecha).
+  devolverAStock: boolean
 }
 
 // El ajuste de stock (atómico) y el chequeo de caja/fichaje viven en
-// registrar_devolucion_cambio (supabase/migrations/028_venta_y_devolucion_atomicas.sql),
-// con el mismo criterio que registrar_venta_carrito.
+// registrar_devolucion_cambio (supabase/migrations/028_venta_y_devolucion_atomicas.sql,
+// 035_devolucion_sin_stock.sql), con el mismo criterio que registrar_venta_carrito.
 export async function registrarDevolucionCambio(input: RegistrarDevolucionCambioInput): Promise<void> {
   const { error } = await supabase.rpc('registrar_devolucion_cambio', {
     p_tipo: input.tipo,
@@ -41,6 +43,7 @@ export async function registrarDevolucionCambio(input: RegistrarDevolucionCambio
     p_medio_pago_diferencia: input.montoDiferencia !== 0 ? input.medioPagoDiferencia : null,
     p_motivo: input.motivo,
     p_empleado_id: input.empleadoId,
+    p_devolver_a_stock: input.devolverAStock,
   })
   if (error) throw error
 }
