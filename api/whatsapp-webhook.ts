@@ -4,6 +4,8 @@ import {
   decidirBusqueda,
   detectarBusqueda,
   respuestaSugeridaBusqueda,
+  resumirStock,
+  type StockResumen,
   talleIaEsConfiable,
   tipoIaEsConfiable,
   coincidenciaModelo,
@@ -192,7 +194,7 @@ Campos:
 - talle_arg: el talle ARGENTINO que el CLIENTE dijo que busca (en este mensaje o antes en la conversación). Si lo dio en talle US convertilo así: 5→34, 5.5→35, 6→36, 7→37, 7.5→38, 8→39, 9→40, 9.5→41, 10→42, 11→43, 11.5→44. Si pidió más de un talle, si no está claro, o si el número no es un talle (precio, edad, hora, cantidad), devolvé null. Nunca uses un talle que solo mencionó el local.
 - tipo: F11 (fútbol 11, cancha de 11, pasto natural, tapones), F5 (fútbol 5, sintético, papi, multitapón; también cancha de 7 u 8), Futsal (futsal, sala, piso, indoor) o Hockey. Solo si el CLIENTE lo dijo o lo dejó claro; si mencionó más de uno o no dijo nada, null.
 - cambio_de_tema: true si con este mensaje el cliente dejó de hablar del producto que venía consultando (el de "lo que ya sabemos que busca") y pasó a otro asunto —compra por mayor, un pedido que ya hizo, un reclamo, otra consulta sin relación— o si empieza a buscar algo nuevo que no tiene que ver con lo anterior (otro talle para otra persona, otro tipo de botín desde cero). false si sigue con lo mismo, aunque sea un "gracias", "¿cuánto salen?", "¿hacen envíos?" o un detalle más (tipo, color, modelo) de lo que ya venía buscando. Si no había nada guardado, false.
-- respuesta_sugerida: una respuesta corta y amable en español argentino informal (voseo), como la escribiría la vendedora. Para dirección, horarios, web, envíos, pagos, garantía y cambios usá la información del negocio de arriba, tal cual está. No inventes nada que no esté ahí: ni stock, ni precios, ni porcentajes de descuento, ni promociones, ni estados de pedidos, códigos de seguimiento o fechas de entrega. Si hace falta un dato que no tenés, decí que lo revisás o pedí lo que falte.
+- respuesta_sugerida: una respuesta corta y amable en español argentino informal (voseo), como la escribiría la vendedora. Para dirección, horarios, web, envíos, pagos, garantía y cambios usá la información del negocio de arriba, tal cual está. No inventes nada que no esté ahí: ni precios, ni porcentajes de descuento, ni promociones, ni estados de pedidos, códigos de seguimiento o fechas de entrega. NUNCA digas qué modelos, talles, tipos o marcas tenemos o no tenemos en stock: vos no ves el stock (lo resuelve el sistema aparte). Si preguntan por stock, pedí el talle (y si juega fútbol 11, 5 o futsal) para fijarte. Si hace falta un dato que no tenés, decí que lo revisás o pedí lo que falte.
 
 Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.
 
@@ -249,21 +251,23 @@ async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBu
   }
 }
 
-// Cuántos modelos con foto hay en stock para lo buscado — mismo criterio que
-// el modal de fotos (searchModelosByTalleDisponible + filtro por modelo) para
-// que la respuesta sugerida no diga "tenemos" y después el modal aparezca vacío.
-async function contarModelosDisponibles(estado: EstadoBusqueda): Promise<number | null> {
+// Stock real para el talle buscado (y el modelo, si lo nombró), contado POR
+// TIPO — sin filtrar por el tipo pedido, para poder decir "de Fútbol 5 no,
+// pero de Fútbol 11 sí". La respuesta sugerida sale de estos números; la IA
+// nunca redacta nada sobre stock.
+async function contarStock(estado: EstadoBusqueda): Promise<StockResumen | null> {
   if (!estado.talle) return null
   try {
-    let path = `modelos?select=marca,modelo,modelo_talles!inner(cantidad),modelo_fotos!inner(id)`
-      + `&modelo_talles.talle_arg=eq.${estado.talle}&modelo_talles.cantidad=gt.0&modelo_fotos.limit=1`
-    if (estado.tipo) path += `&categoria=ilike.*${encodeURIComponent(estado.tipo)}*`
-    const rows = await (await sbFetch(path)).json() as { marca: string; modelo: string }[]
-    if (!estado.modelo) return rows.length
-    const q = parseModeloQuery(estado.modelo)
-    return rows.filter(r => coincidenciaModelo(r, q).pasa).length
+    const path = `modelos?select=marca,modelo,categoria,modelo_talles!inner(cantidad)`
+      + `&modelo_talles.talle_arg=eq.${estado.talle}&modelo_talles.cantidad=gt.0`
+    let rows = await (await sbFetch(path)).json() as { marca: string; modelo: string; categoria: string | null }[]
+    if (estado.modelo) {
+      const q = parseModeloQuery(estado.modelo)
+      rows = rows.filter(r => coincidenciaModelo(r, q).pasa)
+    }
+    return resumirStock(rows.map(r => r.categoria))
   } catch (err) {
-    console.error('No se pudo contar el stock para la respuesta sugerida:', err)
+    console.error('No se pudo consultar el stock para la respuesta sugerida:', err)
     return null
   }
 }
@@ -419,8 +423,13 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
 
     let respuesta = respuestaPedido ?? ia?.respuesta_sugerida?.trim() ?? null
     if (aporto) {
-      const stock = await contarModelosDisponibles(busqueda)
+      const stock = await contarStock(busqueda)
       respuesta = respuestaSugeridaBusqueda(busqueda, stock) ?? respuesta
+    } else if (ia?.intencion === 'pedido_talle' && !respuestaPedido) {
+      // Pregunta por stock sin decir talle/tipo/modelo reconocibles: la
+      // respuesta libre de la IA podría afirmar que "hay de todo" sin mirar
+      // nada (pasó: "en talle 32 tenemos F11 y F5" sin stock). Se pide el talle.
+      respuesta = '¡Hola! ¿Qué talle usás? Así me fijo qué tenemos 👟'
     }
 
     const categoria = ia?.categoria ?? (aporto ? 'Pedido de talles' : null)

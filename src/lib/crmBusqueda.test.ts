@@ -11,8 +11,9 @@ import {
   detectarBusqueda,
   normalizeTipo,
   respuestaSugeridaBusqueda,
+  resumirStock,
+  tipoDeCategoria,
   talleIaEsConfiable,
-  textoPreguntarTipo,
   tipoIaEsConfiable,
 } from './crmBusqueda'
 
@@ -134,18 +135,6 @@ describe('estado de la búsqueda', () => {
   })
 })
 
-describe('respuestas sugeridas', () => {
-  it('con talle y sin tipo pregunta el tipo', () => {
-    expect(respuestaSugeridaBusqueda({ talle: 38, tipo: null }, 12)).toBe(textoPreguntarTipo(38))
-  })
-  it('sin stock lo dice en vez de preguntar', () => {
-    expect(respuestaSugeridaBusqueda({ talle: 47, tipo: null }, 0)).toMatch(/no nos queda stock/)
-  })
-  it('con talle y tipo anuncia las fotos', () => {
-    expect(respuestaSugeridaBusqueda({ talle: 38, tipo: 'F11' }, 5)).toMatch(/Fútbol 11.*talle 38/)
-  })
-})
-
 describe('modelo puntual', () => {
   // Nombres reales de right.com.ar (marca + modelo como los guarda la app).
   const catalogo = [
@@ -184,11 +173,6 @@ describe('modelo puntual', () => {
     expect(etiquetaModelo('f50 negro blanco sc')).toBe('F50 negro blanco sin cordones')
   })
 
-  it('respuesta con modelo', () => {
-    expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, 3)).toBe('¡Sí! Te paso los F50 que tenemos en talle 40 👇')
-    expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, 0)).toMatch(/no nos quedan los F50/)
-    expect(respuestaSugeridaBusqueda({ talle: null, tipo: null, modelo: 'f50' }, null)).toMatch(/Qué talle/)
-  })
 })
 
 describe('cambio de tema', () => {
@@ -221,5 +205,60 @@ describe('cambio de tema', () => {
   })
   it('sin nada guardado no hay nada que borrar', () => {
     expect(decidirBusqueda({ previa: sinNada, nuevo: sinNada, intencion: 'otro', categoria: 'Mayorista', cambioDeTema: true }).limpiar).toBe(false)
+  })
+})
+
+describe('respuestas según el stock real', () => {
+  const stock = (porTipo: Partial<Record<'F11' | 'F5' | 'Futsal' | 'Hockey', number>>) =>
+    ({ porTipo, total: Object.values(porTipo).reduce((a, b) => a + (b ?? 0), 0) })
+
+  it('el caso de la captura: talle 32 sin stock → lo dice, no inventa', () => {
+    expect(detectarBusqueda('Hola qué tenes en talle 32').talle).toBe(32)
+    const r = respuestaSugeridaBusqueda({ talle: 32, tipo: null, modelo: null }, stock({}))
+    expect(r).toMatch(/talle 32 por ahora no nos queda stock/)
+    expect(r).not.toMatch(/tenemos/)
+  })
+  it('un solo tipo con stock → lo dice directo, sin preguntar', () => {
+    expect(respuestaSugeridaBusqueda({ talle: 32, tipo: null, modelo: null }, stock({ F11: 3 })))
+      .toBe('¡Sí! En talle 32 tenemos 3 modelos de Fútbol 11 👟 ¿Te paso las fotos?')
+  })
+  it('varios tipos → pregunta solo entre los que hay', () => {
+    const r = respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: null }, stock({ F11: 5, Futsal: 2 }))
+    expect(r).toBe('¡Sí! En talle 40 tenemos en Fútbol 11 y Futsal 👟 ¿Para cuál los buscás?')
+    expect(r).not.toMatch(/Fútbol 5/)
+  })
+  it('pide un tipo que no hay → ofrece los que sí', () => {
+    expect(respuestaSugeridaBusqueda({ talle: 40, tipo: 'F5', modelo: null }, stock({ F11: 5 })))
+      .toBe('En talle 40 de Fútbol 5 ahora no nos queda nada 😕 Sí tenemos de Fútbol 11. ¿Te sirve?')
+  })
+  it('pide un tipo que hay → cuántos y fotos', () => {
+    expect(respuestaSugeridaBusqueda({ talle: 40, tipo: 'F11', modelo: null }, stock({ F11: 1 })))
+      .toBe('¡Sí! En talle 40 tenemos 1 modelo de Fútbol 11 👟 Te paso las fotos 👇')
+  })
+  it('con modelo', () => {
+    expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, stock({ F5: 2 })))
+      .toBe('¡Sí! En talle 40 tenemos 2 modelos F50 de Fútbol 5 👟 ¿Te paso las fotos?')
+    expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, stock({})))
+      .toMatch(/no nos quedan F50/)
+    expect(respuestaSugeridaBusqueda({ talle: null, tipo: null, modelo: 'f50' }, null)).toMatch(/Qué talle/)
+  })
+  it('sin poder consultar el stock no promete nada', () => {
+    for (const r of [
+      respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: null }, null),
+      respuestaSugeridaBusqueda({ talle: 40, tipo: 'F11', modelo: null }, null),
+      respuestaSugeridaBusqueda({ talle: null, tipo: 'F11', modelo: null }, null),
+    ]) {
+      // Ni "hay" ni "no hay": sin stock consultado no se afirma nada.
+      expect(r).not.toMatch(/¡Sí!|(?<!qué )tenemos (\d|los|en|modelos)|no nos queda/)
+    }
+  })
+  it('categorías → tipo', () => {
+    expect(tipoDeCategoria('F11')).toBe('F11')
+    expect(tipoDeCategoria('Botines F5')).toBe('F5')
+    expect(tipoDeCategoria('futsal')).toBe('Futsal')
+    expect(resumirStock(['F11', 'F11', 'Futsal', null])).toEqual({ porTipo: { F11: 2, Futsal: 1 }, total: 4 })
+  })
+  it('talles de chicos', () => {
+    expect(detectarBusqueda('tenés en 28 para mi hijo?').talle).toBe(28)
   })
 })
