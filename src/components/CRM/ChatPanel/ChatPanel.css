@@ -217,11 +217,9 @@
 
 /* ── Mensajes ──
    flex:1 para que el panel ocupe toda la altura disponible (y así pueda
-   scrollear de verdad con muchos mensajes) — el hueco vacío que se veía
-   con conversaciones cortas no lo arregla el alto del contenedor, sino
-   justify-content:flex-end: los mensajes se apilan pegados al input de
-   abajo (como cualquier chat), y el espacio de sobra queda arriba, no
-   como un bloque vacío raro entre la charla y donde escribís. */
+   scrollear de verdad con muchos mensajes). En conversaciones cortas los
+   mensajes se apilan pegados al input de abajo (como cualquier chat) y el
+   espacio de sobra queda arriba — ver el margin-top:auto de abajo. */
 .chat-panel-messages {
   flex: 1;
   min-height: 0;
@@ -229,8 +227,16 @@
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 6px;
+}
+
+/* Los mensajes van pegados abajo (como en WhatsApp) con un margen automático
+   en el primero, NO con justify-content: flex-end — con flex-end, cuando los
+   mensajes no entran, lo que sobra queda para arriba FUERA del área
+   scrolleable y no se puede subir a ver los mensajes viejos. El margen
+   automático, en cambio, vale 0 cuando no hay lugar y el scroll anda. */
+.chat-panel-messages > :first-child {
+  margin-top: auto;
 }
 
 .chat-panel-messages-empty {

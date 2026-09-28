@@ -1,7 +1,7 @@
 import {
   TIPOS_BOTIN,
   busquedaVigente,
-  combinarBusqueda,
+  decidirBusqueda,
   detectarBusqueda,
   respuestaSugeridaBusqueda,
   talleIaEsConfiable,
@@ -159,6 +159,7 @@ interface ClasificacionIA {
   talle_arg: number | null
   tipo: string | null
   respuesta_sugerida: string
+  cambio_de_tema: boolean
 }
 
 // Structured outputs: la API garantiza que la respuesta respete este schema
@@ -173,8 +174,9 @@ const CLASIFICACION_SCHEMA = {
     talle_arg: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
     tipo: { anyOf: [{ type: 'string', enum: [...TIPOS_BOTIN] }, { type: 'null' }] },
     respuesta_sugerida: { type: 'string' },
+    cambio_de_tema: { type: 'boolean' },
   },
-  required: ['categoria', 'intencion', 'talle_arg', 'tipo', 'respuesta_sugerida'],
+  required: ['categoria', 'intencion', 'talle_arg', 'tipo', 'respuesta_sugerida', 'cambio_de_tema'],
 }
 
 const SYSTEM_CLASIFICADOR = `Sos el asistente que clasifica los mensajes de WhatsApp que recibe Right Botines, una tienda de botines de fútbol de Santa Fe, Argentina. Te paso la conversación reciente y el último mensaje del cliente; clasificás ESE último mensaje usando el resto como contexto.
@@ -184,9 +186,12 @@ Campos:
 - intencion: pedido_talle, consulta_precio, consulta_envio (pregunta ANTES de comprar: si hacen envíos, a dónde, cuánto sale, cuánto tarda), estado_pedido (pregunta por un pedido que YA hizo: si salió, cuándo le llega, el código de seguimiento, qué compró), garantia (un producto que ya compró se rompió o falló), reclamo (otra queja o problema con una compra), saludo, spam u otro.
 - talle_arg: el talle ARGENTINO que el CLIENTE dijo que busca (en este mensaje o antes en la conversación). Si lo dio en talle US convertilo así: 5→34, 5.5→35, 6→36, 7→37, 7.5→38, 8→39, 9→40, 9.5→41, 10→42, 11→43, 11.5→44. Si pidió más de un talle, si no está claro, o si el número no es un talle (precio, edad, hora, cantidad), devolvé null. Nunca uses un talle que solo mencionó el local.
 - tipo: F11 (fútbol 11, cancha de 11, pasto natural, tapones), F5 (fútbol 5, sintético, papi, multitapón; también cancha de 7 u 8), Futsal (futsal, sala, piso, indoor) o Hockey. Solo si el CLIENTE lo dijo o lo dejó claro; si mencionó más de uno o no dijo nada, null.
+- cambio_de_tema: true si con este mensaje el cliente dejó de hablar del producto que venía consultando (el de "lo que ya sabemos que busca") y pasó a otro asunto —compra por mayor, un pedido que ya hizo, un reclamo, otra consulta sin relación— o si empieza a buscar algo nuevo que no tiene que ver con lo anterior (otro talle para otra persona, otro tipo de botín desde cero). false si sigue con lo mismo, aunque sea un "gracias", "¿cuánto salen?", "¿hacen envíos?" o un detalle más (tipo, color, modelo) de lo que ya venía buscando. Si no había nada guardado, false.
 - respuesta_sugerida: una respuesta corta y amable en español argentino informal (voseo), como la escribiría la vendedora. No inventes stock, precios, promociones, estados de pedidos, códigos de seguimiento, fechas de entrega ni políticas de garantía o cambios: si hace falta un dato que no tenés, pedí lo que falte o decí que lo revisás.
 
-Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.`
+Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.
+
+"Lo que ya sabemos que busca" es solo contexto: si el cliente cambió de tema, respondé al tema NUEVO y no vuelvas a mencionar ese talle, tipo o modelo.`
 
 async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBusqueda, text: string): Promise<ClasificacionIA | null> {
   if (!ANTHROPIC_API_KEY) {
@@ -394,8 +399,16 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const textosParaTalle = tipoMsg && !busquedaPrevia.talle ? textosCliente : [text]
     const talleMsg = det.talle
       ?? (det.tallesEncontrados.length === 0 && ia && talleIaEsConfiable(ia.talle_arg, textosParaTalle) ? ia.talle_arg : null)
-    const aporto = talleMsg !== null || tipoMsg !== null || modeloMsg !== null
-    const busqueda = combinarBusqueda(busquedaPrevia, { talle: talleMsg, tipo: tipoMsg, modelo: modeloMsg })
+    // Qué pasa con lo que ya buscaba: se combina (sigue la misma consulta),
+    // arranca de cero (búsqueda nueva sin relación) o se borra (pasó a otro
+    // tema: mayorista, un pedido ya hecho, un reclamo…).
+    const { busqueda, aporto, limpiar } = decidirBusqueda({
+      previa: busquedaPrevia,
+      nuevo: { talle: talleMsg, tipo: tipoMsg, modelo: modeloMsg },
+      intencion: ia?.intencion ?? (preguntaPorPedido ? 'estado_pedido' : null),
+      categoria: ia?.categoria ?? null,
+      cambioDeTema: ia?.cambio_de_tema === true,
+    })
 
     if (!ia && !aporto && !respuestaPedido) return
 
@@ -429,12 +442,12 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
       })
     }
 
-    if (aporto) {
+    if (aporto || limpiar) {
       await sbWriteConFallback(`wsp_conversaciones?id=eq.${conversacionId}`, 'PATCH', {
         busqueda_talle: busqueda.talle,
         busqueda_tipo: busqueda.tipo,
         busqueda_modelo: busqueda.modelo ?? null,
-        busqueda_updated_at: new Date().toISOString(),
+        busqueda_updated_at: limpiar ? null : new Date().toISOString(),
       }, ['busqueda_modelo']).catch(err => console.error('No se pudo guardar la búsqueda (¿falta la migración 038?):', err))
     }
   } catch (err) {

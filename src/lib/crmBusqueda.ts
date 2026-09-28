@@ -35,9 +35,9 @@ const US_TO_ARG: Record<string, number> = {
   '8': 39, '9': 40, '9.5': 41, '10': 42, '11': 43, '11.5': 44,
 }
 
-// Pasados estos días sin mencionar talle/tipo, lo guardado de la
+// Pasado este tiempo sin mencionar talle/tipo/modelo, lo guardado de la
 // conversación se considera una consulta vieja y no se arrastra a la nueva.
-export const BUSQUEDA_VIGENCIA_HORAS = 72
+export const BUSQUEDA_VIGENCIA_HORAS = 24
 
 export function normalizar(texto: string): string {
   return texto
@@ -353,6 +353,52 @@ export function combinarBusqueda(previo: EstadoBusqueda, nuevo: EstadoBusqueda):
     tipo: nuevo.tipo ?? previo.tipo,
     modelo: nuevo.modelo ?? previo.modelo ?? null,
   }
+}
+
+// ── Cambio de tema ──
+//
+// Si el cliente venía preguntando por talle 40 y pasa a "¿venden por mayor?",
+// lo guardado ya no aplica: se borra (y con eso el chip "Busca:" del chat y el
+// contexto que se le pasa a la IA). Lo decide la IA mirando la charla
+// (cambio_de_tema) y, como respaldo, estas intenciones/categorías que nunca
+// son parte de la misma compra. Un "gracias", "¿cuánto salen?" o "¿hacen
+// envíos?" NO borran: siguen siendo la misma consulta.
+const INTENCIONES_OTRO_TEMA = new Set(['estado_pedido', 'garantia', 'reclamo', 'spam'])
+const CATEGORIAS_OTRO_TEMA = new Set(['Mayorista', 'Postventa/Reclamos', 'Spam'])
+
+const VACIA: EstadoBusqueda = { talle: null, tipo: null, modelo: null }
+
+function tieneAlgo(e: EstadoBusqueda): boolean {
+  return !!(e.talle || e.tipo || e.modelo)
+}
+
+export interface DecisionBusqueda {
+  busqueda: EstadoBusqueda
+  // Lo que dijo ESTE mensaje sumó talle/tipo/modelo (→ botones en el mensaje).
+  aporto: boolean
+  // Hay que borrar lo guardado en la conversación.
+  limpiar: boolean
+}
+
+export function decidirBusqueda(p: {
+  previa: EstadoBusqueda
+  nuevo: EstadoBusqueda
+  intencion: string | null
+  categoria: string | null
+  cambioDeTema: boolean
+}): DecisionBusqueda {
+  const aporto = tieneAlgo(p.nuevo)
+  if (aporto) {
+    // Búsqueda nueva sin relación con la anterior ("ahora para mi hijo, talle
+    // 35"): arranca de cero en vez de heredar el tipo/modelo de antes.
+    const base = p.cambioDeTema ? VACIA : p.previa
+    return { busqueda: combinarBusqueda(base, p.nuevo), aporto, limpiar: false }
+  }
+  const otroTema = p.cambioDeTema
+    || (p.intencion !== null && INTENCIONES_OTRO_TEMA.has(p.intencion))
+    || (p.categoria !== null && CATEGORIAS_OTRO_TEMA.has(p.categoria))
+  if (otroTema && tieneAlgo(p.previa)) return { busqueda: VACIA, aporto, limpiar: true }
+  return { busqueda: p.previa, aporto, limpiar: false }
 }
 
 // ── Respuestas rápidas ──

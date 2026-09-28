@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   busquedaVigente,
   coincidenciaModelo,
+  decidirBusqueda,
   etiquetaModelo,
   extraerModeloBuscado,
   parseModeloQuery,
@@ -187,5 +188,38 @@ describe('modelo puntual', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, 3)).toBe('¡Sí! Te paso los F50 que tenemos en talle 40 👇')
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, 0)).toMatch(/no nos quedan los F50/)
     expect(respuestaSugeridaBusqueda({ talle: null, tipo: null, modelo: 'f50' }, null)).toMatch(/Qué talle/)
+  })
+})
+
+describe('cambio de tema', () => {
+  const previa = { talle: 40, tipo: 'F5' as const, modelo: null }
+  const sinNada = { talle: null, tipo: null, modelo: null }
+
+  it('pasar a mayorista borra la búsqueda', () => {
+    expect(decidirBusqueda({ previa, nuevo: sinNada, intencion: 'otro', categoria: 'Mayorista', cambioDeTema: false }))
+      .toEqual({ busqueda: sinNada, aporto: false, limpiar: true })
+  })
+  it('preguntar por un pedido ya hecho borra la búsqueda', () => {
+    expect(decidirBusqueda({ previa, nuevo: sinNada, intencion: 'estado_pedido', categoria: 'Normal', cambioDeTema: false }).limpiar).toBe(true)
+  })
+  it('si la IA dice que cambió de tema, se borra aunque la categoría sea normal', () => {
+    expect(decidirBusqueda({ previa, nuevo: sinNada, intencion: 'otro', categoria: 'Normal', cambioDeTema: true }).limpiar).toBe(true)
+  })
+  it('"gracias" o "¿cuánto salen?" no borran', () => {
+    for (const intencion of ['saludo', 'consulta_precio', 'consulta_envio', 'otro']) {
+      expect(decidirBusqueda({ previa, nuevo: sinNada, intencion, categoria: 'Normal', cambioDeTema: false }))
+        .toEqual({ busqueda: previa, aporto: false, limpiar: false })
+    }
+  })
+  it('seguir la misma búsqueda combina ("de 11" después de "40")', () => {
+    expect(decidirBusqueda({ previa: { talle: 40, tipo: null, modelo: null }, nuevo: { talle: null, tipo: 'F11', modelo: null }, intencion: 'pedido_talle', categoria: 'Pedido de talles', cambioDeTema: false }).busqueda)
+      .toEqual({ talle: 40, tipo: 'F11', modelo: null })
+  })
+  it('una búsqueda nueva sin relación arranca de cero', () => {
+    expect(decidirBusqueda({ previa: { talle: 40, tipo: 'F5', modelo: 'f50' }, nuevo: { talle: 35, tipo: null, modelo: null }, intencion: 'pedido_talle', categoria: 'Pedido de talles', cambioDeTema: true }).busqueda)
+      .toEqual({ talle: 35, tipo: null, modelo: null })
+  })
+  it('sin nada guardado no hay nada que borrar', () => {
+    expect(decidirBusqueda({ previa: sinNada, nuevo: sinNada, intencion: 'otro', categoria: 'Mayorista', cambioDeTema: true }).limpiar).toBe(false)
   })
 })
