@@ -340,7 +340,7 @@ export function App() {
         <Caja empleadoId={empleadoId} empleadoNombre={empleadoNombre} role={role} />
       )}
       {activePage === 'devoluciones' && (
-        <Devoluciones modelos={modelos} empleadoId={empleadoId} />
+        <Devoluciones modelos={modelos} empleadoId={empleadoId} onStockChanged={reload} />
       )}
       {activePage === 'proveedores' && role === 'dueno' && (
         <Proveedores proveedoresHook={proveedoresHook} modelos={modelos} empleadoId={empleadoId} />

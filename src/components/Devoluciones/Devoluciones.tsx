@@ -33,9 +33,15 @@ function fmt(n: number) { return n.toLocaleString('es-AR', { maximumFractionDigi
 interface DevolucionesProps {
   modelos: Modelo[]
   empleadoId: string | null
+  // El stock (modelos/modelo_talles) se actualiza atómicamente en la base al
+  // registrar, pero el array `modelos` en memoria (compartido con Stock,
+  // useModelos() en App.tsx) no se vuelve a pedir solo — sin este callback,
+  // la pantalla de Stock queda mostrando el número viejo hasta un refresh
+  // manual, aunque la devolución/cambio ya se aplicó bien en la base.
+  onStockChanged: () => void
 }
 
-export function Devoluciones({ modelos, empleadoId }: DevolucionesProps) {
+export function Devoluciones({ modelos, empleadoId, onStockChanged }: DevolucionesProps) {
   const initial = getPreset('mes')
   const [startDate, setStartDate] = useState(initial.start)
   const [endDate, setEndDate] = useState(initial.end)
@@ -168,6 +174,7 @@ export function Devoluciones({ modelos, empleadoId }: DevolucionesProps) {
         empleadoId,
         devolverAStock,
       })
+      onStockChanged()
       setModalOpen(false)
     } catch (e) {
       setError((e as Error).message)
