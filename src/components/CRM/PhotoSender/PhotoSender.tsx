@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Send, X, Check } from 'lucide-react'
 import { searchModelosByTalleDisponible, logEnvioFotos } from '../../../services/crmPhotos'
 import type { PhotoMatch } from '../../../types/crm'
+import { TIPOS_BOTIN, TIPO_LABEL, TALLE_ARG_MIN, TALLE_ARG_MAX, normalizeTipo, type TipoBotin } from '../../../lib/crmBusqueda'
 import './PhotoSender.css'
+
+const TALLES_ARG = Array.from({ length: TALLE_ARG_MAX - TALLE_ARG_MIN + 1 }, (_, i) => TALLE_ARG_MIN + i)
 
 interface PhotoSenderProps {
   isOpen: boolean
@@ -21,12 +24,22 @@ export function PhotoSender({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
+  // Arrancan con lo que detectó la IA, pero se pueden cambiar acá mismo: si
+  // entendió mal el talle o el tipo, se corrige antes de mandar nada.
+  const [tipoFiltro, setTipoFiltro] = useState<TipoBotin | null>(normalizeTipo(tipo))
+  const [talleFiltro, setTalleFiltro] = useState<number | null>(talle)
+
+  useEffect(() => {
+    if (!isOpen) return
+    setTipoFiltro(normalizeTipo(tipo))
+    setTalleFiltro(talle)
+  }, [isOpen, tipo, talle])
 
   const search = useCallback(async () => {
     setLoading(true)
     setSelected(new Set())
     try {
-      const data = await searchModelosByTalleDisponible(tipo, talle)
+      const data = await searchModelosByTalleDisponible(tipoFiltro, talleFiltro)
       setMatches(data)
     } catch (err) {
       console.error('Error buscando modelos:', err)
@@ -34,7 +47,7 @@ export function PhotoSender({
     } finally {
       setLoading(false)
     }
-  }, [tipo, talle])
+  }, [tipoFiltro, talleFiltro])
 
   useEffect(() => {
     if (isOpen) search()
@@ -73,7 +86,7 @@ export function PhotoSender({
     try {
       await onSendPhotos(items, conversacionId)
       for (const item of items) {
-        await logEnvioFotos(conversacionId, item.modelo_id, talle, empleadoId)
+        await logEnvioFotos(conversacionId, item.modelo_id, talleFiltro, empleadoId)
       }
       onClose()
     } catch (err) {
@@ -94,15 +107,48 @@ export function PhotoSender({
           <div>
             <h2>Mandar fotos</h2>
             <span className="photo-sender-subtitle">
-              {tipo && `Tipo: ${tipo}`}
-              {tipo && talle && ' / '}
-              {talle && `Talle: ${talle}`}
-              {!tipo && !talle && 'Todos los modelos disponibles'}
+              {tipoFiltro && TIPO_LABEL[tipoFiltro]}
+              {tipoFiltro && talleFiltro && ' · '}
+              {talleFiltro && `Talle ${talleFiltro}`}
+              {!tipoFiltro && !talleFiltro && 'Todos los modelos disponibles'}
             </span>
           </div>
           <button className="photo-sender-close" onClick={onClose} aria-label="Cerrar">
             <X size={18} />
           </button>
+        </div>
+
+        <div className="photo-sender-filters">
+          <div className="photo-sender-filter-chips" role="group" aria-label="Tipo de botín">
+            <button
+              type="button"
+              className={`photo-sender-chip${tipoFiltro === null ? ' photo-sender-chip--active' : ''}`}
+              onClick={() => setTipoFiltro(null)}
+              title="Mostrar modelos de todos los tipos"
+            >
+              Todos
+            </button>
+            {TIPOS_BOTIN.map(t => (
+              <button
+                key={t}
+                type="button"
+                className={`photo-sender-chip${tipoFiltro === t ? ' photo-sender-chip--active' : ''}`}
+                onClick={() => setTipoFiltro(t)}
+                title={`Mostrar solo ${TIPO_LABEL[t]}`}
+              >
+                {TIPO_LABEL[t]}
+              </button>
+            ))}
+          </div>
+          <select
+            className="photo-sender-talle-select"
+            value={talleFiltro ?? ''}
+            onChange={e => setTalleFiltro(e.target.value ? Number(e.target.value) : null)}
+            title="Talle (argentino)"
+          >
+            <option value="">Cualquier talle</option>
+            {TALLES_ARG.map(t => <option key={t} value={t}>Talle {t}</option>)}
+          </select>
         </div>
 
         <div className="photo-sender-body">
@@ -155,7 +201,7 @@ export function PhotoSender({
                       {m.talles_disponibles.map(t => (
                         <span
                           key={t.talle_arg}
-                          className={`photo-sender-size ${talle && t.talle_arg === talle ? 'photo-sender-size--match' : ''}`}
+                          className={`photo-sender-size ${talleFiltro && t.talle_arg === talleFiltro ? 'photo-sender-size--match' : ''}`}
                         >
                           {t.talle_arg}
                         </span>

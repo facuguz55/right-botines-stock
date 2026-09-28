@@ -3,7 +3,7 @@ import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspMensaje } from '../../..
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { sendTextMessage, markSuggestionUsed, deleteMensaje } from '../../../services/crmMessages'
-import { markAsRead, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion } from '../../../services/crmConversations'
+import { markAsRead, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda } from '../../../services/crmConversations'
 import ConversationList from '../ConversationList/ConversationList'
 import ChatPanel from '../ChatPanel/ChatPanel'
 import { MpLinkModal } from '../MpLinkModal/MpLinkModal'
@@ -273,6 +273,13 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onDeleteMensaje={handleDeleteMensaje}
           onRename={handleRename}
           onTranscribed={setMensajeTranscripcion}
+          onClearBusqueda={() => {
+            if (!selectedId) return
+            clearBusqueda(selectedId).catch(err => {
+              console.error('Error borrando la búsqueda:', err)
+              alert('No se pudo borrar lo que busca el cliente.')
+            })
+          }}
           sugerenciasPorMensaje={sugerenciasPorMensaje}
           undoDelete={undoDelete}
           onUndoDelete={handleUndoDelete}

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
+import { TIPO_LABEL, busquedaVigente, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
 import { AudioMessage } from './AudioMessage'
 import './ChatPanel.css'
 
@@ -21,6 +22,7 @@ interface ChatPanelProps {
   onDeleteMensaje: (mensajeId: string) => void
   onRename: (nombre: string) => void
   onTranscribed: (mensajeId: string, texto: string) => void
+  onClearBusqueda: () => void
   sugerenciasPorMensaje: Record<string, WspIaSugerencia>
   undoDelete: { mensajeId: string } | null
   onUndoDelete: () => void
@@ -48,6 +50,7 @@ export default function ChatPanel({
   onDeleteMensaje,
   onRename,
   onTranscribed,
+  onClearBusqueda,
   sugerenciasPorMensaje,
   undoDelete,
   onUndoDelete,
@@ -56,6 +59,9 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const [text, setText] = useState('')
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  // Respuestas rápidas ya tocadas: el botón se oculta al toque, sin esperar a
+  // que llegue el mensaje enviado (evita mandarla dos veces con doble click).
+  const [quickRepliesUsadas, setQuickRepliesUsadas] = useState<Set<string>>(new Set())
   const [renaming, setRenaming] = useState(false)
   const [nombreDraft, setNombreDraft] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -122,6 +128,14 @@ export default function ChatPanel({
     onUseSugerencia()
   }
 
+  const handleQuickReply = (mensajeId: string, texto: string) => {
+    setQuickRepliesUsadas(prev => new Set(prev).add(mensajeId))
+    // Si el cartel de "respuesta sugerida" de abajo es de este mismo mensaje,
+    // se cierra: ya se respondió, y así no se manda dos veces lo mismo.
+    if (sugerencia?.mensaje_id === mensajeId) onDismissSugerencia()
+    onSend(texto)
+  }
+
   if (!conversacion) {
     return (
       <div className="chat-panel">
@@ -135,6 +149,15 @@ export default function ChatPanel({
       </div>
     )
   }
+
+  const busquedaActual = busquedaVigente(conversacion)
+  const busqueda = busquedaActual.talle || busquedaActual.tipo ? busquedaActual : null
+
+  const visibles = mensajes.filter(m => !m._hidden)
+  // Si ya se le contestó algo al cliente después de un mensaje, la respuesta
+  // rápida de ese mensaje deja de tener sentido y se oculta.
+  let ultimoOutIdx = -1
+  visibles.forEach((m, i) => { if (m.direccion === 'out') ultimoOutIdx = i })
 
   return (
     <div className="chat-panel">
@@ -173,6 +196,25 @@ export default function ChatPanel({
             )}
             {conversacion.telefono && (
               <div className="chat-panel-header-phone">{conversacion.telefono}</div>
+            )}
+            {busqueda && (
+              <div className="chat-panel-busqueda">
+                <button
+                  className="chat-panel-busqueda-main"
+                  title="Lo que busca el cliente según la charla (lo detecta la IA). Click para mandar las fotos con este filtro."
+                  onClick={() => onOpenPhotos(busqueda.tipo, busqueda.talle)}
+                >
+                  <Footprints size={12} />
+                  Busca: {[busqueda.talle && `talle ${busqueda.talle}`, busqueda.tipo && TIPO_LABEL[busqueda.tipo]].filter(Boolean).join(' · ')}
+                </button>
+                <button
+                  className="chat-panel-busqueda-clear"
+                  title="Borrar lo que busca (si la IA entendió mal o arranca otra consulta)"
+                  onClick={onClearBusqueda}
+                >
+                  <X size={11} />
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -214,14 +256,23 @@ export default function ChatPanel({
       <div className="chat-panel-messages">
         {loading ? (
           <div className="chat-panel-loading">Cargando mensajes...</div>
-        ) : mensajes.filter(m => !m._hidden).length === 0 ? (
+        ) : visibles.length === 0 ? (
           <div className="chat-panel-messages-empty">
             No se mandó ningún mensaje todavía.<br />Iniciá la conversación.
           </div>
         ) : (
           <>
-            {mensajes.filter(m => !m._hidden).map((msg) => {
-              const sugTalle = sugerenciasPorMensaje[msg.id]
+            {visibles.map((msg, idx) => {
+              const sug = msg.direccion === 'in' ? sugerenciasPorMensaje[msg.id] : undefined
+              const talleSug = sug?.talle_detectado ?? null
+              const tipoSug = normalizeTipo(sug?.tipo_detectado)
+              // Respuesta rápida: si falta el tipo o el talle, un click le
+              // pregunta al cliente lo que falta (o le avisa que no hay stock,
+              // según lo que haya calculado el webhook).
+              const quickReply = (talleSug && !tipoSug) || (tipoSug && !talleSug)
+                ? (sug?.respuesta_sugerida || (talleSug ? textoPreguntarTipo(talleSug) : textoPreguntarTalle(tipoSug)))
+                : null
+              const mostrarQuickReply = !!quickReply && idx > ultimoOutIdx && !quickRepliesUsadas.has(msg.id)
               return (
               <div
                 key={msg.id}
@@ -271,14 +322,27 @@ export default function ChatPanel({
                   )}
                   {msg.contenido && <span>{msg.contenido}</span>}
                 </div>
-                {sugTalle?.talle_detectado != null && (
-                  <button
-                    className="chat-panel-msg-talle-btn"
-                    title={`Preguntó por el talle ${sugTalle.talle_detectado} — mandar disponibles`}
-                    onClick={() => onOpenPhotos(sugTalle.tipo_detectado, sugTalle.talle_detectado)}
-                  >
-                    <Footprints size={15} />
-                  </button>
+                {(mostrarQuickReply || talleSug != null) && (
+                  <div className="chat-panel-msg-actions">
+                    {mostrarQuickReply && quickReply && (
+                      <button
+                        className="chat-panel-msg-talle-btn chat-panel-msg-quick-btn"
+                        title={`Responder con: "${quickReply}"`}
+                        onClick={() => handleQuickReply(msg.id, quickReply)}
+                      >
+                        <MessageCircleQuestion size={15} />
+                      </button>
+                    )}
+                    {talleSug != null && (
+                      <button
+                        className="chat-panel-msg-talle-btn"
+                        title={`Mandar fotos de los modelos con stock en talle ${talleSug}${tipoSug ? ` de ${TIPO_LABEL[tipoSug]}` : ' (todos los tipos — conviene preguntar el tipo antes)'}`}
+                        onClick={() => onOpenPhotos(tipoSug, talleSug)}
+                      >
+                        <Footprints size={15} />
+                      </button>
+                    )}
+                  </div>
                 )}
                 </div>
                 <span className="chat-panel-msg-time">

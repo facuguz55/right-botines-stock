@@ -71,6 +71,16 @@ export async function renameConversacion(conversacionId: string, nuevoNombre: st
   if (error) throw error
 }
 
+// Borra lo que el cliente "está buscando" (talle/tipo detectados en la
+// charla) — para cuando la IA entendió mal o el cliente arranca otra consulta.
+export async function clearBusqueda(conversacionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('wsp_conversaciones')
+    .update({ busqueda_talle: null, busqueda_tipo: null, busqueda_updated_at: null })
+    .eq('id', conversacionId)
+  if (error) throw error
+}
+
 // Normaliza a formato wa_id de WhatsApp: solo dígitos, con código de país.
 // Mismo criterio que numeroWhatsApp en ClientesLocales.tsx/TNPreventa.tsx —
 // si ya empieza con 54 lo dejamos, si no le anteponemos 549 (Argentina,

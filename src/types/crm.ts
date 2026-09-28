@@ -49,6 +49,11 @@ export interface WspConversacion {
   ultimo_mensaje: string | null
   ultimo_mensaje_at: string
   created_at: string
+  // Lo que el cliente busca según la charla (lo arma el webhook, ver
+  // src/lib/crmBusqueda.ts). Pueden no venir si falta la migración 038.
+  busqueda_talle?: number | null
+  busqueda_tipo?: string | null
+  busqueda_updated_at?: string | null
   crm_clientes?: CrmCliente | null
 }
 

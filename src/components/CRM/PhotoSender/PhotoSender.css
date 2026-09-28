@@ -66,6 +66,55 @@
   background: var(--bg-surface-3);
 }
 
+/* Filtros de tipo/talle — arrancan con lo que detectó la IA y se pueden
+   corregir antes de mandar. */
+.photo-sender-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.photo-sender-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.photo-sender-chip {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.photo-sender-chip:hover {
+  color: var(--text-primary);
+}
+
+.photo-sender-chip--active {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: #22D3EE;
+  color: #22D3EE;
+}
+
+.photo-sender-talle-select {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.6rem;
+}
+
 .photo-sender-body {
   flex: 1;
   overflow-y: auto;
@@ -353,6 +402,7 @@
   }
 
   .photo-sender-header,
+  .photo-sender-filters,
   .photo-sender-body,
   .photo-sender-footer,
   .photo-sender-preview {

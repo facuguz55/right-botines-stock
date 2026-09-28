@@ -1,3 +1,14 @@
+import {
+  TIPOS_BOTIN,
+  busquedaVigente,
+  combinarBusqueda,
+  detectarBusqueda,
+  respuestaSugeridaBusqueda,
+  talleIaEsConfiable,
+  tipoIaEsConfiable,
+  type EstadoBusqueda,
+} from '../src/lib/crmBusqueda'
+
 export const config = { runtime: 'edge' }
 
 const SB_URL = process.env.SUPABASE_URL ?? ''
@@ -9,7 +20,7 @@ const WA_APP_SECRET = process.env.WA_APP_SECRET ?? ''
 // (src/services/aiChat.ts) — nunca se configuraron AI_API_KEY/AI_API_URL acá,
 // así que la clasificación automática de mensajes jamás se había ejecutado.
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY ?? ''
-const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001'
+const ANTHROPIC_MODEL = 'claude-haiku-4-5'
 
 // Verifica que el POST venga realmente de Meta: recalcula el HMAC-SHA256 del
 // body crudo con el App Secret y lo compara contra el header que manda Meta
@@ -123,71 +134,196 @@ async function getOrCreateConversation(
   return { id: conv.id, noLeidosActual: 0 }
 }
 
-async function classifyWithAI(text: string, conversacionId: string, messageId: string) {
+const CATEGORIAS_CRM = ['Urgente', 'Pedido de talles', 'Normal', 'Spam', 'Postventa/Reclamos', 'Mayorista'] as const
+const INTENCIONES = ['pedido_talle', 'consulta_precio', 'consulta_envio', 'reclamo', 'saludo', 'spam', 'otro'] as const
+
+interface ClasificacionIA {
+  categoria: string
+  intencion: string
+  talle_arg: number | null
+  tipo: string | null
+  respuesta_sugerida: string
+}
+
+// Structured outputs: la API garantiza que la respuesta respete este schema
+// (antes se le pedía "respondé solo JSON" y se rescataba con una regex, que
+// fallaba cada tanto y se perdía la clasificación entera).
+const CLASIFICACION_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    categoria: { type: 'string', enum: [...CATEGORIAS_CRM] },
+    intencion: { type: 'string', enum: [...INTENCIONES] },
+    talle_arg: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
+    tipo: { anyOf: [{ type: 'string', enum: [...TIPOS_BOTIN] }, { type: 'null' }] },
+    respuesta_sugerida: { type: 'string' },
+  },
+  required: ['categoria', 'intencion', 'talle_arg', 'tipo', 'respuesta_sugerida'],
+}
+
+const SYSTEM_CLASIFICADOR = `Sos el asistente que clasifica los mensajes de WhatsApp que recibe Right Botines, una tienda de botines de fútbol de Santa Fe, Argentina. Te paso la conversación reciente y el último mensaje del cliente; clasificás ESE último mensaje usando el resto como contexto.
+
+Campos:
+- categoria: Urgente, Pedido de talles, Normal, Spam, Postventa/Reclamos o Mayorista.
+- intencion: pedido_talle, consulta_precio, consulta_envio, reclamo, saludo, spam u otro.
+- talle_arg: el talle ARGENTINO que el CLIENTE dijo que busca (en este mensaje o antes en la conversación). Si lo dio en talle US convertilo así: 5→34, 5.5→35, 6→36, 7→37, 7.5→38, 8→39, 9→40, 9.5→41, 10→42, 11→43, 11.5→44. Si pidió más de un talle, si no está claro, o si el número no es un talle (precio, edad, hora, cantidad), devolvé null. Nunca uses un talle que solo mencionó el local.
+- tipo: F11 (fútbol 11, cancha de 11, pasto natural, tapones), F5 (fútbol 5, sintético, papi, multitapón; también cancha de 7 u 8), Futsal (futsal, sala, piso, indoor) o Hockey. Solo si el CLIENTE lo dijo o lo dejó claro; si mencionó más de uno o no dijo nada, null.
+- respuesta_sugerida: una respuesta corta y amable en español argentino informal (voseo), como la escribiría la vendedora. No inventes stock, precios ni promociones.
+
+Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.`
+
+async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBusqueda, text: string): Promise<ClasificacionIA | null> {
   if (!ANTHROPIC_API_KEY) {
     console.error('classifyWithAI: falta ANTHROPIC_API_KEY / VITE_ANTHROPIC_API_KEY')
-    return
+    return null
   }
+  const guardada = busquedaGuardada.talle || busquedaGuardada.tipo
+    ? `talle ${busquedaGuardada.talle ?? 'sin definir'}, tipo ${busquedaGuardada.tipo ?? 'sin definir'}`
+    : 'nada todavía'
 
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 1024,
+      system: SYSTEM_CLASIFICADOR,
+      output_config: { format: { type: 'json_schema', schema: CLASIFICACION_SCHEMA } },
+      messages: [{
+        role: 'user',
+        content: `Conversación reciente (de la más vieja a la más nueva):\n${contexto || '(sin mensajes previos)'}\n\nLo que ya sabemos que busca: ${guardada}\n\nÚltimo mensaje del cliente, el que hay que clasificar:\n${text}`,
+      }],
+    }),
+  })
+
+  if (!res.ok) {
+    console.error('classifyWithAI: Anthropic respondió', res.status, await res.text().catch(() => ''))
+    return null
+  }
+  const data = await res.json() as { stop_reason?: string; content?: { type: string; text?: string }[] }
+  if (data.stop_reason === 'refusal' || data.stop_reason === 'max_tokens') {
+    console.error('classifyWithAI: respuesta incompleta de Anthropic, stop_reason =', data.stop_reason)
+    return null
+  }
+  const raw = data.content?.find(b => b.type === 'text')?.text
+  if (!raw) {
+    console.error('classifyWithAI: sin texto en la respuesta de Anthropic', JSON.stringify(data))
+    return null
+  }
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 300,
-        system: `Sos un clasificador de mensajes de WhatsApp para una tienda de botines de fútbol (Right Botines). Categorías: Urgente, Pedido de talles, Normal, Spam, Postventa/Reclamos, Mayorista.
-Respondé SOLO en JSON con este formato, sin texto extra antes ni después:
-{"categoria":"...","intencion":"...","tipo_detectado":"f11|f5|futsal|null","talle_detectado":number|null,"respuesta_sugerida":"..."}
-- intencion: "pedido_talle", "consulta_precio", "consulta_envio", "reclamo", "saludo", "spam", "otro"
-- tipo_detectado: si pide un tipo de botín específico (f11, f5, futsal)
-- talle_detectado: si menciona un talle específico (número, en talle argentino)
-- respuesta_sugerida: una respuesta corta y amigable en español argentino informal`,
-        messages: [{ role: 'user', content: text }],
-      }),
+    return JSON.parse(raw) as ClasificacionIA
+  } catch {
+    console.error('classifyWithAI: JSON inválido de Anthropic:', raw)
+    return null
+  }
+}
+
+// Cuántos modelos con foto hay en stock para lo buscado — mismo criterio que
+// el modal de fotos (searchModelosByTalleDisponible) para que la respuesta
+// sugerida no diga "tenemos" y después el modal aparezca vacío.
+async function contarModelosDisponibles(estado: EstadoBusqueda): Promise<number | null> {
+  if (!estado.talle) return null
+  try {
+    let path = `modelos?select=id,modelo_talles!inner(cantidad),modelo_fotos!inner(id)`
+      + `&modelo_talles.talle_arg=eq.${estado.talle}&modelo_talles.cantidad=gt.0&modelo_fotos.limit=1`
+    if (estado.tipo) path += `&categoria=ilike.*${encodeURIComponent(estado.tipo)}*`
+    const rows = await (await sbFetch(path)).json() as unknown[]
+    return rows.length
+  } catch (err) {
+    console.error('No se pudo contar el stock para la respuesta sugerida:', err)
+    return null
+  }
+}
+
+async function classifyWithAI(text: string, conversacionId: string, messageId: string) {
+  try {
+    // Contexto: últimos mensajes de la charla y lo que ya se sabía que
+    // buscaba. Lo de la búsqueda va con catch aparte: si la migración 038 no
+    // está aplicada todavía, esas columnas no existen y no por eso tiene que
+    // dejar de clasificar.
+    const [mensajesRes, estadoRes] = await Promise.all([
+      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,contenido,transcripcion&order=timestamp.desc&limit=12`),
+      sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=busqueda_talle,busqueda_tipo,busqueda_updated_at&limit=1`)
+        .catch(err => { console.error('Sin columnas de búsqueda (¿falta la migración 038?):', err); return null }),
+    ])
+    const recientes = (await mensajesRes.json() as { direccion: 'in' | 'out'; contenido: string | null; transcripcion: string | null }[])
+      .reverse()
+      .map(m => ({ direccion: m.direccion, texto: (m.contenido || m.transcripcion || '').trim() }))
+      .filter(m => m.texto)
+    const estadoRow = estadoRes ? (await estadoRes.json() as Record<string, unknown>[])[0] ?? {} : {}
+    const busquedaPrevia = busquedaVigente(estadoRow as { busqueda_talle?: number | null; busqueda_tipo?: string | null; busqueda_updated_at?: string | null })
+
+    const ultimoMensajeLocal = [...recientes].reverse().find(m => m.direccion === 'out')?.texto ?? null
+    const textosCliente = recientes.filter(m => m.direccion === 'in').map(m => m.texto)
+    const contexto = recientes.map(m => `${m.direccion === 'in' ? 'Cliente' : 'Local'}: ${m.texto}`).join('\n')
+
+    // 1) Reglas deterministas sobre el mensaje nuevo. 2) La IA con contexto,
+    // validada: solo se le cree un talle que el cliente escribió y un tipo si
+    // el mensaje habla de canchas/tipos. Si las reglas vieron dos talles o dos
+    // tipos distintos, es ambiguo y tampoco se le cree a la IA.
+    const det = detectarBusqueda(text, { ultimoMensajeLocal })
+    const ia = await llamarClasificadorIA(contexto, busquedaPrevia, text).catch(err => {
+      console.error('classifyWithAI: falló la llamada a Anthropic:', err)
+      return null
     })
+    const tipoMsg = det.tipo
+      ?? (det.tiposEncontrados.length === 0 && ia ? tipoIaEsConfiable(ia.tipo, text) : null)
+    // El talle de la IA tiene que estar en ESTE mensaje: si no, un "gracias!"
+    // después de haber dicho "38" volvería a disparar la sugerencia en cada
+    // mensaje. Única excepción: el mensaje trae el tipo y no había talle
+    // guardado (ej. antes de aplicar la migración) — ahí se acepta el talle
+    // que el cliente dijo antes en la charla.
+    const textosParaTalle = tipoMsg && !busquedaPrevia.talle ? textosCliente : [text]
+    const talleMsg = det.talle
+      ?? (det.tallesEncontrados.length === 0 && ia && talleIaEsConfiable(ia.talle_arg, textosParaTalle) ? ia.talle_arg : null)
+    const aporto = talleMsg !== null || tipoMsg !== null
+    const busqueda = combinarBusqueda(busquedaPrevia, { talle: talleMsg, tipo: tipoMsg })
 
-    if (!res.ok) {
-      console.error('classifyWithAI: Anthropic respondió', res.status, await res.text().catch(() => ''))
-      return
+    if (!ia && !aporto) return
+
+    let respuesta = ia?.respuesta_sugerida?.trim() || null
+    if (aporto) {
+      const stock = await contarModelosDisponibles(busqueda)
+      respuesta = respuestaSugeridaBusqueda(busqueda, stock) ?? respuesta
     }
 
-    const data = await res.json() as { content?: { type: string; text?: string }[] }
-    const raw = data.content?.find(b => b.type === 'text')?.text?.trim()
-    if (!raw) {
-      console.error('classifyWithAI: sin texto en la respuesta de Anthropic', JSON.stringify(data))
-      return
-    }
-
-    const jsonMatch = raw.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      console.error('classifyWithAI: no se encontró JSON en la respuesta:', raw)
-      return
-    }
-    const parsed = JSON.parse(jsonMatch[0])
+    const categoria = ia?.categoria ?? (aporto ? 'Pedido de talles' : null)
 
     await sbFetch('wsp_ia_sugerencias', {
       method: 'POST',
       body: JSON.stringify({
         mensaje_id: messageId,
         conversacion_id: conversacionId,
-        categoria_sugerida: parsed.categoria || null,
-        intencion: parsed.intencion || null,
-        tipo_detectado: parsed.tipo_detectado || null,
-        talle_detectado: parsed.talle_detectado || null,
-        respuesta_sugerida: parsed.respuesta_sugerida || null,
+        categoria_sugerida: categoria,
+        intencion: ia?.intencion ?? (aporto ? 'pedido_talle' : null),
+        // Solo en el mensaje que aportó algo: ahí va el botón de fotos / de
+        // respuesta rápida, con lo acumulado de la charla (38 + F11).
+        tipo_detectado: aporto ? busqueda.tipo : null,
+        talle_detectado: aporto ? busqueda.talle : null,
+        respuesta_sugerida: respuesta,
       }),
     })
 
-    if (parsed.categoria) {
+    if (categoria) {
       await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ categoria: parsed.categoria }),
+        body: JSON.stringify({ categoria }),
       })
+    }
+
+    if (aporto) {
+      await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          busqueda_talle: busqueda.talle,
+          busqueda_tipo: busqueda.tipo,
+          busqueda_updated_at: new Date().toISOString(),
+        }),
+      }).catch(err => console.error('No se pudo guardar la búsqueda (¿falta la migración 038?):', err))
     }
   } catch (err) {
     console.error('AI classification failed:', err)

@@ -458,6 +458,64 @@
   transform: scale(1.1);
 }
 
+.chat-panel-msg-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Respuesta rápida ("¿para qué cancha?" / "¿qué talle?") — en cyan para no
+   confundirla con el botín naranja, que es el que manda las fotos. */
+.chat-panel-msg-quick-btn {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: #22D3EE;
+  color: #22D3EE;
+}
+
+.chat-panel-msg-quick-btn:hover {
+  background: #22D3EE;
+  color: #000;
+}
+
+/* Chip "Busca: talle 38 · Fútbol 11" en el header del chat */
+.chat-panel-busqueda {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-dim);
+  overflow: hidden;
+}
+
+.chat-panel-busqueda button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chat-panel-busqueda-main {
+  padding: 3px 4px 3px 10px;
+}
+
+.chat-panel-busqueda-clear {
+  padding: 3px 8px 3px 4px;
+  opacity: .7;
+}
+
+.chat-panel-busqueda-main:hover,
+.chat-panel-busqueda-clear:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 /* ── Snackbar de "deshacer" al borrar un mensaje ── */
 .chat-panel-undo-snackbar {
   display: flex;
