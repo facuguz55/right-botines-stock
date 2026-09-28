@@ -6,6 +6,10 @@ import {
   respuestaSugeridaBusqueda,
   talleIaEsConfiable,
   tipoIaEsConfiable,
+  coincidenciaModelo,
+  extraerModeloBuscado,
+  parseModeloQuery,
+  vocabularioCatalogo,
   type EstadoBusqueda,
 } from '../src/lib/crmBusqueda'
 
@@ -177,8 +181,9 @@ async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBu
     console.error('classifyWithAI: falta ANTHROPIC_API_KEY / VITE_ANTHROPIC_API_KEY')
     return null
   }
-  const guardada = busquedaGuardada.talle || busquedaGuardada.tipo
+  const guardada = busquedaGuardada.talle || busquedaGuardada.tipo || busquedaGuardada.modelo
     ? `talle ${busquedaGuardada.talle ?? 'sin definir'}, tipo ${busquedaGuardada.tipo ?? 'sin definir'}`
+      + (busquedaGuardada.modelo ? `, modelo "${busquedaGuardada.modelo}"` : '')
     : 'nada todavía'
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -223,39 +228,57 @@ async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBu
 }
 
 // Cuántos modelos con foto hay en stock para lo buscado — mismo criterio que
-// el modal de fotos (searchModelosByTalleDisponible) para que la respuesta
-// sugerida no diga "tenemos" y después el modal aparezca vacío.
+// el modal de fotos (searchModelosByTalleDisponible + filtro por modelo) para
+// que la respuesta sugerida no diga "tenemos" y después el modal aparezca vacío.
 async function contarModelosDisponibles(estado: EstadoBusqueda): Promise<number | null> {
   if (!estado.talle) return null
   try {
-    let path = `modelos?select=id,modelo_talles!inner(cantidad),modelo_fotos!inner(id)`
+    let path = `modelos?select=marca,modelo,modelo_talles!inner(cantidad),modelo_fotos!inner(id)`
       + `&modelo_talles.talle_arg=eq.${estado.talle}&modelo_talles.cantidad=gt.0&modelo_fotos.limit=1`
     if (estado.tipo) path += `&categoria=ilike.*${encodeURIComponent(estado.tipo)}*`
-    const rows = await (await sbFetch(path)).json() as unknown[]
-    return rows.length
+    const rows = await (await sbFetch(path)).json() as { marca: string; modelo: string }[]
+    if (!estado.modelo) return rows.length
+    const q = parseModeloQuery(estado.modelo)
+    return rows.filter(r => coincidenciaModelo(r, q).pasa).length
   } catch (err) {
     console.error('No se pudo contar el stock para la respuesta sugerida:', err)
     return null
   }
 }
 
+// Intenta con todos los campos y, si falla (columnas de una migración que
+// todavía no se aplicó), reintenta sin los campos opcionales — así un deploy
+// antes de correr la migración no deja al CRM sin clasificar.
+async function sbWriteConFallback(path: string, method: 'POST' | 'PATCH', body: Record<string, unknown>, opcionales: string[]) {
+  try {
+    return await sbFetch(path, { method, body: JSON.stringify(body) })
+  } catch (err) {
+    if (!opcionales.some(k => k in body)) throw err
+    console.error(`${method} ${path} falló, reintentando sin ${opcionales.join(', ')} (¿falta una migración?):`, err)
+    const sinOpcionales = Object.fromEntries(Object.entries(body).filter(([k]) => !opcionales.includes(k)))
+    return await sbFetch(path, { method, body: JSON.stringify(sinOpcionales) })
+  }
+}
+
 async function classifyWithAI(text: string, conversacionId: string, messageId: string) {
   try {
-    // Contexto: últimos mensajes de la charla y lo que ya se sabía que
-    // buscaba. Lo de la búsqueda va con catch aparte: si la migración 038 no
-    // está aplicada todavía, esas columnas no existen y no por eso tiene que
-    // dejar de clasificar.
-    const [mensajesRes, estadoRes] = await Promise.all([
+    // Contexto: últimos mensajes de la charla, lo que ya se sabía que buscaba
+    // (select=* para no romper si falta alguna migración de búsqueda) y los
+    // nombres del catálogo, para reconocer modelos puntuales ("los f50").
+    const [mensajesRes, estadoRes, catalogoRes] = await Promise.all([
       sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,contenido,transcripcion&order=timestamp.desc&limit=12`),
-      sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=busqueda_talle,busqueda_tipo,busqueda_updated_at&limit=1`)
-        .catch(err => { console.error('Sin columnas de búsqueda (¿falta la migración 038?):', err); return null }),
+      sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=*&limit=1`)
+        .catch(err => { console.error('No se pudo leer la búsqueda guardada:', err); return null }),
+      sbFetch('modelos?select=marca,modelo')
+        .catch(err => { console.error('No se pudo leer el catálogo para detectar modelos:', err); return null }),
     ])
     const recientes = (await mensajesRes.json() as { direccion: 'in' | 'out'; contenido: string | null; transcripcion: string | null }[])
       .reverse()
       .map(m => ({ direccion: m.direccion, texto: (m.contenido || m.transcripcion || '').trim() }))
       .filter(m => m.texto)
     const estadoRow = estadoRes ? (await estadoRes.json() as Record<string, unknown>[])[0] ?? {} : {}
-    const busquedaPrevia = busquedaVigente(estadoRow as { busqueda_talle?: number | null; busqueda_tipo?: string | null; busqueda_updated_at?: string | null })
+    const busquedaPrevia = busquedaVigente(estadoRow as Parameters<typeof busquedaVigente>[0])
+    const catalogo = catalogoRes ? await catalogoRes.json() as { marca: string; modelo: string }[] : []
 
     const ultimoMensajeLocal = [...recientes].reverse().find(m => m.direccion === 'out')?.texto ?? null
     const textosCliente = recientes.filter(m => m.direccion === 'in').map(m => m.texto)
@@ -265,7 +288,9 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // validada: solo se le cree un talle que el cliente escribió y un tipo si
     // el mensaje habla de canchas/tipos. Si las reglas vieron dos talles o dos
     // tipos distintos, es ambiguo y tampoco se le cree a la IA.
+    // El modelo sale solo del catálogo real (nunca de la IA).
     const det = detectarBusqueda(text, { ultimoMensajeLocal })
+    const modeloMsg = catalogo.length ? extraerModeloBuscado(text, vocabularioCatalogo(catalogo)) : null
     const ia = await llamarClasificadorIA(contexto, busquedaPrevia, text).catch(err => {
       console.error('classifyWithAI: falló la llamada a Anthropic:', err)
       return null
@@ -280,8 +305,8 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const textosParaTalle = tipoMsg && !busquedaPrevia.talle ? textosCliente : [text]
     const talleMsg = det.talle
       ?? (det.tallesEncontrados.length === 0 && ia && talleIaEsConfiable(ia.talle_arg, textosParaTalle) ? ia.talle_arg : null)
-    const aporto = talleMsg !== null || tipoMsg !== null
-    const busqueda = combinarBusqueda(busquedaPrevia, { talle: talleMsg, tipo: tipoMsg })
+    const aporto = talleMsg !== null || tipoMsg !== null || modeloMsg !== null
+    const busqueda = combinarBusqueda(busquedaPrevia, { talle: talleMsg, tipo: tipoMsg, modelo: modeloMsg })
 
     if (!ia && !aporto) return
 
@@ -293,20 +318,18 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
 
     const categoria = ia?.categoria ?? (aporto ? 'Pedido de talles' : null)
 
-    await sbFetch('wsp_ia_sugerencias', {
-      method: 'POST',
-      body: JSON.stringify({
-        mensaje_id: messageId,
-        conversacion_id: conversacionId,
-        categoria_sugerida: categoria,
-        intencion: ia?.intencion ?? (aporto ? 'pedido_talle' : null),
-        // Solo en el mensaje que aportó algo: ahí va el botón de fotos / de
-        // respuesta rápida, con lo acumulado de la charla (38 + F11).
-        tipo_detectado: aporto ? busqueda.tipo : null,
-        talle_detectado: aporto ? busqueda.talle : null,
-        respuesta_sugerida: respuesta,
-      }),
-    })
+    await sbWriteConFallback('wsp_ia_sugerencias', 'POST', {
+      mensaje_id: messageId,
+      conversacion_id: conversacionId,
+      categoria_sugerida: categoria,
+      intencion: ia?.intencion ?? (aporto ? 'pedido_talle' : null),
+      // Solo en el mensaje que aportó algo: ahí va el botón de fotos / de
+      // respuesta rápida, con lo acumulado de la charla (38 + F11 + F50).
+      tipo_detectado: aporto ? busqueda.tipo : null,
+      talle_detectado: aporto ? busqueda.talle : null,
+      modelo_buscado: aporto ? busqueda.modelo ?? null : null,
+      respuesta_sugerida: respuesta,
+    }, ['modelo_buscado'])
 
     if (categoria) {
       await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
@@ -316,14 +339,12 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     }
 
     if (aporto) {
-      await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          busqueda_talle: busqueda.talle,
-          busqueda_tipo: busqueda.tipo,
-          busqueda_updated_at: new Date().toISOString(),
-        }),
-      }).catch(err => console.error('No se pudo guardar la búsqueda (¿falta la migración 038?):', err))
+      await sbWriteConFallback(`wsp_conversaciones?id=eq.${conversacionId}`, 'PATCH', {
+        busqueda_talle: busqueda.talle,
+        busqueda_tipo: busqueda.tipo,
+        busqueda_modelo: busqueda.modelo ?? null,
+        busqueda_updated_at: new Date().toISOString(),
+      }, ['busqueda_modelo']).catch(err => console.error('No se pudo guardar la búsqueda (¿falta la migración 038?):', err))
     }
   } catch (err) {
     console.error('AI classification failed:', err)

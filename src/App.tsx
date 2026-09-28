@@ -163,7 +163,7 @@ export function App() {
   const [showImportExcel, setShowImportExcel] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [clearing, setClearing] = useState(false)
-  const [photoSender, setPhotoSender] = useState<{ conversacionId: string; tipo: string | null; talle: number | null; waContactId: string } | null>(null)
+  const [photoSender, setPhotoSender] = useState<{ conversacionId: string; tipo: string | null; talle: number | null; waContactId: string; modelo: string | null } | null>(null)
 
   // Venta iniciada con el "+" de un chat del CRM: mientras está seteado, se
   // manda al empleado a armar el carrito en Stock igual que cualquier otra
@@ -360,7 +360,7 @@ export function App() {
       {activePage === 'crm_inbox' && (
         <CrmInbox
           empleadoId={empleadoId}
-          onOpenPhotoSender={(conversacionId: string, tipo: string | null, talle: number | null, waContactId: string) => setPhotoSender({ conversacionId, tipo, talle, waContactId })}
+          onOpenPhotoSender={(conversacionId: string, tipo: string | null, talle: number | null, waContactId: string, modelo: string | null) => setPhotoSender({ conversacionId, tipo, talle, waContactId, modelo })}
           onCreateVenta={(info) => { setCrmVenta(info); setActivePage('stock') }}
           openTarget={crmOpenTarget}
           onOpenTargetHandled={() => setCrmOpenTarget(null)}
@@ -504,6 +504,7 @@ export function App() {
           onClose={() => setPhotoSender(null)}
           tipo={photoSender.tipo}
           talle={photoSender.talle}
+          modelo={photoSender.modelo}
           conversacionId={photoSender.conversacionId}
           empleadoId={empleadoId}
           onSendPhotos={async (items: PhotoMatch[]) => {

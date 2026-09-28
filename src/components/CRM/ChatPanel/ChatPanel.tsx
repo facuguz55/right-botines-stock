@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2 } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
-import { TIPO_LABEL, busquedaVigente, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
+import { TIPO_LABEL, busquedaVigente, etiquetaModelo, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
 import { AudioMessage } from './AudioMessage'
 import './ChatPanel.css'
 
@@ -14,7 +14,7 @@ interface ChatPanelProps {
   onSend: (text: string) => Promise<void>
   onChangeCategoria: (cat: CrmCategoria) => void
   onChangeEstado: (estado: CrmEstado) => void
-  onOpenPhotos: (tipo?: string | null, talle?: number | null) => void
+  onOpenPhotos: (tipo?: string | null, talle?: number | null, modelo?: string | null) => void
   onCreateVenta: () => void
   onSendMpLink: () => void
   onUseSugerencia: () => void
@@ -62,6 +62,51 @@ export default function ChatPanel({
   // Respuestas rápidas ya tocadas: el botón se oculta al toque, sin esperar a
   // que llegue el mensaje enviado (evita mandarla dos veces con doble click).
   const [quickRepliesUsadas, setQuickRepliesUsadas] = useState<Set<string>>(new Set())
+
+  // Mensajes del cliente que llegan con el chat abierto: la IA tarda unos
+  // segundos en leerlos (el webhook espera hasta 8 s), y en ese rato se
+  // muestra un circulito de carga donde van a aparecer los botones. Lo que
+  // ya estaba al abrir el chat no cuenta como recién llegado; y si en
+  // IA_ESPERA_MS no llegó nada (mensaje sin nada que sugerir, o la IA
+  // falló), el circulito se va solo.
+  const IA_ESPERA_MS = 12000
+  const llegadaRef = useRef<Map<string, number>>(new Map())
+  const baseRef = useRef<{ convId: string | null; vioCarga: boolean; listo: boolean }>({ convId: null, vioCarga: false, listo: false })
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    const convId = conversacion?.id ?? null
+    if (baseRef.current.convId !== convId) {
+      baseRef.current = { convId, vioCarga: false, listo: false }
+      llegadaRef.current = new Map()
+    }
+    // Hasta que no se vio cargar esta conversación, los mensajes en pantalla
+    // pueden ser todavía los del chat anterior.
+    if (loading) { baseRef.current.vioCarga = true; return }
+    if (!baseRef.current.vioCarga) return
+    const ahora = Date.now()
+    let hayNuevos = false
+    for (const m of mensajes) {
+      if (m.direccion !== 'in' || m.conversacion_id !== convId || llegadaRef.current.has(m.id)) continue
+      llegadaRef.current.set(m.id, baseRef.current.listo ? ahora : 0)
+      if (baseRef.current.listo) hayNuevos = true
+    }
+    baseRef.current.listo = true
+    if (hayNuevos) setTick(t => t + 1)
+  }, [mensajes, loading, conversacion?.id])
+
+  useEffect(() => {
+    let proximo = Infinity
+    const ahora = Date.now()
+    for (const [id, llegada] of llegadaRef.current) {
+      if (!llegada || sugerenciasPorMensaje[id]) continue
+      const resta = llegada + IA_ESPERA_MS - ahora
+      if (resta > 0) proximo = Math.min(proximo, resta)
+    }
+    if (proximo === Infinity) return
+    const timer = setTimeout(() => setTick(t => t + 1), proximo + 50)
+    return () => clearTimeout(timer)
+  }, [mensajes, sugerenciasPorMensaje, tick])
   const [renaming, setRenaming] = useState(false)
   const [nombreDraft, setNombreDraft] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -151,7 +196,7 @@ export default function ChatPanel({
   }
 
   const busquedaActual = busquedaVigente(conversacion)
-  const busqueda = busquedaActual.talle || busquedaActual.tipo ? busquedaActual : null
+  const busqueda = busquedaActual.talle || busquedaActual.tipo || busquedaActual.modelo ? busquedaActual : null
 
   const visibles = mensajes.filter(m => !m._hidden)
   // Si ya se le contestó algo al cliente después de un mensaje, la respuesta
@@ -202,10 +247,10 @@ export default function ChatPanel({
                 <button
                   className="chat-panel-busqueda-main"
                   title="Lo que busca el cliente según la charla (lo detecta la IA). Click para mandar las fotos con este filtro."
-                  onClick={() => onOpenPhotos(busqueda.tipo, busqueda.talle)}
+                  onClick={() => onOpenPhotos(busqueda.tipo, busqueda.talle, busqueda.modelo)}
                 >
                   <Footprints size={12} />
-                  Busca: {[busqueda.talle && `talle ${busqueda.talle}`, busqueda.tipo && TIPO_LABEL[busqueda.tipo]].filter(Boolean).join(' · ')}
+                  Busca: {[busqueda.modelo && etiquetaModelo(busqueda.modelo), busqueda.talle && `talle ${busqueda.talle}`, busqueda.tipo && TIPO_LABEL[busqueda.tipo]].filter(Boolean).join(' · ')}
                 </button>
                 <button
                   className="chat-panel-busqueda-clear"
@@ -266,13 +311,21 @@ export default function ChatPanel({
               const sug = msg.direccion === 'in' ? sugerenciasPorMensaje[msg.id] : undefined
               const talleSug = sug?.talle_detectado ?? null
               const tipoSug = normalizeTipo(sug?.tipo_detectado)
-              // Respuesta rápida: si falta el tipo o el talle, un click le
-              // pregunta al cliente lo que falta (o le avisa que no hay stock,
-              // según lo que haya calculado el webhook).
-              const quickReply = (talleSug && !tipoSug) || (tipoSug && !talleSug)
+              const modeloSug = sug?.modelo_buscado || null
+              // Respuesta rápida: la que calculó el webhook según lo que falta
+              // y el stock real ("¿para qué cancha?", "¿qué talle usás?", "te
+              // paso los F50 que tenemos en 40", "no nos queda en 47").
+              const quickReply = talleSug || tipoSug || modeloSug
                 ? (sug?.respuesta_sugerida || (talleSug ? textoPreguntarTipo(talleSug) : textoPreguntarTalle(tipoSug)))
                 : null
               const mostrarQuickReply = !!quickReply && idx > ultimoOutIdx && !quickRepliesUsadas.has(msg.id)
+              const llegada = llegadaRef.current.get(msg.id)
+              const esperandoIA = msg.direccion === 'in' && !!msg.contenido && !sug && !!llegada && Date.now() - llegada < IA_ESPERA_MS
+              const detalleFotos = [
+                modeloSug && etiquetaModelo(modeloSug),
+                talleSug && `talle ${talleSug}`,
+                tipoSug ? TIPO_LABEL[tipoSug] : 'todos los tipos (conviene preguntar el tipo antes)',
+              ].filter(Boolean).join(' · ')
               return (
               <div
                 key={msg.id}
@@ -322,6 +375,11 @@ export default function ChatPanel({
                   )}
                   {msg.contenido && <span>{msg.contenido}</span>}
                 </div>
+                {esperandoIA && (
+                  <span className="chat-panel-msg-ia-loading" title="La IA está leyendo el mensaje…">
+                    <Loader2 size={15} />
+                  </span>
+                )}
                 {(mostrarQuickReply || talleSug != null) && (
                   <div className="chat-panel-msg-actions">
                     {mostrarQuickReply && quickReply && (
@@ -336,8 +394,8 @@ export default function ChatPanel({
                     {talleSug != null && (
                       <button
                         className="chat-panel-msg-talle-btn"
-                        title={`Mandar fotos de los modelos con stock en talle ${talleSug}${tipoSug ? ` de ${TIPO_LABEL[tipoSug]}` : ' (todos los tipos — conviene preguntar el tipo antes)'}`}
-                        onClick={() => onOpenPhotos(tipoSug, talleSug)}
+                        title={`Mandar fotos de los modelos con stock: ${detalleFotos}`}
+                        onClick={() => onOpenPhotos(tipoSug, talleSug, modeloSug)}
                       >
                         <Footprints size={15} />
                       </button>

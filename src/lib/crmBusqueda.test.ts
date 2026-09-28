@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   busquedaVigente,
+  coincidenciaModelo,
+  etiquetaModelo,
+  extraerModeloBuscado,
+  parseModeloQuery,
+  vocabularioCatalogo,
   combinarBusqueda,
   detectarBusqueda,
   normalizeTipo,
@@ -109,16 +114,16 @@ describe('validación de lo que propone la IA', () => {
 
 describe('estado de la búsqueda', () => {
   it('combina lo nuevo con lo guardado', () => {
-    expect(combinarBusqueda({ talle: 38, tipo: null }, { talle: null, tipo: 'F11' })).toEqual({ talle: 38, tipo: 'F11' })
-    expect(combinarBusqueda({ talle: 38, tipo: 'F11' }, { talle: 39, tipo: null })).toEqual({ talle: 39, tipo: 'F11' })
+    expect(combinarBusqueda({ talle: 38, tipo: null }, { talle: null, tipo: 'F11' })).toEqual({ talle: 38, tipo: 'F11', modelo: null })
+    expect(combinarBusqueda({ talle: 38, tipo: 'F11' }, { talle: 39, tipo: null })).toEqual({ talle: 39, tipo: 'F11', modelo: null })
   })
 
   it('una búsqueda vieja no se arrastra', () => {
     const ahora = new Date('2026-09-28T12:00:00Z')
     expect(busquedaVigente({ busqueda_talle: 38, busqueda_tipo: 'F11', busqueda_updated_at: '2026-09-27T12:00:00Z' }, ahora))
-      .toEqual({ talle: 38, tipo: 'F11' })
+      .toEqual({ talle: 38, tipo: 'F11', modelo: null })
     expect(busquedaVigente({ busqueda_talle: 38, busqueda_tipo: 'F11', busqueda_updated_at: '2026-09-20T12:00:00Z' }, ahora))
-      .toEqual({ talle: null, tipo: null })
+      .toEqual({ talle: null, tipo: null, modelo: null })
   })
 
   it('normaliza tipos guardados con el formato viejo', () => {
@@ -137,5 +142,50 @@ describe('respuestas sugeridas', () => {
   })
   it('con talle y tipo anuncia las fotos', () => {
     expect(respuestaSugeridaBusqueda({ talle: 38, tipo: 'F11' }, 5)).toMatch(/Fútbol 11.*talle 38/)
+  })
+})
+
+describe('modelo puntual', () => {
+  // Nombres reales de right.com.ar (marca + modelo como los guarda la app).
+  const catalogo = [
+    { marca: 'Adidas', modelo: 'F50 Negro Amarillo F' },
+    { marca: 'Adidas', modelo: 'F50 SC Naranja' },
+    { marca: 'Adidas', modelo: 'F50 Negro Blanco' },
+    { marca: 'Adidas', modelo: 'F50 Negro Rojo F5' },
+    { marca: 'Adidas', modelo: 'Predator Rojo' },
+    { marca: 'Nike', modelo: 'Mercurial Vapor 15 Blanco' },
+    { marca: 'Adidas', modelo: 'Mixtos- Adidas F50 Violeta' },
+  ]
+  const vocab = vocabularioCatalogo(catalogo)
+
+  it('saca las palabras de modelo del mensaje', () => {
+    expect(extraerModeloBuscado('Los f50 negro blanco s/C en 40 los tenés?', vocab)).toBe('f50 negro blanco sc')
+    expect(extraerModeloBuscado('tenés mercurial en 42?', vocab)).toBe('mercurial')
+    expect(extraerModeloBuscado('hay nike talle 40?', vocab)).toBe('nike')
+  })
+
+  it('sin palabra de modelo (o solo colores) no filtra', () => {
+    expect(extraerModeloBuscado('que tenes en talle 38', vocab)).toBeNull()
+    expect(extraerModeloBuscado('tenés algo negro en 40?', vocab)).toBeNull()
+    expect(extraerModeloBuscado('futbol 5 porfa', vocab)).toBeNull()
+    expect(extraerModeloBuscado('tenés phantom?', vocab)).toBeNull() // no está en el catálogo
+  })
+
+  it('duras obligatorias, blandas ordenan', () => {
+    const q = parseModeloQuery('f50 negro blanco sc')
+    expect(q).toEqual({ duras: ['f50'], blandas: ['negr', 'blanc', 'sc'] })
+    expect(coincidenciaModelo(catalogo[2], q)).toEqual({ pasa: true, blandas: 2 })
+    expect(coincidenciaModelo(catalogo[1], q)).toEqual({ pasa: true, blandas: 1 })
+    expect(coincidenciaModelo(catalogo[4], q).pasa).toBe(false)
+  })
+
+  it('la etiqueta se lee bien', () => {
+    expect(etiquetaModelo('f50 negro blanco sc')).toBe('F50 negro blanco sin cordones')
+  })
+
+  it('respuesta con modelo', () => {
+    expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, 3)).toBe('¡Sí! Te paso los F50 que tenemos en talle 40 👇')
+    expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, 0)).toMatch(/no nos quedan los F50/)
+    expect(respuestaSugeridaBusqueda({ talle: null, tipo: null, modelo: 'f50' }, null)).toMatch(/Qué talle/)
   })
 })

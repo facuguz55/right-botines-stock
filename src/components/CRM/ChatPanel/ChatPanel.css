@@ -775,3 +775,25 @@
     padding: 8px 12px;
   }
 }
+
+/* Circulito mientras la IA lee un mensaje recién llegado — ocupa el mismo
+   lugar que después ocupan los botones, así no "salta" nada. */
+.chat-panel-msg-ia-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px dashed var(--border-light);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.chat-panel-msg-ia-loading svg {
+  animation: chat-panel-ia-spin 0.9s linear infinite;
+}
+
+@keyframes chat-panel-ia-spin {
+  to { transform: rotate(360deg); }
+}

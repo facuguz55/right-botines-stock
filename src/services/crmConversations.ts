@@ -76,9 +76,15 @@ export async function renameConversacion(conversacionId: string, nuevoNombre: st
 export async function clearBusqueda(conversacionId: string): Promise<void> {
   const { error } = await supabase
     .from('wsp_conversaciones')
+    .update({ busqueda_talle: null, busqueda_tipo: null, busqueda_modelo: null, busqueda_updated_at: null })
+    .eq('id', conversacionId)
+  if (!error) return
+  // Sin la migración 039 no existe busqueda_modelo: se borra lo demás igual.
+  const { error: error2 } = await supabase
+    .from('wsp_conversaciones')
     .update({ busqueda_talle: null, busqueda_tipo: null, busqueda_updated_at: null })
     .eq('id', conversacionId)
-  if (error) throw error
+  if (error2) throw error2
 }
 
 // Normaliza a formato wa_id de WhatsApp: solo dígitos, con código de país.

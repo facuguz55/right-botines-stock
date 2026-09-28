@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Send, X, Check } from 'lucide-react'
 import { searchModelosByTalleDisponible, logEnvioFotos } from '../../../services/crmPhotos'
 import type { PhotoMatch } from '../../../types/crm'
-import { TIPOS_BOTIN, TIPO_LABEL, TALLE_ARG_MIN, TALLE_ARG_MAX, normalizeTipo, type TipoBotin } from '../../../lib/crmBusqueda'
+import { TIPOS_BOTIN, TIPO_LABEL, TALLE_ARG_MIN, TALLE_ARG_MAX, coincidenciaModelo, normalizeTipo, parseModeloQuery, type TipoBotin } from '../../../lib/crmBusqueda'
 import './PhotoSender.css'
 
 const TALLES_ARG = Array.from({ length: TALLE_ARG_MAX - TALLE_ARG_MIN + 1 }, (_, i) => TALLE_ARG_MIN + i)
@@ -12,15 +12,18 @@ interface PhotoSenderProps {
   onClose: () => void
   tipo: string | null
   talle: number | null
+  // Modelo puntual que nombró el cliente ("f50 negro blanco sc") — filtra por
+  // la línea y ordena/preselecciona por colores.
+  modelo?: string | null
   conversacionId: string
   empleadoId: string | null
   onSendPhotos: (items: PhotoMatch[], conversacionId: string) => Promise<void>
 }
 
 export function PhotoSender({
-  isOpen, onClose, tipo, talle, conversacionId, empleadoId, onSendPhotos,
+  isOpen, onClose, tipo, talle, modelo = null, conversacionId, empleadoId, onSendPhotos,
 }: PhotoSenderProps) {
-  const [matches, setMatches] = useState<PhotoMatch[]>([])
+  const [resultados, setResultados] = useState<PhotoMatch[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
@@ -28,22 +31,29 @@ export function PhotoSender({
   // entendió mal el talle o el tipo, se corrige antes de mandar nada.
   const [tipoFiltro, setTipoFiltro] = useState<TipoBotin | null>(normalizeTipo(tipo))
   const [talleFiltro, setTalleFiltro] = useState<number | null>(talle)
+  const [modeloFiltro, setModeloFiltro] = useState(modelo ?? '')
+  // La preselección automática ("los F50 negro/blanco" ya tildados) se hace
+  // una sola vez, con la primera búsqueda al abrir — no cada vez que se
+  // cambia un filtro a mano.
+  const preseleccionPendiente = useRef(!!modelo)
 
   useEffect(() => {
     if (!isOpen) return
     setTipoFiltro(normalizeTipo(tipo))
     setTalleFiltro(talle)
-  }, [isOpen, tipo, talle])
+    setModeloFiltro(modelo ?? '')
+    preseleccionPendiente.current = !!modelo
+  }, [isOpen, tipo, talle, modelo])
 
   const search = useCallback(async () => {
     setLoading(true)
     setSelected(new Set())
     try {
       const data = await searchModelosByTalleDisponible(tipoFiltro, talleFiltro)
-      setMatches(data)
+      setResultados(data)
     } catch (err) {
       console.error('Error buscando modelos:', err)
-      setMatches([])
+      setResultados([])
     } finally {
       setLoading(false)
     }
@@ -52,6 +62,33 @@ export function PhotoSender({
   useEffect(() => {
     if (isOpen) search()
   }, [isOpen, search])
+
+  // Filtro por modelo (en el cliente, sobre lo que ya trajo la búsqueda por
+  // tipo/talle): las palabras "duras" (f50, predator, nike) tienen que estar
+  // en el nombre; los colores y "sc" no descartan pero ordenan — primero los
+  // que más se parecen a lo que pidió.
+  const modeloQuery = useMemo(() => parseModeloQuery(modeloFiltro), [modeloFiltro])
+  const puntaje = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const r of resultados) map.set(r.modelo_id, coincidenciaModelo(r, modeloQuery).blandas)
+    return map
+  }, [resultados, modeloQuery])
+  const matches = useMemo(() => {
+    const filtrados = modeloQuery.duras.length
+      ? resultados.filter(r => coincidenciaModelo(r, modeloQuery).pasa)
+      : resultados
+    if (!modeloQuery.blandas.length) return filtrados
+    return [...filtrados].sort((a, b) => (puntaje.get(b.modelo_id) ?? 0) - (puntaje.get(a.modelo_id) ?? 0))
+  }, [resultados, modeloQuery, puntaje])
+  const mejorPuntaje = matches.length ? Math.max(...matches.map(m => puntaje.get(m.modelo_id) ?? 0)) : 0
+
+  useEffect(() => {
+    if (loading || !preseleccionPendiente.current) return
+    preseleccionPendiente.current = false
+    if (mejorPuntaje > 0) {
+      setSelected(new Set(matches.filter(m => puntaje.get(m.modelo_id) === mejorPuntaje).map(m => m.modelo_id)))
+    }
+  }, [loading, matches, puntaje, mejorPuntaje])
 
   useEffect(() => {
     if (!isOpen) return
@@ -74,7 +111,7 @@ export function PhotoSender({
     })
   }
 
-  const todosSeleccionados = matches.length > 0 && selected.size === matches.length
+  const todosSeleccionados = matches.length > 0 && matches.every(m => selected.has(m.modelo_id))
   function toggleSelectAll() {
     setSelected(todosSeleccionados ? new Set() : new Set(matches.map(m => m.modelo_id)))
   }
@@ -107,6 +144,7 @@ export function PhotoSender({
           <div>
             <h2>Mandar fotos</h2>
             <span className="photo-sender-subtitle">
+              {modeloQuery.duras.length > 0 && `${modeloFiltro.trim()} · `}
               {tipoFiltro && TIPO_LABEL[tipoFiltro]}
               {tipoFiltro && talleFiltro && ' · '}
               {talleFiltro && `Talle ${talleFiltro}`}
@@ -140,6 +178,20 @@ export function PhotoSender({
               </button>
             ))}
           </div>
+          <div className="photo-sender-modelo-input">
+            <input
+              type="text"
+              value={modeloFiltro}
+              onChange={e => setModeloFiltro(e.target.value)}
+              placeholder="Modelo (ej: f50 negro)"
+              title="Filtrar por modelo: la línea/marca tiene que coincidir, los colores ordenan los resultados"
+            />
+            {modeloFiltro && (
+              <button type="button" onClick={() => setModeloFiltro('')} title="Quitar el filtro de modelo" aria-label="Quitar el filtro de modelo">
+                <X size={12} />
+              </button>
+            )}
+          </div>
           <select
             className="photo-sender-talle-select"
             value={talleFiltro ?? ''}
@@ -159,7 +211,14 @@ export function PhotoSender({
             </div>
           ) : matches.length === 0 ? (
             <div className="photo-sender-empty">
-              No se encontraron modelos con stock para esta consulta.
+              {resultados.length > 0 ? (
+                <>
+                  No hay "{modeloFiltro.trim()}" con stock para este talle/tipo.
+                  <button type="button" className="photo-sender-empty-link" onClick={() => setModeloFiltro('')}>
+                    Ver los otros {resultados.length} modelos
+                  </button>
+                </>
+              ) : 'No se encontraron modelos con stock para esta consulta.'}
             </div>
           ) : (
             <>

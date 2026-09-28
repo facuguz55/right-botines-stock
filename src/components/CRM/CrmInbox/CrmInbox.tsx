@@ -11,7 +11,7 @@ import './CrmInbox.css'
 
 interface CrmInboxProps {
   empleadoId: string | null
-  onOpenPhotoSender: (conversacionId: string, tipo: string | null, talle: number | null, waContactId: string) => void
+  onOpenPhotoSender: (conversacionId: string, tipo: string | null, talle: number | null, waContactId: string, modelo: string | null) => void
   onCreateVenta: (info: CrmVentaInfo) => void
   // Deep link desde otras secciones (Preventa, Clientes locales): al llegar
   // un target nuevo, se busca/crea la conversación de ese número y se
@@ -252,9 +252,9 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           onSend={handleSend}
           onChangeCategoria={handleChangeCategoria}
           onChangeEstado={handleChangeEstado}
-          onOpenPhotos={(tipo, talle) => {
+          onOpenPhotos={(tipo, talle, modelo) => {
             if (!selectedId || !selectedConv) return
-            onOpenPhotoSender(selectedId, tipo ?? null, talle ?? null, selectedConv.wa_contact_id)
+            onOpenPhotoSender(selectedId, tipo ?? null, talle ?? null, selectedConv.wa_contact_id, modelo ?? null)
           }}
           onCreateVenta={() => {
             if (!selectedId || !selectedConv) return

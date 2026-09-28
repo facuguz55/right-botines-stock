@@ -220,21 +220,128 @@ export function tipoIaEsConfiable(tipo: unknown, textoCliente: string): TipoBoti
   return PISTAS_TIPO.test(normalizar(textoCliente)) ? canonico : null
 }
 
+// ── Modelo puntual ("los f50 negro blanco s/c") ──
+//
+// Los nombres del catálogo vienen de TiendaNube y traen línea + colores +
+// variantes: "F50 Negro Amarillo", "F50 SC Naranja" (SC = sin cordones),
+// "Predator Rojo F5". Para no inventar nada, del mensaje solo se toman las
+// palabras que existen en algún nombre del catálogo. Se separan en:
+// - duras (línea/marca: "f50", "predator", "nike"): TIENEN que estar en el
+//   nombre del modelo para mostrarlo;
+// - blandas (colores y "sc"): no descartan, pero ordenan y preseleccionan los
+//   que más se parecen — si piden "negro blanco sc" y hay un F50 negro/blanco
+//   con cordones, igual conviene mostrarlo.
+
+const COLORES_RAIZ = ['negr', 'blanc', 'roj', 'azul', 'verd', 'amarill', 'naranj', 'rosa', 'violet', 'celest', 'dorad', 'gris', 'fucsi', 'platead', 'bord', 'marron', 'beige', 'lila', 'turques', 'crema', 'coral', 'multicolor', 'lima', 'cobre']
+
+// Palabras que aparecen en nombres del catálogo pero no identifican un modelo.
+const GENERICAS = new Set([
+  'botin', 'botines', 'mixto', 'mixtos', 'de', 'del', 'y', 'con', 'para', 'en', 'la', 'el', 'los', 'las', 'un', 'una',
+  'f5', 'f11', 'f7', 'f8', 'futsal', 'sala', 'futbol', 'fg', 'tf', 'ag', 'ic', 'mg', 'in', 'talle', 'hockey', 'nuevo', 'nueva',
+  'nuevos', 'nuevas', 'gm', 'ly', 'g', 'f', 'sin', 'cordon', 'cordones', 'kids', 'nino', 'ninos', 'jr', 'junior',
+])
+
+function esColor(token: string): boolean {
+  return COLORES_RAIZ.some(r => token.startsWith(r))
+}
+
+function raizColor(token: string): string {
+  return COLORES_RAIZ.find(r => token.startsWith(r)) ?? token
+}
+
+// Tokens comparables de un nombre o mensaje: "s/c" y "sin cordones" → "sc".
+export function tokensNombre(texto: string): string[] {
+  return normalizar(texto)
+    .replace(/\bs\s*\/\s*c\b/g, ' sc ')
+    .replace(/\bsin cordon(es)?\b/g, ' sc ')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+}
+
+// Vocabulario de palabras "de modelo" a partir del catálogo (marca + modelo).
+export function vocabularioCatalogo(items: { marca: string; modelo: string }[]): Set<string> {
+  const vocab = new Set<string>()
+  for (const it of items) {
+    for (const tok of tokensNombre(`${it.marca} ${it.modelo}`)) {
+      if (GENERICAS.has(tok)) continue
+      if (/^\d+$/.test(tok)) continue // números sueltos: se confunden con talles
+      if (tok.length < 2) continue
+      vocab.add(esColor(tok) ? raizColor(tok) : tok)
+    }
+  }
+  return vocab
+}
+
+export interface ModeloQuery {
+  duras: string[]
+  blandas: string[]
+}
+
+export function parseModeloQuery(query: string | null | undefined): ModeloQuery {
+  const duras: string[] = []
+  const blandas: string[] = []
+  for (const tok of tokensNombre(query ?? '')) {
+    if (GENERICAS.has(tok) || /^\d+$/.test(tok)) continue
+    if (tok === 'sc' || esColor(tok)) { if (!blandas.includes(raizColor(tok))) blandas.push(raizColor(tok)) }
+    else if (!duras.includes(tok)) duras.push(tok)
+  }
+  return { duras, blandas }
+}
+
+// Del mensaje del cliente, las palabras que nombran un modelo del catálogo.
+// Devuelve null si no hay ninguna palabra "dura" (con solo colores —"tenés
+// algo negro?"— no alcanza para filtrar por modelo).
+export function extraerModeloBuscado(texto: string, vocab: Set<string>): string | null {
+  const palabras: string[] = []
+  for (const tok of tokensNombre(texto)) {
+    if (GENERICAS.has(tok) || /^\d+$/.test(tok) || tok.length < 2) continue
+    const clave = esColor(tok) ? raizColor(tok) : tok
+    if (!vocab.has(clave) && tok !== 'sc') continue
+    if (!palabras.includes(tok)) palabras.push(tok)
+  }
+  const { duras } = parseModeloQuery(palabras.join(' '))
+  return duras.length ? palabras.join(' ') : null
+}
+
+export interface CoincidenciaModelo {
+  pasa: boolean // tiene todas las palabras duras
+  blandas: number // cuántas blandas (colores/sc) coinciden
+}
+
+export function coincidenciaModelo(item: { marca: string; modelo: string }, q: ModeloQuery): CoincidenciaModelo {
+  const tokens = new Set(tokensNombre(`${item.marca} ${item.modelo}`).map(t => (esColor(t) ? raizColor(t) : t)))
+  return {
+    pasa: q.duras.every(d => tokens.has(d)),
+    blandas: q.blandas.filter(b => tokens.has(b)).length,
+  }
+}
+
+// "f50 negro blanco sc" → "F50 negro blanco sin cordones", para mostrar.
+export function etiquetaModelo(query: string): string {
+  return tokensNombre(query)
+    .map(t => (t === 'sc' ? 'sin cordones' : /\d/.test(t) ? t.toUpperCase() : t))
+    .join(' ')
+}
+
+// ── Estado de la búsqueda en la conversación ──
+
 export interface EstadoBusqueda {
   talle: number | null
   tipo: TipoBotin | null
+  modelo?: string | null
 }
 
 export function busquedaVigente(
-  estado: { busqueda_talle?: number | null; busqueda_tipo?: string | null; busqueda_updated_at?: string | null },
+  estado: { busqueda_talle?: number | null; busqueda_tipo?: string | null; busqueda_modelo?: string | null; busqueda_updated_at?: string | null },
   ahora: Date = new Date(),
 ): EstadoBusqueda {
-  if (!estado.busqueda_updated_at) return { talle: null, tipo: null }
+  if (!estado.busqueda_updated_at) return { talle: null, tipo: null, modelo: null }
   const horas = (ahora.getTime() - new Date(estado.busqueda_updated_at).getTime()) / 3_600_000
-  if (horas > BUSQUEDA_VIGENCIA_HORAS) return { talle: null, tipo: null }
+  if (horas > BUSQUEDA_VIGENCIA_HORAS) return { talle: null, tipo: null, modelo: null }
   return {
     talle: estado.busqueda_talle ?? null,
     tipo: normalizeTipo(estado.busqueda_tipo ?? null),
+    modelo: estado.busqueda_modelo || null,
   }
 }
 
@@ -244,6 +351,7 @@ export function combinarBusqueda(previo: EstadoBusqueda, nuevo: EstadoBusqueda):
   return {
     talle: nuevo.talle ?? previo.talle,
     tipo: nuevo.tipo ?? previo.tipo,
+    modelo: nuevo.modelo ?? previo.modelo ?? null,
   }
 }
 
@@ -264,7 +372,19 @@ export function textoPreguntarTalle(tipo: TipoBotin | null): string {
 // Respuesta sugerida cuando el mensaje aportó talle/tipo. `stock` es cuántos
 // modelos hay con stock para lo buscado (null si no se pudo consultar).
 export function respuestaSugeridaBusqueda(estado: EstadoBusqueda, stock: number | null): string | null {
-  const { talle, tipo } = estado
+  const { talle, tipo, modelo } = estado
+  if (modelo) {
+    const cuales = `los ${etiquetaModelo(modelo)}`
+    if (!talle) return `¡Sí! ¿Qué talle usás? Así te paso ${cuales} que tenemos 👟`
+    if (stock === 0) {
+      return tipo
+        ? `En talle ${talle} no nos quedan ${cuales} de ${TIPO_LABEL[tipo]} 😕 ¿Te muestro otros modelos en tu talle?`
+        : `En talle ${talle} no nos quedan ${cuales} 😕 ¿Te muestro otros modelos en tu talle?`
+    }
+    return tipo
+      ? `¡Perfecto! Te paso ${cuales} de ${TIPO_LABEL[tipo]} que tenemos en talle ${talle} 👇`
+      : `¡Sí! Te paso ${cuales} que tenemos en talle ${talle} 👇`
+  }
   if (talle && !tipo) {
     if (stock === 0) return `Uh, por ahora no nos queda stock en talle ${talle} 😕 Si querés te aviso cuando entre.`
     return textoPreguntarTipo(talle)

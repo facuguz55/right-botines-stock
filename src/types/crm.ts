@@ -53,6 +53,7 @@ export interface WspConversacion {
   // src/lib/crmBusqueda.ts). Pueden no venir si falta la migración 038.
   busqueda_talle?: number | null
   busqueda_tipo?: string | null
+  busqueda_modelo?: string | null
   busqueda_updated_at?: string | null
   crm_clientes?: CrmCliente | null
 }
@@ -85,6 +86,7 @@ export interface WspIaSugerencia {
   intencion: string | null
   tipo_detectado: string | null
   talle_detectado: number | null
+  modelo_buscado?: string | null
   respuesta_sugerida: string | null
   usada: boolean
   created_at: string
