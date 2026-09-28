@@ -1,10 +1,12 @@
-import { RefreshCw, ChevronLeft, ChevronRight, Settings, AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
+import { RefreshCw, ChevronLeft, ChevronRight, Settings, AlertTriangle, Lock } from 'lucide-react'
 import {
   PieChart, Pie, Cell,
   Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { useRentabilidad } from '../../hooks/useRentabilidad'
 import { formatARS } from '../../services/tiendanubeService'
+import { Modal } from '../Modal/Modal'
 import type { RentabilidadCanal } from '../../types'
 import './Rentabilidad.css'
 
@@ -23,7 +25,7 @@ function sumarMes(mes: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-function CanalBreakdown({ titulo, color, canal }: { titulo: string; color: string; canal: RentabilidadCanal }) {
+function CanalBreakdown({ titulo, color, canal, manoObraIncluida }: { titulo: string; color: string; canal: RentabilidadCanal; manoObraIncluida: boolean }) {
   return (
     <div className="tn-card rent-breakdown">
       <h3 className="tn-card-title" style={{ color }}>{titulo}</h3>
@@ -51,6 +53,10 @@ function CanalBreakdown({ titulo, color, canal }: { titulo: string; color: strin
         <span>− Costos únicos</span>
         <span>${formatARS(canal.costosUnicos)}</span>
       </div>
+      <div className="rent-breakdown-row muted">
+        <span>− Mano de obra (sueldos)</span>
+        <span>{manoObraIncluida ? `$${formatARS(canal.costoManoObra)}` : '🔒 bloqueado'}</span>
+      </div>
       <div className="rent-breakdown-row total">
         <span>Ganancia neta</span>
         <strong style={{ color }}>${formatARS(canal.gananciaNeta)}</strong>
@@ -61,7 +67,32 @@ function CanalBreakdown({ titulo, color, canal }: { titulo: string; color: strin
 }
 
 export function Rentabilidad({ onConfigurarCostos }: RentabilidadProps) {
-  const { data, mes, setMes, loading, error, reload } = useRentabilidad()
+  const { data, mes, setMes, loading, error, reload, manoObraDesbloqueada, desbloquearManoObra } = useRentabilidad()
+
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState<string | null>(null)
+  const [verificandoPin, setVerificandoPin] = useState(false)
+
+  const abrirPinModal = () => {
+    setPinInput('')
+    setPinError(null)
+    setPinModalOpen(true)
+  }
+
+  const confirmarPin = async () => {
+    setVerificandoPin(true)
+    setPinError(null)
+    try {
+      const ok = await desbloquearManoObra(pinInput)
+      if (!ok) { setPinError('PIN incorrecto'); return }
+      setPinModalOpen(false)
+    } catch (e) {
+      setPinError((e as Error).message)
+    } finally {
+      setVerificandoPin(false)
+    }
+  }
 
   return (
     <div className="rentabilidad">
@@ -71,6 +102,11 @@ export function Rentabilidad({ onConfigurarCostos }: RentabilidadProps) {
           <p className="page-subtitle">Ganancia neta real — Local + Tienda Online</p>
         </div>
         <div style={{ display: 'flex', gap: '.5rem' }}>
+          {!manoObraDesbloqueada && (
+            <button className="btn btn-secondary btn-sm" onClick={abrirPinModal}>
+              <Lock size={13} /> Incluir sueldos
+            </button>
+          )}
           <button className="btn btn-secondary btn-sm" onClick={onConfigurarCostos}>
             <Settings size={13} /> Configurar costos
           </button>
@@ -98,6 +134,13 @@ export function Rentabilidad({ onConfigurarCostos }: RentabilidadProps) {
             <div className="rent-banner">
               <AlertTriangle size={14} style={{ verticalAlign: '-2px', marginRight: '.375rem' }} />
               ${formatARS(data.web.sinVincular)} en ventas web corresponden a productos sin vincular a un modelo del Stock — su costo no se descontó de la ganancia.
+            </div>
+          )}
+
+          {!data.manoObraIncluida && (
+            <div className="rent-banner">
+              <Lock size={14} style={{ verticalAlign: '-2px', marginRight: '.375rem' }} />
+              La ganancia neta no incluye los sueldos (horas fichadas × valor por hora) — hay que ingresar el PIN del dueño para verlos.
             </div>
           )}
 
@@ -161,11 +204,35 @@ export function Rentabilidad({ onConfigurarCostos }: RentabilidadProps) {
               </div>
             )}
 
-            <CanalBreakdown titulo="Desglose Local" color="var(--accent)" canal={data.local} />
-            <CanalBreakdown titulo="Desglose Web" color="#3b82f6" canal={data.web} />
+            <CanalBreakdown titulo="Desglose Local" color="var(--accent)" canal={data.local} manoObraIncluida={data.manoObraIncluida} />
+            <CanalBreakdown titulo="Desglose Web" color="#3b82f6" canal={data.web} manoObraIncluida={data.manoObraIncluida} />
           </div>
         </>
       )}
+
+      <Modal isOpen={pinModalOpen} onClose={() => !verificandoPin && setPinModalOpen(false)} title="PIN del dueño" maxWidth="360px">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '.875rem' }}>
+            Los sueldos se verifican en el servidor para incluirlos en la ganancia neta.
+          </p>
+          <input
+            type="password"
+            className="config-input"
+            autoFocus
+            value={pinInput}
+            onChange={e => setPinInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !verificandoPin && confirmarPin()}
+            placeholder="PIN"
+          />
+          {pinError && <p className="sell-error">{pinError}</p>}
+          <div className="sell-actions">
+            <button className="btn btn-secondary" onClick={() => setPinModalOpen(false)} disabled={verificandoPin}>Cancelar</button>
+            <button className="btn btn-primary" disabled={!pinInput || verificandoPin} onClick={confirmarPin}>
+              {verificandoPin ? 'Verificando...' : 'Confirmar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

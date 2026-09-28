@@ -265,6 +265,7 @@ export interface RentabilidadCanal {
   costosFijos: number
   costosVariables: number
   costosUnicos: number
+  costoManoObra: number
   gananciaNeta: number
   margenNeto: number
   sinVincular: number
@@ -275,6 +276,10 @@ export interface RentabilidadMes {
   local: RentabilidadCanal
   web: RentabilidadCanal
   total: { facturado: number; gananciaNeta: number; margenNeto: number }
+  // false = no se incluyó el costo de mano de obra (no se pasó PIN o era
+  // incorrecto) — costoManoObra queda en 0 en ambos canales, pero eso no
+  // significa que no haya sueldos, sino que no se pudieron ver.
+  manoObraIncluida: boolean
 }
 
 export interface RecargoTarjeta {

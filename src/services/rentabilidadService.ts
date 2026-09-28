@@ -7,15 +7,36 @@
 import { supabase } from '../lib/supabase'
 import { fetchLocalTNOrdenes } from './tnOrdersSync'
 import { fetchCostosConfig, fetchCostosUnicos } from './costosService'
+import { verifyOwnerPin } from './auth'
+import { fetchFichajes } from './fichajes'
+import { fetchValoresHora } from './valoresHora'
+import { calcularPagos } from '../utils/valoresHora'
 import { inicioDiaLocalISO, finDiaLocalISO } from '../utils/fecha'
 import type { RentabilidadMes, RentabilidadCanal, CostoConfig, CostoCanal } from '../types'
 
 function emptyCanal(): RentabilidadCanal {
   return {
     facturado: 0, costoProductos: 0, gananciaBruta: 0,
-    costosFijos: 0, costosVariables: 0, costosUnicos: 0,
+    costosFijos: 0, costosVariables: 0, costosUnicos: 0, costoManoObra: 0,
     gananciaNeta: 0, margenNeto: 0, sinVincular: 0,
   }
+}
+
+// Sueldos del mes (fichajes × valor por hora vigente) — dato sensible, solo
+// se calcula si viene un PIN de dueño válido. Se verifica explícitamente en
+// vez de confiar en que fetch_valores_hora devuelva algo, porque esa función
+// devuelve [] tanto con PIN incorrecto como sin valores cargados todavía, y
+// necesitamos distinguir "no autorizado" de "autorizado pero en $0".
+async function costoManoObraDelMes(pin: string | null, startDateStr: string, endDateStr: string): Promise<{ total: number; incluida: boolean }> {
+  if (!pin) return { total: 0, incluida: false }
+  const pinValido = await verifyOwnerPin(pin)
+  if (!pinValido) return { total: 0, incluida: false }
+  const [fichajesMes, valores] = await Promise.all([
+    fetchFichajes(startDateStr, endDateStr),
+    fetchValoresHora(pin),
+  ])
+  const pagos = calcularPagos(fichajesMes, valores)
+  return { total: pagos.reduce((s, p) => s + p.importe, 0), incluida: true }
 }
 
 // Límites del mes en hora de Argentina, no UTC: con Date.UTC puro, la última
@@ -59,7 +80,7 @@ function repartir(monto: number, canal: CostoCanal, shareWebDefault: number, pro
   return { local: monto * (1 - shareWeb), web: monto * shareWeb }
 }
 
-export async function computeRentabilidadMes(mes: string): Promise<RentabilidadMes> {
+export async function computeRentabilidadMes(mes: string, pin: string | null = null): Promise<RentabilidadMes> {
   const { start, end, daysInMonth, startDateStr, endDateStr } = rangoMes(mes)
 
   // ── Ventas locales del mes ──
@@ -111,9 +132,10 @@ export async function computeRentabilidadMes(mes: string): Promise<RentabilidadM
   const gananciaBrutaWeb = facturadoWeb - costoProductosWeb
 
   // ── Costos configurados vigentes en el mes + costos únicos del mes ──
-  const [costosConfig, costosUnicos] = await Promise.all([
+  const [costosConfig, costosUnicos, manoObra] = await Promise.all([
     fetchCostosConfig(),
     fetchCostosUnicos(startDateStr, endDateStr),
+    costoManoObraDelMes(pin, startDateStr, endDateStr),
   ])
 
   const vigentes = costosConfig.filter(c => {
@@ -153,6 +175,11 @@ export async function computeRentabilidadMes(mes: string): Promise<RentabilidadM
     costosUnicosWeb += web
   }
 
+  // Los sueldos son un costo "de ambos canales" sin un % manual propio (no
+  // hay dónde configurarlo por persona/turno), así que se reparten igual que
+  // un costo fijo mensual sin override: proporcional a la facturación.
+  const { local: manoObraLocal, web: manoObraWeb } = repartir(manoObra.total, 'ambos', shareWebDefault, null)
+
   const local: RentabilidadCanal = {
     ...emptyCanal(),
     facturado: facturadoLocal,
@@ -161,8 +188,9 @@ export async function computeRentabilidadMes(mes: string): Promise<RentabilidadM
     costosFijos: costosFijosLocal,
     costosVariables: costosVariablesLocal,
     costosUnicos: costosUnicosLocal,
+    costoManoObra: manoObraLocal,
   }
-  local.gananciaNeta = local.gananciaBruta - local.costosFijos - local.costosVariables - local.costosUnicos
+  local.gananciaNeta = local.gananciaBruta - local.costosFijos - local.costosVariables - local.costosUnicos - local.costoManoObra
   local.margenNeto = local.facturado > 0 ? (local.gananciaNeta / local.facturado) * 100 : 0
 
   const web: RentabilidadCanal = {
@@ -173,9 +201,10 @@ export async function computeRentabilidadMes(mes: string): Promise<RentabilidadM
     costosFijos: costosFijosWeb,
     costosVariables: costosVariablesWeb,
     costosUnicos: costosUnicosWeb,
+    costoManoObra: manoObraWeb,
     sinVincular: sinVincularWeb,
   }
-  web.gananciaNeta = web.gananciaBruta - web.costosFijos - web.costosVariables - web.costosUnicos
+  web.gananciaNeta = web.gananciaBruta - web.costosFijos - web.costosVariables - web.costosUnicos - web.costoManoObra
   web.margenNeto = web.facturado > 0 ? (web.gananciaNeta / web.facturado) * 100 : 0
 
   const facturadoTotal = local.facturado + web.facturado
@@ -190,5 +219,6 @@ export async function computeRentabilidadMes(mes: string): Promise<RentabilidadM
       gananciaNeta: gananciaNetaTotal,
       margenNeto: facturadoTotal > 0 ? (gananciaNetaTotal / facturadoTotal) * 100 : 0,
     },
+    manoObraIncluida: manoObra.incluida,
   }
 }
