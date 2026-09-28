@@ -2,7 +2,9 @@
 //
 // SOLO información pública para clientes, sacada de right.com.ar (Contacto,
 // Quiénes somos, Garantía y políticas de cambio, fichas de producto) —
-// revisada el 28/09/2026. Nada interno (facturación, costos, proveedores,
+// revisada el 28/09/2026. El horario lo confirmó Facu (la web dice "lunes a
+// sábado de 9 a 20" corrido, pero el local cierra al mediodía y el sábado
+// abre solo a la mañana). Nada interno (facturación, costos, proveedores,
 // datos de la agencia): esto lo "dice" el bot a cualquiera que escriba.
 //
 // Si cambia algo del local (horario, dirección, política, promo), se
@@ -13,7 +15,7 @@ export const INFO_NEGOCIO = `RIGHT (Right Botines) — tienda de botines de fút
 
 Dónde comprar y contacto
 - Tienda online: right.com.ar (se compra ahí y se envía a todo el país). SÍ tenemos web.
-- Local / showroom: Fray Cayetano Rodríguez 3985, Santa Fe Capital. Lunes a sábado de 9 a 20 hs.
+- Local / showroom: Fray Cayetano Rodríguez 3985, Santa Fe Capital. Lunes a viernes de 9 a 13 hs y de 16 a 20 hs. Sábados de 9 a 13 hs. Domingos cerrado.
 - WhatsApp y teléfono: 342 405-4898. Mail: rightcontacto@gmail.com.
 - Instagram y TikTok: @right.botinessf.
 - Vendemos por menor y por mayor.

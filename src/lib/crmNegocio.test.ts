@@ -5,7 +5,7 @@ import { INFO_NEGOCIO } from './crmNegocio'
 // WhatsApp: nada interno puede terminar ahí.
 describe('INFO_NEGOCIO', () => {
   it('tiene lo básico que preguntan los clientes', () => {
-    for (const dato of ['right.com.ar', 'Fray Cayetano Rodríguez 3985', 'lunes a sábado', '3 cuotas sin interés', '30 días', '24 hs hábiles']) {
+    for (const dato of ['right.com.ar', 'Fray Cayetano Rodríguez 3985', 'lunes a viernes de 9 a 13 hs y de 16 a 20 hs', 'sábados de 9 a 13 hs', '3 cuotas sin interés', '30 días', '24 hs hábiles']) {
       expect(INFO_NEGOCIO.toLowerCase()).toContain(dato.toLowerCase())
     }
   })
