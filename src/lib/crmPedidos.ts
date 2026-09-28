@@ -141,15 +141,15 @@ export function formatoFechaCorta(d: Date): string {
   return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' })
 }
 
-// "Llega aprox. entre el 3/10 y el 7/10." — o nada si no hay fecha o si la
+// "Te llegaría entre el 3/10 y el 7/10" — o nada si no hay fecha o si la
 // fecha ya pasó (decirle al cliente "llega el 20/9" el 28/9 no ayuda).
 export function textoEntrega(r: ResumenEnvio, ahora: Date = new Date()): string | null {
   const max = r.entregaMax ?? r.entregaMin
   if (!max || max.getTime() < ahora.getTime() - 86_400_000) return null
   const min = r.entregaMin && r.entregaMin.getTime() > ahora.getTime() ? r.entregaMin : null
   const dMax = formatoFechaCorta(max)
-  if (!min || formatoFechaCorta(min) === dMax) return `Llega aprox. el ${dMax}.`
-  return `Llega aprox. entre el ${formatoFechaCorta(min)} y el ${dMax}.`
+  if (!min || formatoFechaCorta(min) === dMax) return `Te llegaría el ${dMax}`
+  return `Te llegaría entre el ${formatoFechaCorta(min)} y el ${dMax}`
 }
 
 export function resumenProductos(o: Pick<PedidoTN, 'products'>): string {
@@ -161,32 +161,34 @@ export function diasDesdeCompra(o: Pick<PedidoTN, 'created_at'>, ahora: Date = n
 }
 
 // Respuesta lista para mandarle al cliente con el estado real del pedido.
+// Estilo WhatsApp de persona: sin emojis ni signos de apertura (ver
+// humanizar() en crmTexto.ts).
 export function respuestaEstadoPedido(o: PedidoTN, ahora: Date = new Date()): string {
   const r = resumenEnvio(o)
   const cual = `Tu pedido #${o.number}${o.products?.length ? ` (${resumenProductos(o)})` : ''}`
   const entrega = textoEntrega(r, ahora)
   switch (r.estado) {
     case 'cancelado':
-      return `${cual} figura como cancelado. Si tenés alguna duda te ayudo 🙌`
+      return `${cual} figura cancelado. Cualquier duda decime y lo vemos`
     case 'pago_pendiente':
-      return `${cual} todavía figura con el pago pendiente. Apenas se acredite lo preparamos y te avisamos 🙌`
+      return `${cual} todavía figura con el pago pendiente. Apenas se acredite lo preparamos y te aviso`
     case 'en_preparacion':
       return r.esRetiro
-        ? `¡Hola! ${cual} ya está confirmado y lo estamos preparando 📦 Te avisamos cuando esté listo para retirar.`
-        : `¡Hola! ${cual} ya está confirmado y lo estamos preparando 📦${entrega ? ` ${entrega}` : ''}`
+        ? `Hola! ${cual} ya está confirmado, lo estamos preparando. Te aviso cuando esté listo para retirar`
+        : `Hola! ${cual} ya está confirmado, lo estamos preparando.${entrega ? ` ${entrega}` : ''}`
     case 'preparado':
-      return `¡Hola! ${cual} ya está listo y sale en los próximos días 📦${entrega ? ` ${entrega}` : ''}`
+      return `Hola! ${cual} ya está listo, sale en los próximos días.${entrega ? ` ${entrega}` : ''}`
     case 'listo_retirar':
-      return `¡Hola! ${cual} ya está listo para retirar 🙌`
+      return `Hola! ${cual} ya está listo para retirar`
     case 'enviado': {
-      const partes = [`¡Hola! ${cual} ya fue despachado 🚚${r.transportista ? ` por ${r.transportista}` : ''}.`]
+      const partes = [`Hola! ${cual} ya salió${r.transportista ? ` por ${r.transportista}` : ''}.`]
       if (r.codigo) partes.push(`Código de seguimiento: ${r.codigo}`)
-      if (r.url) partes.push(`Seguilo acá: ${r.url}`)
+      if (r.url) partes.push(`Lo podés seguir acá: ${r.url}`)
       if (entrega) partes.push(entrega)
       return partes.join('\n')
     }
     case 'entregado':
-      return `${cual} figura como entregado ✅ ¿Llegó todo bien?`
+      return `${cual} figura como entregado. Llegó todo bien?`
   }
 }
 

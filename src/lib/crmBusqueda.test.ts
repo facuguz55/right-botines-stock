@@ -11,6 +11,8 @@ import {
   detectarBusqueda,
   normalizeTipo,
   respuestaSugeridaBusqueda,
+  textoPreguntarTalle,
+  textoPreguntarTipo,
   resumirStock,
   tipoDeCategoria,
   talleIaEsConfiable,
@@ -215,29 +217,29 @@ describe('respuestas según el stock real', () => {
   it('el caso de la captura: talle 32 sin stock → lo dice, no inventa', () => {
     expect(detectarBusqueda('Hola qué tenes en talle 32').talle).toBe(32)
     const r = respuestaSugeridaBusqueda({ talle: 32, tipo: null, modelo: null }, stock({}))
-    expect(r).toMatch(/talle 32 por ahora no nos queda stock/)
+    expect(r).toBe('Uh, en el 32 por ahora no nos queda nada. Si querés te aviso cuando entre')
     expect(r).not.toMatch(/tenemos/)
   })
   it('un solo tipo con stock → lo dice directo, sin preguntar', () => {
     expect(respuestaSugeridaBusqueda({ talle: 32, tipo: null, modelo: null }, stock({ F11: 3 })))
-      .toBe('¡Sí! En talle 32 tenemos 3 modelos de Fútbol 11 👟 ¿Te paso las fotos?')
+      .toBe('Sí! En el 32 tenemos 3 modelos de fútbol 11. Te paso fotos?')
   })
   it('varios tipos → pregunta solo entre los que hay', () => {
     const r = respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: null }, stock({ F11: 5, Futsal: 2 }))
-    expect(r).toBe('¡Sí! En talle 40 tenemos en Fútbol 11 y Futsal 👟 ¿Para cuál los buscás?')
-    expect(r).not.toMatch(/Fútbol 5/)
+    expect(r).toBe('Sí! En el 40 tenemos de fútbol 11 y futsal. Para cuál los buscás?')
+    expect(r).not.toMatch(/fútbol 5/)
   })
   it('pide un tipo que no hay → ofrece los que sí', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: 'F5', modelo: null }, stock({ F11: 5 })))
-      .toBe('En talle 40 de Fútbol 5 ahora no nos queda nada 😕 Sí tenemos de Fútbol 11. ¿Te sirve?')
+      .toBe('De fútbol 5 en el 40 ahora no nos queda nada. Sí tenemos de fútbol 11, te sirve?')
   })
   it('pide un tipo que hay → cuántos y fotos', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: 'F11', modelo: null }, stock({ F11: 1 })))
-      .toBe('¡Sí! En talle 40 tenemos 1 modelo de Fútbol 11 👟 Te paso las fotos 👇')
+      .toBe('Sí! En el 40 tenemos 1 modelo de fútbol 11. Ahí te paso fotos')
   })
   it('con modelo', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, stock({ F5: 2 })))
-      .toBe('¡Sí! En talle 40 tenemos 2 modelos F50 de Fútbol 5 👟 ¿Te paso las fotos?')
+      .toBe('Sí! En el 40 tenemos 2 modelos F50 de fútbol 5. Te paso fotos?')
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, stock({})))
       .toMatch(/no nos quedan F50/)
     expect(respuestaSugeridaBusqueda({ talle: null, tipo: null, modelo: 'f50' }, null)).toMatch(/Qué talle/)
@@ -249,7 +251,7 @@ describe('respuestas según el stock real', () => {
       respuestaSugeridaBusqueda({ talle: null, tipo: 'F11', modelo: null }, null),
     ]) {
       // Ni "hay" ni "no hay": sin stock consultado no se afirma nada.
-      expect(r).not.toMatch(/¡Sí!|(?<!qué )tenemos (\d|los|en|modelos)|no nos queda/)
+      expect(r).not.toMatch(/Sí!|(?<!qué )tenemos (\d|los|en|modelos|de)|no nos queda/)
     }
   })
   it('categorías → tipo', () => {
@@ -260,5 +262,21 @@ describe('respuestas según el stock real', () => {
   })
   it('talles de chicos', () => {
     expect(detectarBusqueda('tenés en 28 para mi hijo?').talle).toBe(28)
+  })
+})
+
+describe('estilo humano en todas las respuestas', () => {
+  it('ninguna respuesta fija tiene emojis, ¿ ¡ ni guiones largos', () => {
+    const tipos = [null, 'F11', 'F5', 'Futsal', 'Hockey'] as const
+    const stocks = [null, { porTipo: {}, total: 0 }, { porTipo: { F11: 1 }, total: 1 }, { porTipo: { F11: 2, F5: 3, Futsal: 1 }, total: 6 }]
+    const textos: string[] = [textoPreguntarTipo(null), textoPreguntarTipo(40), ...tipos.map(t => textoPreguntarTalle(t))]
+    for (const talle of [null, 32, 40]) for (const tipo of tipos) for (const modelo of [null, 'f50 negro sc']) for (const stock of stocks) {
+      const r = respuestaSugeridaBusqueda({ talle, tipo, modelo }, stock)
+      if (r) textos.push(r)
+    }
+    expect(textos.length).toBeGreaterThan(50)
+    for (const t of textos) {
+      expect(t).not.toMatch(/[¿¡—•]|\p{Extended_Pictographic}/u)
+    }
   })
 })

@@ -435,25 +435,36 @@ export function resumirStock(categorias: (string | null)[]): StockResumen {
   return { porTipo, total: categorias.length }
 }
 
+// Cómo lo escribe una persona en un mensaje ("de fútbol 11", no "de Fútbol 11").
+const TIPO_TEXTO: Record<TipoBotin, string> = {
+  F11: 'fútbol 11',
+  F5: 'fútbol 5',
+  Futsal: 'futsal',
+  Hockey: 'hockey',
+}
+
 function listaTipos(tipos: TipoBotin[]): string {
-  const labels = tipos.map(t => TIPO_LABEL[t])
-  return labels.length <= 1 ? labels.join('') : `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`
+  const t = tipos.map(x => TIPO_TEXTO[x])
+  return t.length <= 1 ? t.join('') : `${t.slice(0, -1).join(', ')} y ${t[t.length - 1]}`
 }
 
 function modelos(n: number): string {
   return n === 1 ? '1 modelo' : `${n} modelos`
 }
 
+// Estilo: como escribe una vendedora desde el celular — sin emojis, sin
+// signos de apertura (¿ ¡), frases cortas. Ver también humanizar() en
+// crmTexto.ts, que lo garantiza para cualquier texto.
 export function textoPreguntarTipo(talle: number | null): string {
   return talle
-    ? `¡Hola! ¿Para qué cancha los buscás? ¿Fútbol 11, Fútbol 5 o Futsal? Así me fijo qué tenemos en talle ${talle} 👟`
-    : '¿Para qué cancha los buscás? ¿Fútbol 11, Fútbol 5 o Futsal? 👟'
+    ? `Hola! Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal? Así me fijo qué tenemos en el ${talle}`
+    : 'Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal?'
 }
 
 export function textoPreguntarTalle(tipo: TipoBotin | null): string {
   return tipo
-    ? `¡Genial! ¿Qué talle usás para los de ${TIPO_LABEL[tipo]}? Así me fijo qué tenemos 👟`
-    : '¿Qué talle usás? Así me fijo qué tenemos 👟'
+    ? `Genial, qué talle usás? Así me fijo qué tenemos de ${TIPO_TEXTO[tipo]}`
+    : 'Qué talle usás? Así me fijo qué tenemos'
 }
 
 // Respuesta sugerida cuando el mensaje aportó talle/tipo/modelo. `stock` es
@@ -464,33 +475,33 @@ export function respuestaSugeridaBusqueda(estado: EstadoBusqueda, stock: StockRe
   const deModelo = modelo ? ` ${etiquetaModelo(modelo)}` : ''
 
   if (!talle) {
-    if (modelo) return `¡Hola! ¿Qué talle usás? Así me fijo si tenemos los${deModelo} 👟`
+    if (modelo) return `Hola! Qué talle usás? Así me fijo si tenemos los${deModelo}`
     return tipo ? textoPreguntarTalle(tipo) : null
   }
 
   if (!stock) {
     // Sin poder mirar el stock: preguntar lo que falta, sin prometer nada.
     if (!tipo) return textoPreguntarTipo(talle)
-    return `¡Dale! Me fijo qué tenemos en talle ${talle} de ${TIPO_LABEL[tipo]}${deModelo ? ` (${deModelo.trim()})` : ''} y te paso las fotos 👟`
+    return `Dale, me fijo qué tenemos en el ${talle} de ${TIPO_TEXTO[tipo]}${deModelo ? ` (${deModelo.trim()})` : ''} y te paso fotos`
   }
 
   const disponibles = TIPOS_BOTIN.filter(t => (stock.porTipo[t] ?? 0) > 0)
   const sinStock = modelo
-    ? `Uh, en talle ${talle} no nos quedan${deModelo} 😕 ¿Querés que te muestre otros modelos en tu talle?`
-    : `Uh, en talle ${talle} por ahora no nos queda stock 😕 Si querés te aviso cuando entre.`
+    ? `Uh, en el ${talle} no nos quedan${deModelo}. Querés que te muestre otros modelos en tu talle?`
+    : `Uh, en el ${talle} por ahora no nos queda nada. Si querés te aviso cuando entre`
 
   if (tipo) {
     const n = stock.porTipo[tipo] ?? 0
-    if (n > 0) return `¡Sí! En talle ${talle} tenemos ${modelos(n)}${deModelo} de ${TIPO_LABEL[tipo]} 👟 Te paso las fotos 👇`
+    if (n > 0) return `Sí! En el ${talle} tenemos ${modelos(n)}${deModelo} de ${TIPO_TEXTO[tipo]}. Ahí te paso fotos`
     const otros = disponibles.filter(t => t !== tipo)
-    if (otros.length) return `En talle ${talle} de ${TIPO_LABEL[tipo]} ahora no nos queda${deModelo ? `n los${deModelo}` : ' nada'} 😕 Sí tenemos de ${listaTipos(otros)}. ¿Te sirve?`
+    if (otros.length) return `De ${TIPO_TEXTO[tipo]} en el ${talle} ahora no nos queda${deModelo ? `n los${deModelo}` : ' nada'}. Sí tenemos de ${listaTipos(otros)}, te sirve?`
     return sinStock
   }
 
   if (stock.total === 0 || disponibles.length === 0) return sinStock
   if (disponibles.length === 1) {
     const t = disponibles[0]
-    return `¡Sí! En talle ${talle} tenemos ${modelos(stock.porTipo[t] ?? 0)}${deModelo} de ${TIPO_LABEL[t]} 👟 ¿Te paso las fotos?`
+    return `Sí! En el ${talle} tenemos ${modelos(stock.porTipo[t] ?? 0)}${deModelo} de ${TIPO_TEXTO[t]}. Te paso fotos?`
   }
-  return `¡Sí! En talle ${talle} tenemos${deModelo ? ` los${deModelo}` : ''} en ${listaTipos(disponibles)} 👟 ¿Para cuál los buscás?`
+  return `Sí! En el ${talle} tenemos${deModelo ? ` los${deModelo}` : ''} de ${listaTipos(disponibles)}. Para cuál los buscás?`
 }

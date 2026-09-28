@@ -408,9 +408,9 @@ export function App() {
                 await linkClienteLocal(venta.crmClienteId, clienteId)
               }
               const resumen = items
-                .map(i => `• ${i.modelo.marca} ${i.modelo.modelo} talle ${i.talleArg} x${i.cantidad}`)
+                .map(i => `- ${i.modelo.marca} ${i.modelo.modelo} talle ${i.talleArg}${i.cantidad > 1 ? ` x${i.cantidad}` : ''}`)
                 .join('\n')
-              await sendTextMessage(venta.conversacionId, `✅ Venta registrada:\n${resumen}`, empleadoId, venta.waContactId)
+              await sendTextMessage(venta.conversacionId, `Listo, quedó registrada tu compra:\n${resumen}`, empleadoId, venta.waContactId)
             } catch (err) {
               console.error('No se pudo vincular el cliente o avisar la venta del CRM por WhatsApp:', err)
             } finally {
@@ -512,7 +512,7 @@ export function App() {
             for (const item of items) {
               const fotoUrl = item.fotos[0]?.foto_url
               if (!fotoUrl) continue
-              const caption = `${item.marca} ${item.modelo} — $${item.precio_real.toLocaleString('es-AR')}`
+              const caption = `${item.marca} ${item.modelo} - $${item.precio_real.toLocaleString('es-AR')}`
               await sendImageMessage(photoSender.conversacionId, fotoUrl, caption, empleadoId, waContactId)
             }
           }}

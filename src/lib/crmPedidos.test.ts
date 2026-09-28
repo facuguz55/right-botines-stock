@@ -61,7 +61,7 @@ describe('resumenEnvio', () => {
       }],
     })
     expect(r).toMatchObject({ estado: 'enviado', codigo: 'AND999', transportista: 'Andreani' })
-    expect(textoEntrega(r, ahora)).toBe('Llega aprox. entre el 29/9 y el 1/10.')
+    expect(textoEntrega(r, ahora)).toBe('Te llegaría entre el 29/9 y el 1/10')
   })
   it('retiro en el local', () => {
     expect(resumenEnvio({ ...base, fulfillments: [{ status: 'READY_FOR_PICKUP' }] }).estado).toBe('listo_retirar')
@@ -69,7 +69,7 @@ describe('resumenEnvio', () => {
   it('fecha estimada con días hábiles de la opción de envío', () => {
     const r = resumenEnvio({ ...base, paid_at: '2026-09-25T10:00:00-03:00', shipping_min_days: 3, shipping_max_days: 5 })
     // viernes 25/9 + 3 hábiles = miércoles 30/9; + 5 = viernes 2/10
-    expect(textoEntrega(r, ahora)).toBe('Llega aprox. entre el 30/9 y el 2/10.')
+    expect(textoEntrega(r, ahora)).toBe('Te llegaría entre el 30/9 y el 2/10')
   })
   it('no promete una fecha que ya pasó', () => {
     const r = resumenEnvio({ ...base, paid_at: '2026-09-01T10:00:00-03:00', shipping_min_days: 3, shipping_max_days: 5 })
@@ -84,8 +84,8 @@ describe('respuestaEstadoPedido', () => {
     expect(txt).toContain('Adidas F50 Negro Blanco (40)')
     expect(txt).toContain('por Correo Argentino')
     expect(txt).toContain('Código de seguimiento: CA123')
-    expect(txt).not.toContain('Seguilo acá')
-    expect(txt).not.toContain('Llega aprox')
+    expect(txt).not.toContain('Lo podés seguir')
+    expect(txt).not.toContain('Te llegaría')
   })
   it('en preparación', () => {
     expect(respuestaEstadoPedido(base, ahora)).toMatch(/lo estamos preparando/)
@@ -118,5 +118,23 @@ describe('detección en el mensaje', () => {
     ['me llamo al 3424633285', null],
   ])('%s → número %s', (texto, numero) => {
     expect(extraerNumeroPedido(texto)).toBe(numero)
+  })
+})
+
+describe('estilo humano en respuestas de pedidos', () => {
+  it('ninguna tiene emojis, ¿ ¡ ni guiones largos', () => {
+    const variantes: PedidoTN[] = [
+      { ...base, status: 'cancelled' },
+      { ...base, payment_status: 'pending' },
+      base,
+      { ...base, shipping_pickup_type: 'pickup' },
+      { ...base, shipping_status: 'unshipped' },
+      { ...base, fulfillments: [{ status: 'READY_FOR_PICKUP' }] },
+      { ...base, shipping_status: 'shipped', shipping_option: 'Andreani', shipping_tracking_number: 'X1', shipping_tracking_url: 'https://a/X1' },
+      { ...base, shipping_status: 'delivered' },
+    ]
+    for (const v of variantes) {
+      expect(respuestaEstadoPedido(v, ahora)).not.toMatch(/[¿¡—•]|\p{Extended_Pictographic}/u)
+    }
   })
 })

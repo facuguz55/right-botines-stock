@@ -5,6 +5,7 @@ import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import { TIPO_LABEL, busquedaVigente, etiquetaModelo, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
 import { AudioMessage } from './AudioMessage'
 import { OrdersPanel } from '../OrdersPanel/OrdersPanel'
+import { humanizar } from '../../../lib/crmTexto'
 import './ChatPanel.css'
 
 interface ChatPanelProps {
@@ -181,7 +182,7 @@ export default function ChatPanel({
 
   const handleUseSugerencia = () => {
     if (sugerencia?.respuesta_sugerida) {
-      setText(sugerencia.respuesta_sugerida)
+      setText(humanizar(sugerencia.respuesta_sugerida))
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto'
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
@@ -342,9 +343,12 @@ export default function ChatPanel({
               // Consulta por un pedido ya hecho: el webhook armó la respuesta con
               // los datos reales del pedido (o pide el número si no lo encontró).
               const esConsultaPedido = sug?.intencion === 'estado_pedido' || sug?.intencion === 'garantia' || sug?.intencion === 'reclamo'
-              const quickReply = talleSug || tipoSug || modeloSug
+              const quickReplyCruda = talleSug || tipoSug || modeloSug
                 ? (sug?.respuesta_sugerida || (talleSug ? textoPreguntarTipo(talleSug) : textoPreguntarTalle(tipoSug)))
                 : sug?.intencion === 'estado_pedido' ? sug.respuesta_sugerida : null
+              // Las sugerencias viejas guardadas en la base pueden traer
+              // emojis/¿¡: lo que se ve en el tooltip es lo que se manda.
+              const quickReply = quickReplyCruda ? humanizar(quickReplyCruda) : null
               const mostrarQuickReply = !!quickReply && idx > ultimoOutIdx && !quickRepliesUsadas.has(msg.id)
               const llegada = llegadaRef.current.get(msg.id)
               const esperandoIA = msg.direccion === 'in' && !!msg.contenido && !sug && !!llegada && Date.now() - llegada < IA_ESPERA_MS
@@ -460,7 +464,7 @@ export default function ChatPanel({
       {sugerencia && sugerencia.respuesta_sugerida && (
         <div className="chat-panel-suggestion">
           <Bot size={16} className="chat-panel-suggestion-icon" />
-          <span className="chat-panel-suggestion-text">{sugerencia.respuesta_sugerida}</span>
+          <span className="chat-panel-suggestion-text">{humanizar(sugerencia.respuesta_sugerida)}</span>
           <button
             className="chat-panel-suggestion-btn chat-panel-suggestion-btn--use"
             onClick={handleUseSugerencia}
