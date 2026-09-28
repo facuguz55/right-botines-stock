@@ -249,6 +249,7 @@ interface TNRawOrder {
   coupon: unknown
   note: string | null
   shipping_address: unknown
+  contact_phone?: string | null
   created_at: string
 }
 
@@ -300,13 +301,23 @@ async function upsertOrdenServerSide(o: TNRawOrder): Promise<void> {
     note: o.note ?? null,
     shipping_address: o.shipping_address ?? null,
     products: o.products ?? [],
+    // Para que el CRM de WhatsApp encuentre los pedidos por teléfono (040).
+    contact_phone: o.contact_phone ?? null,
     tn_created_at: o.created_at,
   }
-  await sbFetch('tn_ordenes?on_conflict=tn_order_id', {
+  const upsert = (body: Record<string, unknown>) => sbFetch('tn_ordenes?on_conflict=tn_order_id', {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify(row),
+    body: JSON.stringify(body),
   })
+  try {
+    await upsert(row)
+  } catch (err) {
+    // Sin la migración 040 no existe contact_phone: se guarda la orden igual.
+    console.error('Upsert de tn_ordenes con contact_phone falló, reintentando sin:', err)
+    const { contact_phone: _omit, ...sinTelefono } = row
+    await upsert(sinTelefono)
+  }
 }
 
 async function upsertClienteServerSide(c: TNRawCustomer): Promise<void> {

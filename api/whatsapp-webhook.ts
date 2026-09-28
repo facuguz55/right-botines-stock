@@ -12,6 +12,14 @@ import {
   vocabularioCatalogo,
   type EstadoBusqueda,
 } from '../src/lib/crmBusqueda'
+import {
+  esConsultaEnvioSegura,
+  extraerNumeroPedido,
+  mencionaPedido,
+  respuestaEstadoPedido,
+  sufijoTelefono,
+  type PedidoTN,
+} from '../src/lib/crmPedidos'
 
 export const config = { runtime: 'edge' }
 
@@ -25,6 +33,10 @@ const WA_APP_SECRET = process.env.WA_APP_SECRET ?? ''
 // así que la clasificación automática de mensajes jamás se había ejecutado.
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY ?? ''
 const ANTHROPIC_MODEL = 'claude-haiku-4-5'
+// Las mismas credenciales de TiendaNube que usan api/tiendanube.ts y
+// api/tn-webhook.ts — para leer en vivo el estado/seguimiento de un pedido.
+const TN_STORE_ID = process.env.TN_STORE_ID ?? ''
+const TN_TOKEN = process.env.TN_TOKEN ?? ''
 
 // Verifica que el POST venga realmente de Meta: recalcula el HMAC-SHA256 del
 // body crudo con el App Secret y lo compara contra el header que manda Meta
@@ -139,7 +151,7 @@ async function getOrCreateConversation(
 }
 
 const CATEGORIAS_CRM = ['Urgente', 'Pedido de talles', 'Normal', 'Spam', 'Postventa/Reclamos', 'Mayorista'] as const
-const INTENCIONES = ['pedido_talle', 'consulta_precio', 'consulta_envio', 'reclamo', 'saludo', 'spam', 'otro'] as const
+const INTENCIONES = ['pedido_talle', 'consulta_precio', 'consulta_envio', 'estado_pedido', 'garantia', 'reclamo', 'saludo', 'spam', 'otro'] as const
 
 interface ClasificacionIA {
   categoria: string
@@ -169,10 +181,10 @@ const SYSTEM_CLASIFICADOR = `Sos el asistente que clasifica los mensajes de What
 
 Campos:
 - categoria: Urgente, Pedido de talles, Normal, Spam, Postventa/Reclamos o Mayorista.
-- intencion: pedido_talle, consulta_precio, consulta_envio, reclamo, saludo, spam u otro.
+- intencion: pedido_talle, consulta_precio, consulta_envio (pregunta ANTES de comprar: si hacen envíos, a dónde, cuánto sale, cuánto tarda), estado_pedido (pregunta por un pedido que YA hizo: si salió, cuándo le llega, el código de seguimiento, qué compró), garantia (un producto que ya compró se rompió o falló), reclamo (otra queja o problema con una compra), saludo, spam u otro.
 - talle_arg: el talle ARGENTINO que el CLIENTE dijo que busca (en este mensaje o antes en la conversación). Si lo dio en talle US convertilo así: 5→34, 5.5→35, 6→36, 7→37, 7.5→38, 8→39, 9→40, 9.5→41, 10→42, 11→43, 11.5→44. Si pidió más de un talle, si no está claro, o si el número no es un talle (precio, edad, hora, cantidad), devolvé null. Nunca uses un talle que solo mencionó el local.
 - tipo: F11 (fútbol 11, cancha de 11, pasto natural, tapones), F5 (fútbol 5, sintético, papi, multitapón; también cancha de 7 u 8), Futsal (futsal, sala, piso, indoor) o Hockey. Solo si el CLIENTE lo dijo o lo dejó claro; si mencionó más de uno o no dijo nada, null.
-- respuesta_sugerida: una respuesta corta y amable en español argentino informal (voseo), como la escribiría la vendedora. No inventes stock, precios ni promociones.
+- respuesta_sugerida: una respuesta corta y amable en español argentino informal (voseo), como la escribiría la vendedora. No inventes stock, precios, promociones, estados de pedidos, códigos de seguimiento, fechas de entrega ni políticas de garantía o cambios: si hace falta un dato que no tenés, pedí lo que falte o decí que lo revisás.
 
 Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.`
 
@@ -246,6 +258,61 @@ async function contarModelosDisponibles(estado: EstadoBusqueda): Promise<number 
   }
 }
 
+// Estado real de un pedido, en vivo desde TiendaNube (tracking incluido).
+// Tope de 3,5 s: el webhook entero tiene que responderle a Meta a tiempo.
+async function fetchPedidoTNEnVivo(tnOrderId: number): Promise<PedidoTN | null> {
+  if (!TN_STORE_ID || !TN_TOKEN) {
+    console.error('Sin TN_STORE_ID/TN_TOKEN: no se puede leer el estado del pedido')
+    return null
+  }
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 3500)
+  try {
+    const res = await fetch(`https://api.tiendanube.com/v1/${TN_STORE_ID}/orders/${tnOrderId}`, {
+      headers: { Authentication: `bearer ${TN_TOKEN}`, 'User-Agent': 'RightBotinesStock (contacto@rightbotines.com)' },
+      signal: ctrl.signal,
+    })
+    if (!res.ok) {
+      console.error('TN orders/', tnOrderId, '→', res.status)
+      return null
+    }
+    return await res.json() as PedidoTN
+  } catch (err) {
+    console.error('No se pudo leer el pedido de TiendaNube:', err)
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// El pedido por el que pregunta: el número que haya mencionado o, si no, el
+// más reciente de su teléfono (en tn_clientes o en la orden misma — ver la
+// migración 040). Se busca en la copia local de Supabase (rápido) y recién
+// ese pedido puntual se pide en vivo a TiendaNube.
+async function buscarPedidoDelCliente(telefono: string | null, numero: number | null): Promise<PedidoTN | null> {
+  try {
+    let tnOrderId: number | null = null
+    if (numero) {
+      const rows = await (await sbFetch(`tn_ordenes?number=eq.${numero}&select=tn_order_id&limit=1`)).json() as { tn_order_id: number }[]
+      tnOrderId = rows[0]?.tn_order_id ?? null
+    }
+    const suf = sufijoTelefono(telefono)
+    if (!tnOrderId && suf) {
+      const clientes = await (await sbFetch(`tn_clientes?telefono_digitos=like.*${suf}&select=tn_customer_id&limit=5`)).json() as { tn_customer_id: number }[]
+      const ids = clientes.map(c => c.tn_customer_id)
+      const filtro = ids.length
+        ? `or=(telefono_digitos.like.*${suf},customer_tn_id.in.(${ids.join(',')}))`
+        : `telefono_digitos=like.*${suf}`
+      const rows = await (await sbFetch(`tn_ordenes?${filtro}&select=tn_order_id&order=tn_created_at.desc&limit=1`)).json() as { tn_order_id: number }[]
+      tnOrderId = rows[0]?.tn_order_id ?? null
+    }
+    return tnOrderId ? await fetchPedidoTNEnVivo(tnOrderId) : null
+  } catch (err) {
+    console.error('No se pudo buscar el pedido del cliente (¿falta la migración 040?):', err)
+    return null
+  }
+}
+
 // Intenta con todos los campos y, si falla (columnas de una migración que
 // todavía no se aplicó), reintenta sin los campos opcionales — así un deploy
 // antes de correr la migración no deja al CRM sin clasificar.
@@ -291,10 +358,32 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // El modelo sale solo del catálogo real (nunca de la IA).
     const det = detectarBusqueda(text, { ultimoMensajeLocal })
     const modeloMsg = catalogo.length ? extraerModeloBuscado(text, vocabularioCatalogo(catalogo)) : null
+
+    // Si el mensaje parece hablar de un pedido ya hecho, se busca en paralelo
+    // con la IA (para no sumar su demora a la de TiendaNube).
+    const telefono = (estadoRow.telefono as string | undefined) || (estadoRow.wa_contact_id as string | undefined) || null
+    const numeroPedido = extraerNumeroPedido(text)
+    let pedidoPromise: Promise<PedidoTN | null> | null = mencionaPedido(text)
+      ? buscarPedidoDelCliente(telefono, numeroPedido)
+      : null
+
     const ia = await llamarClasificadorIA(contexto, busquedaPrevia, text).catch(err => {
       console.error('classifyWithAI: falló la llamada a Anthropic:', err)
       return null
     })
+
+    // Pregunta por el estado de un pedido: lo decide la IA; sin IA, solo
+    // frases inequívocas ("cuándo me llega", "seguimiento").
+    const preguntaPorPedido = ia ? ia.intencion === 'estado_pedido' : esConsultaEnvioSegura(text)
+    if (preguntaPorPedido && !pedidoPromise) pedidoPromise = buscarPedidoDelCliente(telefono, numeroPedido)
+    const pedido = preguntaPorPedido && pedidoPromise ? await pedidoPromise : null
+    // Con el pedido real, la respuesta sale de sus datos. Sin pedido, NUNCA
+    // la de la IA (podría inventar un estado o un código): se pide el dato.
+    const respuestaPedido = preguntaPorPedido
+      ? (pedido
+        ? respuestaEstadoPedido(pedido)
+        : '¡Hola! ¿Me pasás el número de pedido, o el nombre o mail con el que compraste? Así te lo busco 🙌')
+      : null
     const tipoMsg = det.tipo
       ?? (det.tiposEncontrados.length === 0 && ia ? tipoIaEsConfiable(ia.tipo, text) : null)
     // El talle de la IA tiene que estar en ESTE mensaje: si no, un "gracias!"
@@ -308,9 +397,9 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const aporto = talleMsg !== null || tipoMsg !== null || modeloMsg !== null
     const busqueda = combinarBusqueda(busquedaPrevia, { talle: talleMsg, tipo: tipoMsg, modelo: modeloMsg })
 
-    if (!ia && !aporto) return
+    if (!ia && !aporto && !respuestaPedido) return
 
-    let respuesta = ia?.respuesta_sugerida?.trim() || null
+    let respuesta = respuestaPedido ?? ia?.respuesta_sugerida?.trim() ?? null
     if (aporto) {
       const stock = await contarModelosDisponibles(busqueda)
       respuesta = respuestaSugeridaBusqueda(busqueda, stock) ?? respuesta
@@ -322,7 +411,9 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
       mensaje_id: messageId,
       conversacion_id: conversacionId,
       categoria_sugerida: categoria,
-      intencion: ia?.intencion ?? (aporto ? 'pedido_talle' : null),
+      // 'estado_pedido' solo si la respuesta es la armada con datos reales
+      // (o el pedido del número): el chat ofrece mandarla con un click.
+      intencion: respuestaPedido && !aporto ? 'estado_pedido' : ia?.intencion ?? (aporto ? 'pedido_talle' : null),
       // Solo en el mensaje que aportó algo: ahí va el botón de fotos / de
       // respuesta rápida, con lo acumulado de la charla (38 + F11 + F50).
       tipo_detectado: aporto ? busqueda.tipo : null,

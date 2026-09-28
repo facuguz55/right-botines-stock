@@ -60,7 +60,7 @@ export async function fetchLocalTNCupones(): Promise<TNCoupon[]> {
   return (data ?? []).map(cuponRowToTNCoupon)
 }
 
-function orderRowToTNOrder(r: Record<string, unknown>): TNOrder {
+export function orderRowToTNOrder(r: Record<string, unknown>): TNOrder {
   return {
     id: Number(r.tn_order_id),
     number: Number(r.number) || 0,
@@ -138,6 +138,8 @@ function ordenRow(o: TNOrder) {
     note: o.note ?? null,
     shipping_address: o.shipping_address ?? null,
     products: o.products ?? [],
+    // Para que el CRM de WhatsApp encuentre los pedidos por teléfono (040).
+    contact_phone: o.contact_phone ?? null,
     tn_created_at: o.created_at,
   }
 }
@@ -184,7 +186,13 @@ export async function syncTNOrdenes(onProgress?: (n: number) => void): Promise<{
   const { storeId, token } = getTNCredentials()
   const orders = await fetchAllTNOrders(storeId, token, onProgress, true)
   const rows = orders.map(ordenRow)
-  await upsertBatch('tn_ordenes', rows, 'tn_order_id')
+  try {
+    await upsertBatch('tn_ordenes', rows, 'tn_order_id')
+  } catch (err) {
+    // Sin la migración 040 no existe contact_phone: se sincroniza igual sin él.
+    console.error('Sync de órdenes con contact_phone falló, reintentando sin:', err)
+    await upsertBatch('tn_ordenes', rows.map(({ contact_phone: _omit, ...r }) => r), 'tn_order_id')
+  }
   return { synced: rows.length }
 }
 

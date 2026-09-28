@@ -1,4 +1,5 @@
 .chat-panel {
+  position: relative; /* para el panel de pedidos que se abre encima */
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -796,4 +797,22 @@
 
 @keyframes chat-panel-ia-spin {
   to { transform: rotate(360deg); }
+}
+
+/* Botón 📦 pegado al mensaje que pregunta por un pedido — violeta, para no
+   confundirlo con el de fotos (naranja) ni el de respuesta rápida (cyan). */
+.chat-panel-msg-orders-btn {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: #A78BFA;
+  color: #A78BFA;
+}
+
+.chat-panel-msg-orders-btn:hover {
+  background: #A78BFA;
+  color: #000;
+}
+
+.chat-panel-action-btn--active {
+  border-color: #22D3EE;
+  color: #22D3EE;
 }

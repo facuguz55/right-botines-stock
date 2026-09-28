@@ -38,6 +38,7 @@ export interface TNOrder {
   } | null
   coupon: TNOrderCoupon[] | null
   note: string | null
+  contact_phone?: string | null
   shipping_address: {
     name: string
     address: string
@@ -405,6 +406,13 @@ export async function fetchAllTNOrders(
 
   try { localStorage.setItem(ALL_ORDERS_KEY, JSON.stringify({ data: all, ts: Date.now() })) } catch { /* ignore */ }
   return all
+}
+
+// Una orden puntual, en vivo (con el estado de envío y seguimiento al día,
+// que la copia local en tn_ordenes no tiene).
+export async function fetchTNOrder(storeId: string, token: string, orderId: number): Promise<unknown> {
+  const { data } = await tnFetch(storeId, token, `orders/${orderId}`)
+  return data
 }
 
 // ── Products ──────────────────────────────────────────────────────────────────

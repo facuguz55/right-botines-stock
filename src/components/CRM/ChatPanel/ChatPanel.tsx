@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2 } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import { TIPO_LABEL, busquedaVigente, etiquetaModelo, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
 import { AudioMessage } from './AudioMessage'
+import { OrdersPanel } from '../OrdersPanel/OrdersPanel'
 import './ChatPanel.css'
 
 interface ChatPanelProps {
@@ -62,6 +63,7 @@ export default function ChatPanel({
   // Respuestas rápidas ya tocadas: el botón se oculta al toque, sin esperar a
   // que llegue el mensaje enviado (evita mandarla dos veces con doble click).
   const [quickRepliesUsadas, setQuickRepliesUsadas] = useState<Set<string>>(new Set())
+  const [pedidosOpen, setPedidosOpen] = useState(false)
 
   // Mensajes del cliente que llegan con el chat abierto: la IA tarda unos
   // segundos en leerlos (el webhook espera hasta 8 s), y en ese rato se
@@ -136,7 +138,22 @@ export default function ChatPanel({
 
   useEffect(() => {
     setRenaming(false)
+    setPedidosOpen(false)
   }, [conversacion?.id])
+
+  // "Usar en el mensaje" del panel de pedidos: el texto queda en el campo
+  // para revisarlo/editarlo antes de mandarlo (no se manda solo).
+  const usarTexto = (texto: string) => {
+    setText(texto)
+    setPedidosOpen(false)
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.style.height = 'auto'
+      el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+      el.focus()
+    })
+  }
 
   const handleSend = async () => {
     const trimmed = text.trim()
@@ -286,6 +303,13 @@ export default function ChatPanel({
         </div>
 
         <div className="chat-panel-header-actions">
+          <button
+            className={`chat-panel-action-btn${pedidosOpen ? ' chat-panel-action-btn--active' : ''}`}
+            onClick={() => setPedidosOpen(o => !o)}
+            title="Pedidos de la tienda web de este cliente (estado, seguimiento, cuándo llega)"
+          >
+            <Package size={16} />
+          </button>
           <button className="chat-panel-action-btn" onClick={() => onOpenPhotos()} title="Enviar fotos">
             <Camera size={16} />
           </button>
@@ -315,9 +339,12 @@ export default function ChatPanel({
               // Respuesta rápida: la que calculó el webhook según lo que falta
               // y el stock real ("¿para qué cancha?", "¿qué talle usás?", "te
               // paso los F50 que tenemos en 40", "no nos queda en 47").
+              // Consulta por un pedido ya hecho: el webhook armó la respuesta con
+              // los datos reales del pedido (o pide el número si no lo encontró).
+              const esConsultaPedido = sug?.intencion === 'estado_pedido' || sug?.intencion === 'garantia' || sug?.intencion === 'reclamo'
               const quickReply = talleSug || tipoSug || modeloSug
                 ? (sug?.respuesta_sugerida || (talleSug ? textoPreguntarTipo(talleSug) : textoPreguntarTalle(tipoSug)))
-                : null
+                : sug?.intencion === 'estado_pedido' ? sug.respuesta_sugerida : null
               const mostrarQuickReply = !!quickReply && idx > ultimoOutIdx && !quickRepliesUsadas.has(msg.id)
               const llegada = llegadaRef.current.get(msg.id)
               const esperandoIA = msg.direccion === 'in' && !!msg.contenido && !sug && !!llegada && Date.now() - llegada < IA_ESPERA_MS
@@ -380,7 +407,7 @@ export default function ChatPanel({
                     <Loader2 size={15} />
                   </span>
                 )}
-                {(mostrarQuickReply || talleSug != null) && (
+                {(mostrarQuickReply || talleSug != null || esConsultaPedido) && (
                   <div className="chat-panel-msg-actions">
                     {mostrarQuickReply && quickReply && (
                       <button
@@ -389,6 +416,15 @@ export default function ChatPanel({
                         onClick={() => handleQuickReply(msg.id, quickReply)}
                       >
                         <MessageCircleQuestion size={15} />
+                      </button>
+                    )}
+                    {esConsultaPedido && (
+                      <button
+                        className="chat-panel-msg-talle-btn chat-panel-msg-orders-btn"
+                        title="Ver los pedidos de la tienda web de este cliente"
+                        onClick={() => setPedidosOpen(true)}
+                      >
+                        <Package size={15} />
                       </button>
                     )}
                     {talleSug != null && (
@@ -458,6 +494,14 @@ export default function ChatPanel({
           <Send size={18} />
         </button>
       </div>
+
+      {pedidosOpen && (
+        <OrdersPanel
+          conversacion={conversacion}
+          onUsarTexto={usarTexto}
+          onClose={() => setPedidosOpen(false)}
+        />
+      )}
     </div>
   )
 }
