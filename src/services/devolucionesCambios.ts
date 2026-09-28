@@ -3,8 +3,9 @@ import type { DevolucionCambio, MedioPago, TipoDevolucionCambio } from '../types
 
 const SELECT = `*,
   modelo_original:modelos!devoluciones_cambios_modelo_id_original_fkey(modelo, marca),
-  modelo_nuevo:modelos!devoluciones_cambios_modelo_id_nuevo_fkey(modelo, marca),
-  empleados(nombre)`
+  modelo_nuevo:modelos!devoluciones_cambios_modelo_id_nuevo_fkey(modelo, marca, precio_costo),
+  empleados(nombre),
+  proveedores(nombre)`
 
 export async function fetchDevolucionesCambios(startDate?: string, endDate?: string): Promise<DevolucionCambio[]> {
   let query = supabase.from('devoluciones_cambios').select(SELECT).order('fecha', { ascending: false })
@@ -27,11 +28,15 @@ export interface RegistrarDevolucionCambioInput {
   empleadoId: string | null
   // false = el par del talle original no vuelve al stock (ej. roto, se desecha).
   devolverAStock: boolean
+  // Defecto de fábrica (no un cambio común) — ver types/index.ts DevolucionCambio.
+  esGarantia: boolean
+  proveedorId: string | null
 }
 
 // El ajuste de stock (atómico) y el chequeo de caja/fichaje viven en
 // registrar_devolucion_cambio (supabase/migrations/028_venta_y_devolucion_atomicas.sql,
-// 035_devolucion_sin_stock.sql), con el mismo criterio que registrar_venta_carrito.
+// 035_devolucion_sin_stock.sql, 037_garantias.sql), con el mismo criterio que
+// registrar_venta_carrito.
 export async function registrarDevolucionCambio(input: RegistrarDevolucionCambioInput): Promise<void> {
   const { error } = await supabase.rpc('registrar_devolucion_cambio', {
     p_tipo: input.tipo,
@@ -44,6 +49,8 @@ export async function registrarDevolucionCambio(input: RegistrarDevolucionCambio
     p_motivo: input.motivo,
     p_empleado_id: input.empleadoId,
     p_devolver_a_stock: input.devolverAStock,
+    p_es_garantia: input.esGarantia,
+    p_proveedor_id: input.esGarantia ? input.proveedorId : null,
   })
   if (error) throw error
 }

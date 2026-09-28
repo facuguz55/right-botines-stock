@@ -57,6 +57,10 @@ function CanalBreakdown({ titulo, color, canal, manoObraIncluida }: { titulo: st
         <span>− Mano de obra (sueldos)</span>
         <span>{manoObraIncluida ? `$${formatARS(canal.costoManoObra)}` : '🔒 bloqueado'}</span>
       </div>
+      <div className="rent-breakdown-row muted">
+        <span>− Garantías de fábrica</span>
+        <span>${formatARS(canal.costoGarantias)}</span>
+      </div>
       <div className="rent-breakdown-row total">
         <span>Ganancia neta</span>
         <strong style={{ color }}>${formatARS(canal.gananciaNeta)}</strong>

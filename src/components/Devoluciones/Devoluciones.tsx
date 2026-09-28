@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Plus, Clock } from 'lucide-react'
-import type { Modelo, MedioPago, TipoDevolucionCambio, Venta } from '../../types'
+import { useState, useEffect, useMemo } from 'react'
+import { Plus, Clock, ShieldAlert } from 'lucide-react'
+import type { Modelo, MedioPago, TipoDevolucionCambio, Venta, Proveedor, Role } from '../../types'
 import { useDevoluciones } from '../../hooks/useDevoluciones'
 import { fetchVentas } from '../../services/ventas'
 import { getPrecioReal } from '../../utils/precios'
@@ -39,14 +39,47 @@ interface DevolucionesProps {
   // la pantalla de Stock queda mostrando el número viejo hasta un refresh
   // manual, aunque la devolución/cambio ya se aplicó bien en la base.
   onStockChanged: () => void
+  proveedores: Proveedor[]
+  role: Role
 }
 
-export function Devoluciones({ modelos, empleadoId, onStockChanged }: DevolucionesProps) {
+export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores, role }: DevolucionesProps) {
   const initial = getPreset('mes')
   const [startDate, setStartDate] = useState(initial.start)
   const [endDate, setEndDate] = useState(initial.end)
   const [activePreset, setActivePreset] = useState('mes')
   const { registros, loading, registrar } = useDevoluciones(startDate, endDate)
+
+  // Resumen de garantías del período elegido — pensado para detectar si un
+  // modelo o proveedor puntual genera muchos defectos (pedido de Cami).
+  // El costo solo se puede calcular para 'cambio' (se conoce qué par se
+  // entregó a cambio); una garantía tipo 'devolucion' cuenta para el total
+  // de casos pero no suma costo, porque no hay un par de reemplazo.
+  const resumenGarantias = useMemo(() => {
+    const garantias = registros.filter(r => r.es_garantia)
+    const costoTotal = garantias.reduce((s, r) => s + (r.modelo_nuevo?.precio_costo ?? 0) * r.cantidad, 0)
+
+    const porModelo = new Map<string, { nombre: string; cantidad: number }>()
+    const porProveedor = new Map<string, { nombre: string; cantidad: number }>()
+    for (const r of garantias) {
+      if (r.modelo_original) {
+        const key = `${r.modelo_original.marca} ${r.modelo_original.modelo}`
+        const actual = porModelo.get(key) ?? { nombre: key, cantidad: 0 }
+        actual.cantidad += r.cantidad
+        porModelo.set(key, actual)
+      }
+      if (r.proveedor_id && r.proveedores) {
+        const actual = porProveedor.get(r.proveedor_id) ?? { nombre: r.proveedores.nombre, cantidad: 0 }
+        actual.cantidad += r.cantidad
+        porProveedor.set(r.proveedor_id, actual)
+      }
+    }
+
+    const topOrdenado = (m: Map<string, { nombre: string; cantidad: number }>) =>
+      [...m.values()].sort((a, b) => b.cantidad - a.cantidad).slice(0, 3)
+
+    return { cantidad: garantias.length, costoTotal, topModelos: topOrdenado(porModelo), topProveedores: topOrdenado(porProveedor) }
+  }, [registros])
 
   const applyPreset = (key: string) => {
     const { start, end } = getPreset(key)
@@ -77,6 +110,8 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged }: Devolucion
   // Por defecto vuelve al stock — se destilda solo para un producto roto
   // u otro caso en el que el par que se devuelve no se puede volver a vender.
   const [devolverAStock, setDevolverAStock] = useState(true)
+  const [esGarantia, setEsGarantia] = useState(false)
+  const [proveedorId, setProveedorId] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -89,6 +124,7 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged }: Devolucion
     setModeloNuevo(null); setTalleNuevoId(''); setSearchNuevo('')
     setCantidad(1); setMotivo(''); setMontoDiferencia('0'); setMedioPagoDiferencia('Efectivo')
     setDiferenciaEditada(false); setDevolverAStock(true); setError('')
+    setEsGarantia(false); setProveedorId('')
     setLoadingVentas(true)
     try {
       const desde = toISOLocal(new Date(Date.now() - 30 * 86400000))
@@ -173,6 +209,8 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged }: Devolucion
         motivo: motivo.trim(),
         empleadoId,
         devolverAStock,
+        esGarantia,
+        proveedorId: proveedorId || null,
       })
       onStockChanged()
       setModalOpen(false)
@@ -187,13 +225,50 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged }: Devolucion
     <div className="devoluciones-page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Devoluciones y cambios</h1>
+          <h1 className="page-title">Devoluciones, cambios y garantías</h1>
           <p className="page-subtitle">{loading ? 'Cargando...' : `${registros.length} registro${registros.length !== 1 ? 's' : ''}`}</p>
         </div>
         <button className="btn btn-primary btn-sm" onClick={abrirModal}>
           <Plus size={13} /> Registrar devolución/cambio
         </button>
       </div>
+
+      {resumenGarantias.cantidad > 0 && (
+        <section className="config-section">
+          <div className="config-section-header">
+            <ShieldAlert size={16} />
+            <h2 className="config-section-title">Garantías en este período</h2>
+          </div>
+          <div className="rent-metrics">
+            <div className="rent-metric-card">
+              <p className="rent-label">Casos</p>
+              <p className="rent-value">{resumenGarantias.cantidad}</p>
+            </div>
+            {role === 'dueno' && (
+              <div className="rent-metric-card">
+                <p className="rent-label">Costo (pares entregados a cambio)</p>
+                <p className="rent-value accent">${fmt(resumenGarantias.costoTotal)}</p>
+              </div>
+            )}
+            {resumenGarantias.topModelos.length > 0 && (
+              <div className="rent-metric-card">
+                <p className="rent-label">Modelos con más garantías</p>
+                {resumenGarantias.topModelos.map(m => (
+                  <p key={m.nombre} className="rent-sub">{m.nombre}: {m.cantidad}</p>
+                ))}
+              </div>
+            )}
+            {resumenGarantias.topProveedores.length > 0 && (
+              <div className="rent-metric-card">
+                <p className="rent-label">Proveedores con más garantías</p>
+                {resumenGarantias.topProveedores.map(p => (
+                  <p key={p.nombre} className="rent-sub">{p.nombre}: {p.cantidad}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="config-section">
         <div className="config-section-header">
@@ -237,6 +312,9 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged }: Devolucion
                       {r.modelo_original ? <span><strong>{r.modelo_original.marca}</strong> {r.modelo_original.modelo}</span> : <span className="deleted-product">—</span>}
                       {r.tipo === 'cambio' && r.modelo_nuevo && <> → <strong>{r.modelo_nuevo.marca}</strong> {r.modelo_nuevo.modelo}</>}
                       {!r.devuelto_a_stock && <span className="recargo-tag" title="No volvió al stock (ej: producto roto)"> descartado</span>}
+                      {r.es_garantia && (
+                        <span className="recargo-tag" title={r.proveedores ? `Garantía de fábrica — proveedor: ${r.proveedores.nombre}` : 'Garantía de fábrica'}> 🛡️ garantía</span>
+                      )}
                     </td>
                     <td className={r.monto_diferencia < 0 ? 'price-cell danger' : 'price-cell'}>
                       {r.monto_diferencia === 0 ? '—' : `${r.monto_diferencia > 0 ? '+' : ''}$${fmt(r.monto_diferencia)}`}
@@ -324,6 +402,40 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged }: Devolucion
               </label>
               {!devolverAStock && (
                 <p className="sell-mixto-resto">No vuelve al stock — se descarta (ej: producto roto).</p>
+              )}
+
+              <label className="config-label" style={{ marginTop: '.75rem', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="checkbox" checked={esGarantia}
+                  onChange={e => {
+                    const checked = e.target.checked
+                    setEsGarantia(checked)
+                    // Un defecto de fábrica normalmente se descarta, no se
+                    // revende — pero sigue siendo editable a mano por si el
+                    // caso puntual no aplica.
+                    if (checked) setDevolverAStock(false)
+                  }}
+                  style={{ marginRight: '.375rem' }}
+                />
+                <ShieldAlert size={14} style={{ marginRight: '.25rem' }} />
+                Es garantía de fábrica
+              </label>
+              {esGarantia && (
+                <div style={{ marginTop: '.5rem' }}>
+                  <p className="sell-mixto-resto">
+                    Se va a descontar de la ganancia el costo del par que se entrega a cambio — sirve para detectar si
+                    un modelo o proveedor genera muchas garantías.
+                  </p>
+                  <select
+                    className="config-input" style={{ marginTop: '.375rem' }}
+                    value={proveedorId} onChange={e => setProveedorId(e.target.value)}
+                  >
+                    <option value="">Proveedor (opcional, si lo sabés)</option>
+                    {proveedores.filter(p => p.activo).map(p => (
+                      <option key={p.id} value={p.id}>{p.nombre}</option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
           )}

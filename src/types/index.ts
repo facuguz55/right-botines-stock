@@ -266,6 +266,9 @@ export interface RentabilidadCanal {
   costosVariables: number
   costosUnicos: number
   costoManoObra: number
+  // Costo de los pares entregados por garantía de fábrica (siempre 0 en
+  // "web" — el flujo de devoluciones/cambios es solo del local físico).
+  costoGarantias: number
   gananciaNeta: number
   margenNeto: number
   sinVincular: number
@@ -437,10 +440,16 @@ export interface DevolucionCambio {
   empleado_id: string | null
   // false = el par no vuelve al stock (ej. producto roto que se desecha).
   devuelto_a_stock: boolean
+  // Defecto de fábrica, no un cambio común (talle, no le gustó, etc.) — el
+  // par que se entrega a cambio es una pérdida real que se descuenta de la
+  // ganancia neta (Rentabilidad/Dashboard) en vez de perderse en silencio.
+  es_garantia: boolean
+  proveedor_id: string | null
   fecha: string
   created_at: string
   modelo_original?: { modelo: string; marca: string } | null
-  modelo_nuevo?: { modelo: string; marca: string } | null
+  modelo_nuevo?: { modelo: string; marca: string; precio_costo: number } | null
   empleados?: { nombre: string } | null
+  proveedores?: { nombre: string } | null
 }
 

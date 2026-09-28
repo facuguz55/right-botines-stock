@@ -16,9 +16,28 @@ import type { RentabilidadMes, RentabilidadCanal, CostoConfig, CostoCanal } from
 function emptyCanal(): RentabilidadCanal {
   return {
     facturado: 0, costoProductos: 0, gananciaBruta: 0,
-    costosFijos: 0, costosVariables: 0, costosUnicos: 0, costoManoObra: 0,
+    costosFijos: 0, costosVariables: 0, costosUnicos: 0, costoManoObra: 0, costoGarantias: 0,
     gananciaNeta: 0, margenNeto: 0, sinVincular: 0,
   }
+}
+
+// Garantías de fábrica del mes (devoluciones_cambios.es_garantia = true):
+// el par que se entrega a cambio es una pérdida real, no cubierta por
+// ninguna venta. Solo se puede costear el caso 'cambio' (se sabe qué par se
+// entregó); una garantía tipo 'devolucion' se ve en el resumen de
+// Devoluciones pero no aporta costo acá, porque no hay par de reemplazo.
+// Siempre 100% canal local — el flujo de devoluciones/cambios es del local
+// físico, no existe para pedidos web.
+async function costoGarantiasDelMes(start: Date, end: Date): Promise<number> {
+  const { data, error } = await supabase
+    .from('devoluciones_cambios')
+    .select('cantidad, modelo_nuevo:modelos!devoluciones_cambios_modelo_id_nuevo_fkey(precio_costo)')
+    .eq('tipo', 'cambio')
+    .eq('es_garantia', true)
+    .gte('fecha', start.toISOString())
+    .lte('fecha', end.toISOString())
+  if (error) throw error
+  return (data ?? []).reduce((s, r: any) => s + (Number(r.modelo_nuevo?.precio_costo) || 0) * r.cantidad, 0)
 }
 
 // Sueldos del mes (fichajes × valor por hora vigente) — dato sensible, solo
@@ -143,10 +162,11 @@ export async function computeRentabilidadMes(mes: string, pin: string | null = n
   const gananciaBrutaWeb = facturadoWeb - costoProductosWeb
 
   // ── Costos configurados vigentes en el mes + costos únicos del mes ──
-  const [costosConfig, costosUnicos, manoObra] = await Promise.all([
+  const [costosConfig, costosUnicos, manoObra, costoGarantiasLocal] = await Promise.all([
     fetchCostosConfig(),
     fetchCostosUnicos(startDateStr, endDateStr),
     costoManoObraDelMes(pin, start, end),
+    costoGarantiasDelMes(start, end),
   ])
 
   const vigentes = costosConfig.filter(c => {
@@ -200,8 +220,9 @@ export async function computeRentabilidadMes(mes: string, pin: string | null = n
     costosVariables: costosVariablesLocal,
     costosUnicos: costosUnicosLocal,
     costoManoObra: manoObraLocal,
+    costoGarantias: costoGarantiasLocal,
   }
-  local.gananciaNeta = local.gananciaBruta - local.costosFijos - local.costosVariables - local.costosUnicos - local.costoManoObra
+  local.gananciaNeta = local.gananciaBruta - local.costosFijos - local.costosVariables - local.costosUnicos - local.costoManoObra - local.costoGarantias
   local.margenNeto = local.facturado > 0 ? (local.gananciaNeta / local.facturado) * 100 : 0
 
   const web: RentabilidadCanal = {

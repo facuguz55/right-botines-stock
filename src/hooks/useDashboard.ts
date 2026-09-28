@@ -23,6 +23,9 @@ export function useDashboard() {
           { data: ventasMesData, error: e3 },
           { data: allVentas, error: e4 },
           { data: modelosAlerta, error: e5 },
+          // Garantías de fábrica del mes: el par entregado a cambio es una
+          // pérdida real, no cubierta por ninguna venta (ver Devoluciones).
+          { data: garantiasMesData, error: e6 },
         ] = await Promise.all([
           supabase.from('modelo_talles').select('cantidad'),
           supabase.from('modelos').select('id'),
@@ -37,9 +40,15 @@ export function useDashboard() {
           supabase
             .from('modelos')
             .select('id, marca, modelo, categoria, gama, precio_venta, precio_costo, codigo_base, notas, created_at, modelo_talles(*), modelo_fotos(id, modelo_id, foto_url, orden, created_at)'),
+          supabase
+            .from('devoluciones_cambios')
+            .select('cantidad, modelo_nuevo:modelos!devoluciones_cambios_modelo_id_nuevo_fkey(precio_costo)')
+            .eq('tipo', 'cambio')
+            .eq('es_garantia', true)
+            .gte('fecha', startOfMonth),
         ])
 
-        const firstError = e1 || e2 || e3 || e4 || e5
+        const firstError = e1 || e2 || e3 || e4 || e5 || e6
         if (firstError) throw new Error(firstError.message ?? 'Error al cargar datos')
 
         // Métricas básicas
@@ -47,7 +56,8 @@ export function useDashboard() {
         const totalPares = (tallesData ?? []).reduce((s, t) => s + (t.cantidad ?? 0), 0)
         const ventasMes = ventasMesData?.length ?? 0
         const totalFacturadoMes = (ventasMesData ?? []).reduce((s, v) => s + (v.precio_venta ?? 0), 0)
-        const gananciaMes = (ventasMesData ?? []).reduce((s, v) => s + (v.ganancia ?? 0), 0)
+        const costoGarantiasMes = (garantiasMesData ?? []).reduce((s, r: any) => s + (Number(r.modelo_nuevo?.precio_costo) || 0) * r.cantidad, 0)
+        const gananciaMes = (ventasMesData ?? []).reduce((s, v) => s + (v.ganancia ?? 0), 0) - costoGarantiasMes
 
         // Top 5 modelos más vendidos del mes
         // Construir mapa con datos del join simple (sin fotos)
