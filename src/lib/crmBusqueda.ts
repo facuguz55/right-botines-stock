@@ -29,12 +29,24 @@ export const TIPO_LABEL: Record<TipoBotin, string> = {
 export const TALLE_ARG_MIN = 26
 export const TALLE_ARG_MAX = 47
 
-// Misma equivalencia que usa el alta de modelos (ModelForm.tsx, ARG_TO_US),
-// invertida. Si el cliente da un talle US que no está acá no se convierte a
-// ojo: queda sin detectar.
+// Guía de talles publicada en right.com.ar (la que ve el cliente). OJO: no
+// coincide con la tabla de alta de modelos (ModelForm.tsx, ARG_TO_US), que
+// dice por ejemplo US 8 = ARG 39; acá manda la guía porque es con la que el
+// cliente habla. Un US que la guía no tiene no se convierte a ojo.
 const US_TO_ARG: Record<string, number> = {
-  '5': 34, '5.5': 35, '6': 36, '7': 37, '7.5': 38,
-  '8': 39, '9': 40, '9.5': 41, '10': 42, '11': 43, '11.5': 44,
+  '7': 39, '8': 40, '8.5': 41, '9.5': 42, '10': 43, '11': 44,
+}
+
+// Centímetros del pie → talle ARG (misma guía). "Si estás entre dos talles,
+// tomá el más grande": se elige el primer talle cuyo largo alcanza.
+const CM_A_ARG: [number, number][] = [
+  [22.5, 35], [23.5, 36], [24, 37], [24.5, 38], [25, 39],
+  [26, 40], [26.5, 41], [27.5, 42], [28, 43], [29, 44],
+]
+
+export function talleDesdeCm(cm: number): number | null {
+  if (!Number.isFinite(cm) || cm < 22 || cm > 29) return null
+  return CM_A_ARG.find(([largo]) => cm <= largo)?.[1] ?? null
 }
 
 // Pasado este tiempo sin mencionar talle/tipo/modelo, lo guardado de la
@@ -165,6 +177,12 @@ function detectarTalles(t: string, ctx: ContextoDeteccion): number[] {
       const arg = US_TO_ARG[m[1].replace(',', '.')]
       if (arg) encontrados.add(arg)
     }
+  }
+
+  // Largo del pie en centímetros: "mido 26 cm", "25,5cm".
+  for (const m of t.matchAll(/(?:^|[^\d.,])(\d{2}(?:[.,]\d)?)\s*(?:cm|cms|centimetros)\b/g)) {
+    const arg = talleDesdeCm(Number(m[1].replace(',', '.')))
+    if (arg) encontrados.add(arg)
   }
 
   // Talle ARG: número de 2 cifras suelto (no parte de un teléfono, precio,
@@ -452,19 +470,19 @@ function modelos(n: number): string {
   return n === 1 ? '1 modelo' : `${n} modelos`
 }
 
-// Estilo: como escribe una vendedora desde el celular — sin emojis, sin
-// signos de apertura (¿ ¡), frases cortas. Ver también humanizar() en
-// crmTexto.ts, que lo garantiza para cualquier texto.
+// Estilo: como escribe Cami desde el celular (ver sus mensajes en
+// crmNegocio.ts) — sin signos de apertura (¿ ¡), frases cortas, a lo sumo un
+// emoji de los suyos al final. humanizar() (crmTexto.ts) lo garantiza.
 export function textoPreguntarTipo(talle: number | null): string {
   return talle
-    ? `Hola! Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal? Así me fijo qué tenemos en el ${talle}`
-    : 'Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal?'
+    ? `Hola buenas! Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal? Así me fijo qué tenemos en el ${talle} 🤗`
+    : 'Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal? 🤗'
 }
 
 export function textoPreguntarTalle(tipo: TipoBotin | null): string {
   return tipo
-    ? `Genial, qué talle usás? Así me fijo qué tenemos de ${TIPO_TEXTO[tipo]}`
-    : 'Qué talle usás? Así me fijo qué tenemos'
+    ? `Dale buenisimo! Qué talle usás? Así me fijo qué tenemos de ${TIPO_TEXTO[tipo]} 🤗`
+    : 'Qué talle usás? Así me fijo qué tenemos 🤗'
 }
 
 // Respuesta sugerida cuando el mensaje aportó talle/tipo/modelo. `stock` es
@@ -475,33 +493,33 @@ export function respuestaSugeridaBusqueda(estado: EstadoBusqueda, stock: StockRe
   const deModelo = modelo ? ` ${etiquetaModelo(modelo)}` : ''
 
   if (!talle) {
-    if (modelo) return `Hola! Qué talle usás? Así me fijo si tenemos los${deModelo}`
+    if (modelo) return `Hola buenas! Qué talle usás? Así me fijo si tenemos los${deModelo} 🤗`
     return tipo ? textoPreguntarTalle(tipo) : null
   }
 
   if (!stock) {
     // Sin poder mirar el stock: preguntar lo que falta, sin prometer nada.
     if (!tipo) return textoPreguntarTipo(talle)
-    return `Dale, me fijo qué tenemos en el ${talle} de ${TIPO_TEXTO[tipo]}${deModelo ? ` (${deModelo.trim()})` : ''} y te paso fotos`
+    return `Dale buenisimo! Me fijo qué tenemos en el ${talle} de ${TIPO_TEXTO[tipo]}${deModelo ? ` (${deModelo.trim()})` : ''} y te paso fotos 🤗`
   }
 
   const disponibles = TIPOS_BOTIN.filter(t => (stock.porTipo[t] ?? 0) > 0)
   const sinStock = modelo
-    ? `Uh, en el ${talle} no nos quedan${deModelo}. Querés que te muestre otros modelos en tu talle?`
-    : `Uh, en el ${talle} por ahora no nos queda nada. Si querés te aviso cuando entre`
+    ? `Uh, por el momento en el ${talle} no nos quedan${deModelo} 😔 Querés que te muestre otros modelos en tu talle?`
+    : `Uh, por el momento en el ${talle} no nos queda nada 😔 Si querés te aviso cuando entre!`
 
   if (tipo) {
     const n = stock.porTipo[tipo] ?? 0
-    if (n > 0) return `Sí! En el ${talle} tenemos ${modelos(n)}${deModelo} de ${TIPO_TEXTO[tipo]}. Ahí te paso fotos`
+    if (n > 0) return `Sisi! En el ${talle} tenemos ${modelos(n)}${deModelo} de ${TIPO_TEXTO[tipo]}, ya te paso fotos 🤗`
     const otros = disponibles.filter(t => t !== tipo)
-    if (otros.length) return `De ${TIPO_TEXTO[tipo]} en el ${talle} ahora no nos queda${deModelo ? `n los${deModelo}` : ' nada'}. Sí tenemos de ${listaTipos(otros)}, te sirve?`
+    if (otros.length) return `De ${TIPO_TEXTO[tipo]} en el ${talle} por el momento no nos queda${deModelo ? `n los${deModelo}` : ' nada'} 😔 Sí tenemos de ${listaTipos(otros)}, te sirve?`
     return sinStock
   }
 
   if (stock.total === 0 || disponibles.length === 0) return sinStock
   if (disponibles.length === 1) {
     const t = disponibles[0]
-    return `Sí! En el ${talle} tenemos ${modelos(stock.porTipo[t] ?? 0)}${deModelo} de ${TIPO_TEXTO[t]}. Te paso fotos?`
+    return `Sisi! En el ${talle} tenemos ${modelos(stock.porTipo[t] ?? 0)}${deModelo} de ${TIPO_TEXTO[t]}. Te paso fotos? 🤗`
   }
-  return `Sí! En el ${talle} tenemos${deModelo ? ` los${deModelo}` : ''} de ${listaTipos(disponibles)}. Para cuál los buscás?`
+  return `Sisi! En el ${talle} tenemos${deModelo ? ` los${deModelo}` : ''} de ${listaTipos(disponibles)}. Para cuál los buscás?`
 }

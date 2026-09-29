@@ -14,7 +14,7 @@ import {
   vocabularioCatalogo,
   type EstadoBusqueda,
 } from '../src/lib/crmBusqueda'
-import { INFO_NEGOCIO } from '../src/lib/crmNegocio'
+import { EJEMPLOS_ESTILO_CAMI, INFO_NEGOCIO } from '../src/lib/crmNegocio'
 import { humanizar } from '../src/lib/crmTexto'
 import {
   esConsultaEnvioSegura,
@@ -192,12 +192,14 @@ ${INFO_NEGOCIO}
 Campos:
 - categoria: Urgente, Pedido de talles, Normal, Spam, Postventa/Reclamos o Mayorista.
 - intencion: pedido_talle, consulta_precio, consulta_envio (pregunta ANTES de comprar: si hacen envíos, a dónde, cuánto sale, cuánto tarda), estado_pedido (pregunta por un pedido que YA hizo: si salió, cuándo le llega, el código de seguimiento, qué compró), garantia (un producto que ya compró se rompió o falló), reclamo (otra queja o problema con una compra), saludo, spam u otro.
-- talle_arg: el talle ARGENTINO que el CLIENTE dijo que busca (en este mensaje o antes en la conversación). Si lo dio en talle US convertilo así: 5→34, 5.5→35, 6→36, 7→37, 7.5→38, 8→39, 9→40, 9.5→41, 10→42, 11→43, 11.5→44. Si pidió más de un talle, si no está claro, o si el número no es un talle (precio, edad, hora, cantidad), devolvé null. Nunca uses un talle que solo mencionó el local.
+- talle_arg: el talle ARGENTINO que el CLIENTE dijo que busca (en este mensaje o antes en la conversación). Si lo dio en talle US o en centímetros del pie, convertilo con la guía de talles de arriba (si está entre dos, el más grande); si no está en la guía, null. Si pidió más de un talle, si no está claro, o si el número no es un talle (precio, edad, hora, cantidad), devolvé null. Nunca uses un talle que solo mencionó el local.
 - tipo: F11 (fútbol 11, cancha de 11, pasto natural, tapones), F5 (fútbol 5, sintético, papi, multitapón; también cancha de 7 u 8), Futsal (futsal, sala, piso, indoor) o Hockey. Solo si el CLIENTE lo dijo o lo dejó claro; si mencionó más de uno o no dijo nada, null.
 - cambio_de_tema: true si con este mensaje el cliente dejó de hablar del producto que venía consultando (el de "lo que ya sabemos que busca") y pasó a otro asunto —compra por mayor, un pedido que ya hizo, un reclamo, otra consulta sin relación— o si empieza a buscar algo nuevo que no tiene que ver con lo anterior (otro talle para otra persona, otro tipo de botín desde cero). false si sigue con lo mismo, aunque sea un "gracias", "¿cuánto salen?", "¿hacen envíos?" o un detalle más (tipo, color, modelo) de lo que ya venía buscando. Si no había nada guardado, false.
 - respuesta_sugerida: una respuesta corta y amable en español argentino informal (voseo), como la escribiría la vendedora. Para dirección, horarios, web, envíos, pagos, garantía y cambios usá la información del negocio de arriba, tal cual está. No inventes nada que no esté ahí: ni precios, ni porcentajes de descuento, ni promociones, ni estados de pedidos, códigos de seguimiento o fechas de entrega. NUNCA digas qué modelos, talles, tipos o marcas tenemos o no tenemos en stock: vos no ves el stock (lo resuelve el sistema aparte). Si preguntan por stock, pedí el talle (y si juega fútbol 11, 5 o futsal) para fijarte. Si hace falta un dato que no tenés, decí que lo revisás o pedí lo que falte.
 
-Estilo de respuesta_sugerida: tiene que parecer escrita por una persona contestando rápido desde el celular, no por una IA. Frases cortas y naturales, voseo, tono cálido pero simple. Sin emojis. Sin signos de apertura (nada de ¿ ni ¡): solo el de cierre, como se escribe en WhatsApp ("Hola! Qué talle usás?"). Sin guiones largos, sin viñetas ni listas, sin negritas. Si la charla ya venía, no arranques con "Hola". Nada de frases de manual como "Estoy acá para ayudarte" o "Excelente pregunta".
+Estilo de respuesta_sugerida: tiene que parecer escrita por Cami, la vendedora, contestando desde el celular, no por una IA. Copiá su forma de escribir de estos mensajes reales suyos:
+${EJEMPLOS_ESTILO_CAMI.map(e => `- "${e}"`).join('\n')}
+Frases cortas y naturales, voseo, cálida ("Hola buenas!", "Dale buenisimo!", "Sisi"). Sin signos de apertura (nada de ¿ ni ¡): solo el de cierre. Como mucho UN emoji, al final, y solo de estos: 🤗 🙌 😔 🔥 🤩 ☺️. Sin guiones largos, sin viñetas ni listas, sin negritas. Si la charla ya venía, no vuelvas a saludar. Nada de frases de manual como "Estoy acá para ayudarte" o "Excelente pregunta".
 
 Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.
 
@@ -399,7 +401,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const respuestaPedido = preguntaPorPedido
       ? (pedido
         ? respuestaEstadoPedido(pedido)
-        : 'Hola! Me pasás el número de pedido, o el nombre o mail con el que compraste? Así te lo busco')
+        : 'Hola buenas! Me pasás el número de pedido, o el nombre o mail con el que compraste? Así te lo busco 🤗')
       : null
     const tipoMsg = det.tipo
       ?? (det.tiposEncontrados.length === 0 && ia ? tipoIaEsConfiable(ia.tipo, text) : null)
@@ -432,7 +434,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
       // Pregunta por stock sin decir talle/tipo/modelo reconocibles: la
       // respuesta libre de la IA podría afirmar que "hay de todo" sin mirar
       // nada (pasó: "en talle 32 tenemos F11 y F5" sin stock). Se pide el talle.
-      respuesta = 'Hola! Qué talle usás? Así me fijo qué tenemos'
+      respuesta = 'Hola buenas! Qué talle usás? Así me fijo qué tenemos 🤗'
     }
 
     // Pase lo que pase (IA o texto armado), al cliente no le llega nada con

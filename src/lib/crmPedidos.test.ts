@@ -134,7 +134,7 @@ describe('estilo humano en respuestas de pedidos', () => {
       { ...base, shipping_status: 'delivered' },
     ]
     for (const v of variantes) {
-      expect(respuestaEstadoPedido(v, ahora)).not.toMatch(/[¿¡—•]|\p{Extended_Pictographic}/u)
+      expect(respuestaEstadoPedido(v, ahora)).not.toMatch(/[¿¡—•]/)
     }
   })
 })

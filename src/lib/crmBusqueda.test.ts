@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { humanizar } from './crmTexto'
 import {
   busquedaVigente,
   coincidenciaModelo,
@@ -25,9 +26,12 @@ describe('detectarBusqueda — talle', () => {
     ['qué tenés en 42?', 42],
     ['Hola, busco botines número 40', 40],
     ['40', 40],
-    ['talle 9.5 us', 41],
-    ['tenés 9,5 US?', 41],
-    ['us 10 tenes algo?', 42],
+    ['talle 9.5 us', 42],
+    ['tenés 9,5 US?', 42],
+    ['us 10 tenes algo?', 43],
+    ['mido 26 cm', 40],
+    ['el pie me mide 25,5cm', 40],
+    ['24.2 cm', 38],
     ['calzo 43', 43],
   ])('%s → %s', (texto, talle) => {
     expect(detectarBusqueda(texto).talle).toBe(talle)
@@ -98,7 +102,7 @@ describe('validación de lo que propone la IA', () => {
     expect(talleIaEsConfiable(38, ['que tenes en talle 38'])).toBe(true)
   })
   it('acepta un talle cuyo equivalente US escribió el cliente', () => {
-    expect(talleIaEsConfiable(41, ['uso 9.5'])).toBe(true)
+    expect(talleIaEsConfiable(42, ['uso 9.5'])).toBe(true)
   })
   it('rechaza un talle inventado', () => {
     expect(talleIaEsConfiable(39, ['que tenes en talle 38'])).toBe(false)
@@ -217,29 +221,29 @@ describe('respuestas según el stock real', () => {
   it('el caso de la captura: talle 32 sin stock → lo dice, no inventa', () => {
     expect(detectarBusqueda('Hola qué tenes en talle 32').talle).toBe(32)
     const r = respuestaSugeridaBusqueda({ talle: 32, tipo: null, modelo: null }, stock({}))
-    expect(r).toBe('Uh, en el 32 por ahora no nos queda nada. Si querés te aviso cuando entre')
+    expect(r).toBe('Uh, por el momento en el 32 no nos queda nada 😔 Si querés te aviso cuando entre!')
     expect(r).not.toMatch(/tenemos/)
   })
   it('un solo tipo con stock → lo dice directo, sin preguntar', () => {
     expect(respuestaSugeridaBusqueda({ talle: 32, tipo: null, modelo: null }, stock({ F11: 3 })))
-      .toBe('Sí! En el 32 tenemos 3 modelos de fútbol 11. Te paso fotos?')
+      .toBe('Sisi! En el 32 tenemos 3 modelos de fútbol 11. Te paso fotos? 🤗')
   })
   it('varios tipos → pregunta solo entre los que hay', () => {
     const r = respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: null }, stock({ F11: 5, Futsal: 2 }))
-    expect(r).toBe('Sí! En el 40 tenemos de fútbol 11 y futsal. Para cuál los buscás?')
+    expect(r).toBe('Sisi! En el 40 tenemos de fútbol 11 y futsal. Para cuál los buscás?')
     expect(r).not.toMatch(/fútbol 5/)
   })
   it('pide un tipo que no hay → ofrece los que sí', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: 'F5', modelo: null }, stock({ F11: 5 })))
-      .toBe('De fútbol 5 en el 40 ahora no nos queda nada. Sí tenemos de fútbol 11, te sirve?')
+      .toBe('De fútbol 5 en el 40 por el momento no nos queda nada 😔 Sí tenemos de fútbol 11, te sirve?')
   })
   it('pide un tipo que hay → cuántos y fotos', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: 'F11', modelo: null }, stock({ F11: 1 })))
-      .toBe('Sí! En el 40 tenemos 1 modelo de fútbol 11. Ahí te paso fotos')
+      .toBe('Sisi! En el 40 tenemos 1 modelo de fútbol 11, ya te paso fotos 🤗')
   })
   it('con modelo', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, stock({ F5: 2 })))
-      .toBe('Sí! En el 40 tenemos 2 modelos F50 de fútbol 5. Te paso fotos?')
+      .toBe('Sisi! En el 40 tenemos 2 modelos F50 de fútbol 5. Te paso fotos? 🤗')
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, stock({})))
       .toMatch(/no nos quedan F50/)
     expect(respuestaSugeridaBusqueda({ talle: null, tipo: null, modelo: 'f50' }, null)).toMatch(/Qué talle/)
@@ -251,7 +255,7 @@ describe('respuestas según el stock real', () => {
       respuestaSugeridaBusqueda({ talle: null, tipo: 'F11', modelo: null }, null),
     ]) {
       // Ni "hay" ni "no hay": sin stock consultado no se afirma nada.
-      expect(r).not.toMatch(/Sí!|(?<!qué )tenemos (\d|los|en|modelos|de)|no nos queda/)
+      expect(r).not.toMatch(/Sisi!|(?<!qué )tenemos (\d|los|en|modelos|de)|no nos queda/)
     }
   })
   it('categorías → tipo', () => {
@@ -266,7 +270,7 @@ describe('respuestas según el stock real', () => {
 })
 
 describe('estilo humano en todas las respuestas', () => {
-  it('ninguna respuesta fija tiene emojis, ¿ ¡ ni guiones largos', () => {
+  it('ninguna respuesta fija tiene ¿ ¡, guiones largos ni emojis fuera de los de Cami (y a lo sumo uno)', () => {
     const tipos = [null, 'F11', 'F5', 'Futsal', 'Hockey'] as const
     const stocks = [null, { porTipo: {}, total: 0 }, { porTipo: { F11: 1 }, total: 1 }, { porTipo: { F11: 2, F5: 3, Futsal: 1 }, total: 6 }]
     const textos: string[] = [textoPreguntarTipo(null), textoPreguntarTipo(40), ...tipos.map(t => textoPreguntarTalle(t))]
@@ -276,7 +280,12 @@ describe('estilo humano en todas las respuestas', () => {
     }
     expect(textos.length).toBeGreaterThan(50)
     for (const t of textos) {
-      expect(t).not.toMatch(/[¿¡—•]|\p{Extended_Pictographic}/u)
+      expect(t).not.toMatch(/[¿¡—•]/)
+      const emojis = t.match(/\p{Extended_Pictographic}/gu) ?? []
+      expect(emojis.length).toBeLessThanOrEqual(1)
+      for (const e of emojis) expect(['🤗', '🙌', '😔', '🔥', '🤩', '☺']).toContain(e)
+      // Y el filtro final no les cambia nada: ya salen con el estilo de Cami.
+      expect(humanizar(t)).toBe(t)
     }
   })
 })
