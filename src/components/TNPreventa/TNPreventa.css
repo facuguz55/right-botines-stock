@@ -1,5 +1,7 @@
 .tn-preventa { display: flex; flex-direction: column; gap: 1.25rem; }
 
+.tn-preventa-actions { display: flex; gap: 0.5rem; }
+
 .tn-preventa-contacto {
   display: flex;
   gap: 0.375rem;

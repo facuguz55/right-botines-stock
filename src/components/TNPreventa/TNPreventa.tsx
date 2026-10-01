@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, ChevronDown, ChevronUp, Search, MessageCircle, Mail, Inbox } from 'lucide-react'
+import { RefreshCw, ChevronDown, ChevronUp, Search, MessageCircle, Mail, Inbox, Copy, Check } from 'lucide-react'
 import { paymentStatusLabel, paymentStatusClass, formatARS } from '../../services/tiendanubeService'
 import { fetchPreventaOrders, syncTNOrdenes, syncTNClientes, type PreventaOrder } from '../../services/tnOrdersSync'
 import './TNPreventa.css'
@@ -22,6 +22,7 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
   const [error, setError]       = useState('')
   const [expanded, setExpanded] = useState<number | null>(null)
   const [search, setSearch]     = useState('')
+  const [copied, setCopied]     = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -49,6 +50,13 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
 
   useEffect(() => { load() }, [])
 
+  const copiarEmails = async () => {
+    const emails = [...new Set(orders.map(o => o.customer?.email).filter((e): e is string => !!e))]
+    await navigator.clipboard.writeText(emails.join(', '))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   if (loading) return (
     <div className="tn-loading">
       <div className="spinner" />
@@ -73,9 +81,19 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
           <h1 className="page-title">Preventas</h1>
           <p className="page-subtitle">{orders.length} venta{orders.length !== 1 ? 's' : ''} de la categoría Pre-venta</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={refresh} disabled={syncing}>
-          <RefreshCw size={13} /> {syncing ? 'Sincronizando...' : 'Actualizar'}
-        </button>
+        <div className="tn-preventa-actions">
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={copiarEmails}
+            disabled={orders.length === 0}
+            title="Copia los emails de todos los clientes de preventa, separados por coma, para pegar en CCO"
+          >
+            {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Emails copiados' : 'Copiar emails'}
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={refresh} disabled={syncing}>
+            <RefreshCw size={13} /> {syncing ? 'Sincronizando...' : 'Actualizar'}
+          </button>
+        </div>
       </div>
 
       <div className="tn-search-row">
