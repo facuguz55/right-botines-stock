@@ -1,9 +1,12 @@
-import { useState, useMemo } from 'react'
-import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2, ShieldCheck, SlidersHorizontal, Wallet } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2, ShieldCheck, SlidersHorizontal, Wallet, Mail, LogOut } from 'lucide-react'
 import type { Modelo, AjustePrecioConfig, AjusteTipo, AjusteOperacion } from '../../types'
 import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
 import { getTNCredentials, saveTNCredentials, clearTNCredentials, listTNWebhooks, createTNWebhook } from '../../services/tiendanubeService'
 import { setOwnerPin } from '../../services/auth'
+import { fetchMailStatus, disconnectGmail, getGmailConnectUrl } from '../../services/gmailIntegration'
+import { getSessionPin, setSessionPin } from '../../lib/pinSession'
+import { Modal } from '../Modal/Modal'
 import type { useRecargosTarjeta } from '../../hooks/useRecargosTarjeta'
 import { CostosTab } from './CostosTab'
 import { RecargosTarjetaSection } from './RecargosTarjetaSection'
@@ -145,6 +148,95 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
       setWebhookMsg({ ok: false, msg: (e as Error).message ?? 'No se pudieron registrar los webhooks.' })
     } finally {
       setRegistrandoWebhooks(false)
+    }
+  }
+
+  // ── Gmail (mandar mails a clientes de preventa) ──────────────────────────
+  // El PIN se re-verifica server-side en cada llamada (ver api/mail-*.ts) —
+  // estar en esta pantalla de dueño no alcanza, igual que "ver sueldos" en
+  // Empleados o la mano de obra en Rentabilidad.
+  const [gmailPin, setGmailPin] = useState<string | null>(() => getSessionPin())
+  const [gmailLoading, setGmailLoading] = useState(false)
+  const [gmailConnected, setGmailConnected] = useState(false)
+  const [gmailEmail, setGmailEmail] = useState('')
+  const [gmailMsg, setGmailMsg] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [gmailDisconnecting, setGmailDisconnecting] = useState(false)
+  const [gmailPinModalOpen, setGmailPinModalOpen] = useState(false)
+  const [gmailPinInput, setGmailPinInput] = useState('')
+  const [gmailPinError, setGmailPinError] = useState<string | null>(null)
+  const [gmailVerificandoPin, setGmailVerificandoPin] = useState(false)
+
+  const cargarEstadoGmail = async (pinValido: string) => {
+    setGmailLoading(true)
+    try {
+      const s = await fetchMailStatus(pinValido)
+      setGmailConnected(s.connected)
+      setGmailEmail(s.email ?? '')
+    } catch (e) {
+      setGmailMsg({ ok: false, msg: (e as Error).message })
+    } finally {
+      setGmailLoading(false)
+    }
+  }
+
+  useEffect(() => { if (gmailPin) cargarEstadoGmail(gmailPin) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // App.tsx ya limpió el ?gmail=... de la URL (y nos trajo a esta pestaña),
+  // pero necesitamos el valor para saber qué mensaje mostrar — se lee antes
+  // de esa limpieza, con el search que tenía la URL al montar este componente.
+  useEffect(() => {
+    const gmailResult = new URLSearchParams(window.location.search).get('gmail')
+    if (gmailResult === 'connected') {
+      setGmailMsg({ ok: true, msg: 'Gmail conectado correctamente.' })
+      if (gmailPin) cargarEstadoGmail(gmailPin)
+    } else if (gmailResult === 'error') {
+      setGmailMsg({ ok: false, msg: 'No se pudo conectar Gmail — probá de nuevo.' })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const abrirGmailPinModal = () => {
+    setGmailPinInput('')
+    setGmailPinError(null)
+    setGmailMsg(null)
+    setGmailPinModalOpen(true)
+  }
+
+  const confirmarGmailPin = async () => {
+    setGmailVerificandoPin(true)
+    setGmailPinError(null)
+    try {
+      await cargarEstadoGmail(gmailPinInput)
+      setSessionPin(gmailPinInput)
+      setGmailPin(gmailPinInput)
+      setGmailPinModalOpen(false)
+    } catch (e) {
+      setGmailPinError((e as Error).message)
+    } finally {
+      setGmailVerificandoPin(false)
+    }
+  }
+
+  const handleConnectGmail = async () => {
+    if (!gmailPin) return
+    setGmailMsg(null)
+    try {
+      window.location.href = await getGmailConnectUrl(gmailPin)
+    } catch (e) {
+      setGmailMsg({ ok: false, msg: (e as Error).message })
+    }
+  }
+
+  const handleDisconnectGmail = async () => {
+    if (!gmailPin) return
+    setGmailDisconnecting(true)
+    try {
+      await disconnectGmail(gmailPin)
+      setGmailConnected(false)
+      setGmailEmail('')
+    } catch (e) {
+      setGmailMsg({ ok: false, msg: (e as Error).message })
+    } finally {
+      setGmailDisconnecting(false)
     }
   }
 
@@ -500,6 +592,52 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
         </div>
       </section>
 
+      {/* ── Gmail ── */}
+      <section className="config-section">
+        <div className="config-section-header">
+          <Mail size={16} />
+          <h2 className="config-section-title">Gmail — mandar mails a clientes</h2>
+        </div>
+        <p className="config-section-desc">
+          Conectá el Gmail del local para poder mandarle avisos (ej. demoras de preventa) a los clientes seleccionados,
+          desde la pantalla de Preventas.
+        </p>
+        <div className="config-card">
+          {/* No alcanza con "hay un PIN cacheado" para esconder este botón —
+              si quedó desactualizado (ej. se cambió el PIN en otra pantalla),
+              conectar/desconectar fallaría con "PIN incorrecto" sin ninguna
+              forma de volver a pedirlo. */}
+          {!gmailPin || gmailMsg?.msg === 'PIN incorrecto' ? (
+            <button className="btn btn-secondary btn-sm" onClick={abrirGmailPinModal}>
+              <Key size={13} /> {gmailPin ? 'Reingresar PIN' : 'Ver estado de Gmail'}
+            </button>
+          ) : gmailLoading ? (
+            <p className="config-section-desc">Consultando...</p>
+          ) : gmailConnected ? (
+            <div className="config-actions" style={{ justifyContent: 'space-between', width: '100%' }}>
+              <span style={{ fontSize: '.8125rem', color: 'var(--accent)' }}>
+                <CheckCircle size={13} style={{ verticalAlign: '-2px', marginRight: '.25rem' }} /> Conectado: {gmailEmail}
+              </span>
+              <button className="btn btn-secondary btn-sm" disabled={gmailDisconnecting} onClick={handleDisconnectGmail}>
+                <LogOut size={13} /> {gmailDisconnecting ? 'Desconectando...' : 'Desconectar Gmail'}
+              </button>
+            </div>
+          ) : (
+            <div className="config-actions" style={{ justifyContent: 'space-between', width: '100%' }}>
+              <span className="config-section-desc">No hay ninguna cuenta de Gmail conectada.</span>
+              <button className="btn btn-primary btn-sm" onClick={handleConnectGmail}>
+                <Mail size={13} /> Conectar Gmail
+              </button>
+            </div>
+          )}
+          {gmailMsg && (
+            <p style={{ fontSize: '.8125rem', color: gmailMsg.ok ? 'var(--accent)' : 'var(--danger)', marginTop: '.5rem' }}>
+              {gmailMsg.msg}
+            </p>
+          )}
+        </div>
+      </section>
+
       </div>}
 
       {tab === 'seguridad' && <div className="config-tab-panel">
@@ -593,6 +731,30 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
       </div>}
 
       {tab === 'costos' && <CostosTab />}
+
+      <Modal isOpen={gmailPinModalOpen} onClose={() => !gmailVerificandoPin && setGmailPinModalOpen(false)} title="PIN del dueño" maxWidth="360px">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '.875rem' }}>
+            Conectar o desconectar Gmail se verifica en el servidor, no alcanza con estar en esta pantalla.
+          </p>
+          <input
+            type="password"
+            className="config-input"
+            autoFocus
+            value={gmailPinInput}
+            onChange={e => setGmailPinInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !gmailVerificandoPin && confirmarGmailPin()}
+            placeholder="PIN"
+          />
+          {gmailPinError && <p className="sell-error">{gmailPinError}</p>}
+          <div className="sell-actions">
+            <button className="btn btn-secondary" onClick={() => setGmailPinModalOpen(false)} disabled={gmailVerificandoPin}>Cancelar</button>
+            <button className="btn btn-primary" disabled={!gmailPinInput || gmailVerificandoPin} onClick={confirmarGmailPin}>
+              {gmailVerificandoPin ? 'Verificando...' : 'Confirmar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

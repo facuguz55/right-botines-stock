@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, ChevronDown, ChevronUp, Search, MessageCircle, Mail, Inbox, Copy, Check } from 'lucide-react'
+import { RefreshCw, ChevronDown, ChevronUp, Search, MessageCircle, Mail, Inbox, Copy, Check, Send, CheckCircle2, XCircle } from 'lucide-react'
 import { paymentStatusLabel, paymentStatusClass, formatARS } from '../../services/tiendanubeService'
 import { fetchPreventaOrders, syncTNOrdenes, syncTNClientes, type PreventaOrder } from '../../services/tnOrdersSync'
+import { enviarMailAVarios, type EnviarMailResultado } from '../../services/gmailIntegration'
+import { getSessionPin, setSessionPin } from '../../lib/pinSession'
+import { Modal } from '../Modal/Modal'
 import './TNPreventa.css'
 
 // Ver el mismo comentario en ClientesLocales.tsx: WhatsApp necesita el
@@ -23,6 +26,16 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
   const [expanded, setExpanded] = useState<number | null>(null)
   const [search, setSearch]     = useState('')
   const [copied, setCopied]     = useState(false)
+
+  // ── Mandar mail a los clientes seleccionados ─────────────────────────────
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [composeOpen, setComposeOpen] = useState(false)
+  const [composeSubject, setComposeSubject] = useState('')
+  const [composeBody, setComposeBody] = useState('')
+  const [composePin, setComposePin] = useState('')
+  const [composeSending, setComposeSending] = useState(false)
+  const [composeResults, setComposeResults] = useState<EnviarMailResultado[] | null>(null)
+  const [composeError, setComposeError] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -72,6 +85,54 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
     }
   }
 
+  const toggleSelected = (id: number) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const emailsSeleccionados = [...new Set(
+    orders.filter(o => selected.has(o.id)).map(o => o.customer?.email).filter((e): e is string => !!e),
+  )]
+
+  const abrirCompose = () => {
+    setComposeSubject('')
+    setComposeBody('')
+    setComposePin(getSessionPin() ?? '')
+    setComposeResults(null)
+    setComposeError('')
+    setComposeOpen(true)
+  }
+
+  const handleComposeSend = async () => {
+    if (!composeSubject.trim()) return setComposeError('Poné un asunto')
+    if (!composeBody.trim()) return setComposeError('Escribí un mensaje')
+    if (!composePin.trim()) return setComposeError('Falta el PIN del dueño')
+
+    setComposeError('')
+    setComposeSending(true)
+    setComposeResults(null)
+    try {
+      const results = await enviarMailAVarios(composePin, emailsSeleccionados, composeSubject.trim(), composeBody)
+      setComposeResults(results)
+      // Si el primer envío ya confirmó el PIN, lo dejamos cacheado para no
+      // volver a pedirlo en esta pestaña (mismo criterio que Devoluciones/
+      // Rentabilidad) — pero solo si al menos uno salió bien, para no
+      // guardar un PIN que en realidad vino mal.
+      if (results.some(r => r.status === 'ok')) setSessionPin(composePin)
+      const okCount = results.filter(r => r.status === 'ok').length
+      if (okCount === results.length) {
+        setComposeSubject(''); setComposeBody('')
+      }
+    } catch (e) {
+      setComposeError(e instanceof Error ? e.message : 'No se pudo enviar')
+    } finally {
+      setComposeSending(false)
+    }
+  }
+
   if (loading) return (
     <div className="tn-loading">
       <div className="spinner" />
@@ -97,6 +158,14 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
           <p className="page-subtitle">{orders.length} venta{orders.length !== 1 ? 's' : ''} de la categoría Pre-venta</p>
         </div>
         <div className="tn-preventa-actions">
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={abrirCompose}
+            disabled={selected.size === 0}
+            title={selected.size === 0 ? 'Tildá al menos un cliente en la tabla' : `Mandar el mismo mail a ${selected.size} cliente${selected.size !== 1 ? 's' : ''}`}
+          >
+            <Send size={13} /> Enviar mail a seleccionados {selected.size > 0 && `(${selected.size})`}
+          </button>
           <button
             className="btn btn-secondary btn-sm"
             onClick={copiarEmails}
@@ -127,6 +196,20 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
         <table className="tn-page-table">
           <thead>
             <tr>
+              <th style={{ width: '2rem' }}>
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && filtered.every(o => selected.has(o.id))}
+                  onChange={e => {
+                    setSelected(prev => {
+                      const next = new Set(prev)
+                      for (const o of filtered) { if (e.target.checked) next.add(o.id); else next.delete(o.id) }
+                      return next
+                    })
+                  }}
+                  title="Seleccionar todos los que se ven"
+                />
+              </th>
               <th>#</th>
               <th>Fecha</th>
               <th>Cliente</th>
@@ -143,6 +226,15 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
                   key={order.id}
                   className={`tn-order-row${expanded === order.id ? ' expanded' : ''}`}
                 >
+                  <td onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(order.id)}
+                      disabled={!order.customer?.email}
+                      onChange={() => toggleSelected(order.id)}
+                      title={order.customer?.email ? undefined : 'Sin email cargado'}
+                    />
+                  </td>
                   <td className="tn-order-num" onClick={() => setExpanded(expanded === order.id ? null : order.id)}>#{order.number}</td>
                   <td className="tn-order-date" onClick={() => setExpanded(expanded === order.id ? null : order.id)}>
                     {new Date(order.created_at).toLocaleDateString('es-AR', {
@@ -203,7 +295,7 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
                 </tr>
                 {expanded === order.id && (
                   <tr key={`${order.id}-detail`} className="tn-order-detail-row">
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <div className="tn-order-detail">
                         <div className="tn-detail-products">
                           <p className="tn-detail-label">Productos</p>
@@ -265,6 +357,72 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
           </div>
         )}
       </div>
+
+      <Modal isOpen={composeOpen} onClose={() => !composeSending && setComposeOpen(false)} title="Enviar mail a clientes de preventa" maxWidth="520px">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)' }}>
+            Mismo mensaje para los {emailsSeleccionados.length} cliente{emailsSeleccionados.length !== 1 ? 's' : ''} seleccionado{emailsSeleccionados.length !== 1 ? 's' : ''},
+            cada uno como mail independiente (no en copia).
+          </p>
+
+          {/* No alcanza con "hay un PIN cacheado" para esconder el campo — si
+              quedó desactualizado (ej. se cambió el PIN), todos los envíos
+              fallarían con "PIN incorrecto" y no habría forma de corregirlo
+              sin este campo visible otra vez. */}
+          {(!getSessionPin() || composeResults?.some(r => r.error === 'PIN incorrecto')) && (
+            <div>
+              <label className="config-label">PIN del dueño</label>
+              <input
+                type="password" className="config-input" autoFocus={!composePin}
+                value={composePin} onChange={e => setComposePin(e.target.value)}
+                placeholder="Se verifica en el servidor al enviar"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="config-label">Asunto</label>
+            <input
+              type="text" className="config-input"
+              value={composeSubject} onChange={e => setComposeSubject(e.target.value)}
+              placeholder="Ej: Demora en tu pedido de preventa"
+            />
+          </div>
+
+          <div>
+            <label className="config-label">Mensaje</label>
+            <textarea
+              className="config-input" rows={6}
+              value={composeBody} onChange={e => setComposeBody(e.target.value)}
+              placeholder="Escribí el mensaje..."
+            />
+          </div>
+
+          {composeError && <p className="sell-error">{composeError}</p>}
+
+          {composeResults && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.375rem', maxHeight: 160, overflowY: 'auto' }}>
+              {composeResults.map(r => (
+                <div key={r.email} style={{ display: 'flex', alignItems: 'center', gap: '.375rem', fontSize: '.75rem' }}>
+                  {r.status === 'ok'
+                    ? <CheckCircle2 size={12} color="var(--accent)" />
+                    : <XCircle size={12} color="var(--danger)" />}
+                  <span style={{ color: r.status === 'ok' ? 'var(--text-secondary)' : 'var(--danger)' }}>
+                    {r.email}{r.error ? ` — ${r.error}` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="sell-actions">
+            <button className="btn btn-secondary" onClick={() => setComposeOpen(false)} disabled={composeSending}>Cerrar</button>
+            <button className="btn btn-primary" onClick={handleComposeSend} disabled={composeSending}>
+              {composeSending ? 'Enviando...' : 'Enviar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

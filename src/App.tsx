@@ -87,6 +87,10 @@ export function App() {
   const { role, empleadoId, empleadoNombre, loginEmpleado, loginAtencion, loginDueno, logout } = useAuth()
   const [activePage, setActivePage] = useState<ActivePage>(() => {
     try {
+      // mail-auth-callback.ts redirige acá con ?gmail=connected|error después
+      // del consentimiento de Google — hay que volver directo a la pestaña
+      // de Configuración donde se inició la conexión, no a Stock.
+      if (new URLSearchParams(window.location.search).has('gmail')) return 'configuracion'
       // Mismo fallback a localStorage que useAuth.ts (sesión heredada de antes
       // de que la sesión pasara a sessionStorage) — no perder el destino
       // inicial correcto para quien ya estaba logueado como "atencion".
@@ -94,7 +98,19 @@ export function App() {
       return savedRole === 'atencion' ? 'crm_inbox' : 'stock'
     } catch { return 'stock' }
   })
-  const [configTabInicial, setConfigTabInicial] = useState<'general' | 'tiendanube' | 'seguridad' | 'costos'>('general')
+  const [configTabInicial, setConfigTabInicial] = useState<'general' | 'tiendanube' | 'seguridad' | 'costos'>(() => {
+    try {
+      return new URLSearchParams(window.location.search).has('gmail') ? 'tiendanube' : 'general'
+    } catch { return 'general' }
+  })
+
+  // Limpia el ?gmail=... de la URL después de leerlo, para no reprocesarlo
+  // si se refresca la página o se comparte el link.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('gmail')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   useEffect(() => { restoreAccent() }, [])
   useEffect(() => { setupGlobalErrorHandler() }, [])
