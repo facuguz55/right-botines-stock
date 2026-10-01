@@ -241,6 +241,8 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
             </nav>
             {role === 'empleado' && <FichajeWidget fichajeHook={fichajeActual} />}
             <div className="sidebar-footer">
+              {esDueno && <AccessAlerts />}
+              {esDueno && <DevolucionesAlerts />}
               <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
                 <LogOut size={15} />
                 <span>{quienSoy} · Salir</span>
