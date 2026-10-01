@@ -52,9 +52,17 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
 
   const copiarEmails = async () => {
     const emails = [...new Set(orders.map(o => o.customer?.email).filter((e): e is string => !!e))]
-    await navigator.clipboard.writeText(emails.join(', '))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const texto = emails.join(', ')
+    try {
+      await navigator.clipboard.writeText(texto)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // El Clipboard API puede fallar por permisos del navegador (ej. sin
+      // gesto de usuario reconocido, extensiones, políticas corporativas) —
+      // sin este fallback, el click no hacía nada y no se enteraban.
+      window.prompt('No se pudo copiar automáticamente. Seleccioná el texto y copialo con Ctrl+C / Cmd+C:', texto)
+    }
   }
 
   if (loading) return (
