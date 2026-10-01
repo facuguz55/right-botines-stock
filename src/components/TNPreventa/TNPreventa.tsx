@@ -60,8 +60,15 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
     } catch {
       // El Clipboard API puede fallar por permisos del navegador (ej. sin
       // gesto de usuario reconocido, extensiones, políticas corporativas) —
-      // sin este fallback, el click no hacía nada y no se enteraban.
-      window.prompt('No se pudo copiar automáticamente. Seleccioná el texto y copialo con Ctrl+C / Cmd+C:', texto)
+      // sin este fallback, el click no hacía nada y no se enteraban. El
+      // prompt() en sí también puede estar bloqueado en algunos entornos
+      // (ej. webviews embebidos) — si eso pasa, al menos mostramos un
+      // alert con los emails en vez de tirar un error sin capturar.
+      try {
+        window.prompt('No se pudo copiar automáticamente. Seleccioná el texto y copialo con Ctrl+C / Cmd+C:', texto)
+      } catch {
+        window.alert(`No se pudo copiar. Emails:\n\n${texto}`)
+      }
     }
   }
 
