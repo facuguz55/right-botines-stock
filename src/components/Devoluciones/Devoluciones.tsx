@@ -338,9 +338,35 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
           <div className="sell-section">
             <p className="sell-label">Tipo</p>
             <div className="medio-pago-options">
-              <button type="button" className={`medio-btn${tipo === 'devolucion' ? ' active' : ''}`} onClick={() => { setTipo('devolucion'); setDiferenciaEditada(false) }}>Devolución</button>
-              <button type="button" className={`medio-btn${tipo === 'cambio' ? ' active' : ''}`} onClick={() => { setTipo('cambio'); setDiferenciaEditada(false) }}>Cambio</button>
+              <button
+                type="button" className={`medio-btn${tipo === 'devolucion' && !esGarantia ? ' active' : ''}`}
+                onClick={() => { setTipo('devolucion'); setEsGarantia(false); setDiferenciaEditada(false) }}
+              >Devolución</button>
+              <button
+                type="button" className={`medio-btn${tipo === 'cambio' && !esGarantia ? ' active' : ''}`}
+                onClick={() => { setTipo('cambio'); setEsGarantia(false); setDiferenciaEditada(false) }}
+              >Cambio</button>
+              <button
+                type="button" className={`medio-btn${esGarantia ? ' active' : ''}`}
+                onClick={() => { setTipo('cambio'); setEsGarantia(true); setDevolverAStock(false); setDiferenciaEditada(false) }}
+              ><ShieldAlert size={13} style={{ marginRight: '.25rem', verticalAlign: '-2px' }} />Garantía</button>
             </div>
+            <p className="sell-mixto-resto" style={{ marginTop: '.5rem' }}>
+              {esGarantia
+                ? 'Defecto de fábrica: siempre se entrega otro modelo a cambio, y su costo se descuenta de la ganancia.'
+                : 'Elegí "Cambio" (o "Garantía") si el cliente se lleva otro modelo o talle. "Devolución" es solo si no se lleva nada a cambio.'}
+            </p>
+            {esGarantia && (
+              <select
+                className="config-input" style={{ marginTop: '.5rem' }}
+                value={proveedorId} onChange={e => setProveedorId(e.target.value)}
+              >
+                <option value="">Proveedor (opcional, si lo sabés)</option>
+                {proveedores.filter(p => p.activo).map(p => (
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="sell-section">
@@ -406,40 +432,6 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
               </label>
               {!devolverAStock && (
                 <p className="sell-mixto-resto">No vuelve al stock — se descarta (ej: producto roto).</p>
-              )}
-
-              <label className="config-label" style={{ marginTop: '.75rem', display: 'flex', alignItems: 'center' }}>
-                <input
-                  type="checkbox" checked={esGarantia}
-                  onChange={e => {
-                    const checked = e.target.checked
-                    setEsGarantia(checked)
-                    // Un defecto de fábrica normalmente se descarta, no se
-                    // revende — pero sigue siendo editable a mano por si el
-                    // caso puntual no aplica.
-                    if (checked) setDevolverAStock(false)
-                  }}
-                  style={{ marginRight: '.375rem' }}
-                />
-                <ShieldAlert size={14} style={{ marginRight: '.25rem' }} />
-                Es garantía de fábrica
-              </label>
-              {esGarantia && (
-                <div style={{ marginTop: '.5rem' }}>
-                  <p className="sell-mixto-resto">
-                    Se va a descontar de la ganancia el costo del par que se entrega a cambio — sirve para detectar si
-                    un modelo o proveedor genera muchas garantías.
-                  </p>
-                  <select
-                    className="config-input" style={{ marginTop: '.375rem' }}
-                    value={proveedorId} onChange={e => setProveedorId(e.target.value)}
-                  >
-                    <option value="">Proveedor (opcional, si lo sabés)</option>
-                    {proveedores.filter(p => p.activo).map(p => (
-                      <option key={p.id} value={p.id}>{p.nombre}</option>
-                    ))}
-                  </select>
-                </div>
               )}
             </div>
           )}
