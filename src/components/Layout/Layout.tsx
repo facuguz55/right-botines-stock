@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
+import { DevolucionesAlerts } from '../DevolucionesAlerts/DevolucionesAlerts'
 import { FichajeWidget } from '../FichajeWidget/FichajeWidget'
 import type { useFichajeActual } from '../../hooks/useFichajeActual'
 import './Layout.css'
@@ -184,6 +185,7 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
         {role === 'empleado' && <FichajeWidget fichajeHook={fichajeActual} />}
         <div className="sidebar-footer">
           {esDueno && <AccessAlerts />}
+          {esDueno && <DevolucionesAlerts />}
           <button className="sidebar-logout" onClick={onLogout} title="Cerrar sesión">
             <LogOut size={15} />
             <span>{quienSoy} · Salir</span>

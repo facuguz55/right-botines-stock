@@ -3,6 +3,7 @@ import { Plus, Clock, ShieldAlert } from 'lucide-react'
 import type { Modelo, MedioPago, TipoDevolucionCambio, Venta, Proveedor, Role } from '../../types'
 import { useDevoluciones } from '../../hooks/useDevoluciones'
 import { fetchVentas } from '../../services/ventas'
+import { logFallaDevolucionCambio } from '../../services/devolucionesCambiosFallos'
 import { getPrecioReal } from '../../utils/precios'
 import { Modal } from '../Modal/Modal'
 import { toISOLocal, semanaActual } from '../../utils/fecha'
@@ -215,7 +216,10 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
       onStockChanged()
       setModalOpen(false)
     } catch (e) {
-      setError((e as Error).message)
+      const msg = (e as Error).message
+      setError(msg)
+      // Best-effort: si esto falla no debe tapar el error real de arriba.
+      logFallaDevolucionCambio(empleadoId, msg).catch(() => {})
     } finally {
       setSaving(false)
     }

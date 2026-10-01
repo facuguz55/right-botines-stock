@@ -453,3 +453,15 @@ export interface DevolucionCambio {
   proveedores?: { nombre: string } | null
 }
 
+// Cada vez que registrar_devolucion_cambio rechaza (sin caja abierta, sin
+// fichaje, stock insuficiente, etc.) se guarda el motivo real acá — para no
+// tener que reconstruirlo por ausencia de datos la próxima vez.
+export interface FallaDevolucionCambio {
+  id: string
+  fecha: string
+  empleado_id: string | null
+  mensaje: string
+  visto: boolean
+  empleados?: { nombre: string } | null
+}
+
