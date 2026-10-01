@@ -108,9 +108,6 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
   const [montoDiferencia, setMontoDiferencia] = useState('0')
   const [medioPagoDiferencia, setMedioPagoDiferencia] = useState<MedioPago>('Efectivo')
   const [diferenciaEditada, setDiferenciaEditada] = useState(false)
-  // Por defecto vuelve al stock — se destilda solo para un producto roto
-  // u otro caso en el que el par que se devuelve no se puede volver a vender.
-  const [devolverAStock, setDevolverAStock] = useState(true)
   const [esGarantia, setEsGarantia] = useState(false)
   const [proveedorId, setProveedorId] = useState('')
 
@@ -124,7 +121,7 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
     setModeloOriginal(null); setTalleOriginalId(''); setSearchOriginal('')
     setModeloNuevo(null); setTalleNuevoId(''); setSearchNuevo('')
     setCantidad(1); setMotivo(''); setMontoDiferencia('0'); setMedioPagoDiferencia('Efectivo')
-    setDiferenciaEditada(false); setDevolverAStock(true); setError('')
+    setDiferenciaEditada(false); setError('')
     setEsGarantia(false); setProveedorId('')
     setLoadingVentas(true)
     try {
@@ -209,7 +206,10 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
         medioPagoDiferencia: diff !== 0 ? medioPagoDiferencia : null,
         motivo: motivo.trim(),
         empleadoId,
-        devolverAStock,
+        // Obligatorio salvo garantía: un cambio o una devolución de dinero
+        // siempre devuelven el par físico al stock; solo un defecto de
+        // fábrica (garantía) lo descarta.
+        devolverAStock: !esGarantia,
         esGarantia,
         proveedorId: proveedorId || null,
       })
@@ -348,7 +348,7 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
               >Cambio</button>
               <button
                 type="button" className={`medio-btn${esGarantia ? ' active' : ''}`}
-                onClick={() => { setTipo('cambio'); setEsGarantia(true); setDevolverAStock(false); setDiferenciaEditada(false) }}
+                onClick={() => { setTipo('cambio'); setEsGarantia(true); setDiferenciaEditada(false) }}
               ><ShieldAlert size={13} style={{ marginRight: '.25rem', verticalAlign: '-2px' }} />Garantía</button>
             </div>
             <p className="sell-mixto-resto" style={{ marginTop: '.5rem' }}>
@@ -422,17 +422,11 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
                   </button>
                 ))}
               </div>
-              <label className="config-label" style={{ marginTop: '.625rem', display: 'flex', alignItems: 'center' }}>
-                <input
-                  type="checkbox" checked={devolverAStock}
-                  onChange={e => setDevolverAStock(e.target.checked)}
-                  style={{ marginRight: '.375rem' }}
-                />
-                Devolver el par al stock
-              </label>
-              {!devolverAStock && (
-                <p className="sell-mixto-resto">No vuelve al stock — se descarta (ej: producto roto).</p>
-              )}
+              <p className="sell-mixto-resto" style={{ marginTop: '.625rem' }}>
+                {esGarantia
+                  ? 'No vuelve al stock — se descarta (defecto de fábrica).'
+                  : 'Vuelve al stock automáticamente.'}
+              </p>
             </div>
           )}
 
