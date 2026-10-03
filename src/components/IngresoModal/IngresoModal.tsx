@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react'
+import { textoUs, usDeGuia } from '../../lib/talles'
 import type { Modelo } from '../../types'
 import { Modal } from '../Modal/Modal'
 import './IngresoModal.css'
@@ -28,11 +29,7 @@ export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) 
   const [error, setError] = useState<string | null>(null)
 
   const TALLES_ARG = [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
-  const ARG_TO_US: Record<number, number> = {
-    34: 5, 35: 5.5, 36: 6, 37: 7, 38: 7.5,
-    39: 8, 40: 9, 41: 9.5, 42: 10, 43: 11, 44: 11.5,
-  }
-
+  
   if (!modelo) return null
 
   const selectedTalle = modelo.modelo_talles.find(t => t.id === selectedTalleId)
@@ -103,7 +100,7 @@ export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) 
                     onClick={() => setSelectedTalleId(t.id)}
                   >
                     <strong>{t.talle_arg}</strong>
-                    <span>{t.talle_us}us · {t.cantidad}p</span>
+                    <span>{textoUs(t.talle_us) ? `${textoUs(t.talle_us)} · ` : ''}{t.cantidad}p</span>
                   </button>
                 ))}
               </div>
@@ -119,7 +116,7 @@ export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) 
                     key={t}
                     type="button"
                     className={`talle-arg-btn${newTalleArg === t ? ' active' : ''}`}
-                    onClick={() => { setNewTalleArg(t); setNewTalleUs(ARG_TO_US[t]) }}
+                    onClick={() => { setNewTalleArg(t); setNewTalleUs(usDeGuia(t) ?? 0) }}
                   >
                     {t}
                   </button>
@@ -131,7 +128,7 @@ export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) 
               <input
                 type="text"
                 readOnly
-                value={newTalleUs !== '' ? `${newTalleUs} US` : '—'}
+                value={newTalleUs !== '' && newTalleUs > 0 ? `${String(newTalleUs).replace('.', ',')} US` : '—'}
                 className="talle-us-readonly"
               />
             </div>

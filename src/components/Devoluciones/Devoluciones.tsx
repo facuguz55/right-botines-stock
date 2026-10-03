@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { textoUs } from '../../lib/talles'
 import { Plus, Clock, ShieldAlert } from 'lucide-react'
 import type { Modelo, MedioPago, TipoDevolucionCambio, Venta, Proveedor, Role } from '../../types'
 import { useDevoluciones } from '../../hooks/useDevoluciones'
@@ -417,7 +418,7 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
                 {modeloOriginal.modelo_talles.map(t => (
                   <button key={t.id} type="button" className={`talle-btn${talleOriginalId === t.id ? ' active' : ''}`} onClick={() => setTalleOriginalId(t.id)}>
                     <span className="talle-btn-arg">{t.talle_arg}</span>
-                    <span className="talle-btn-us">{t.talle_us} us</span>
+                    <span className="talle-btn-us">{textoUs(t.talle_us)}</span>
                     <span className="talle-btn-stock">×{t.cantidad}</span>
                   </button>
                 ))}
@@ -453,7 +454,7 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
                   {modeloNuevo.modelo_talles.map(t => (
                     <button key={t.id} type="button" disabled={t.cantidad <= 0} className={`talle-btn${talleNuevoId === t.id ? ' active' : ''}`} onClick={() => setTalleNuevoId(t.id)}>
                       <span className="talle-btn-arg">{t.talle_arg}</span>
-                      <span className="talle-btn-us">{t.talle_us} us</span>
+                      <span className="talle-btn-us">{textoUs(t.talle_us)}</span>
                       <span className="talle-btn-stock">×{t.cantidad}</span>
                     </button>
                   ))}

@@ -1,4 +1,5 @@
 import { memo, useState } from 'react'
+import { etiquetaVarianteTN } from '../../lib/talles'
 import { Pencil, Trash2, Truck } from 'lucide-react'
 import type { Modelo } from '../../types'
 import { getPrecioReal } from '../../utils/precios'
@@ -74,7 +75,7 @@ export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, pu
               <span
                 key={t.id}
                 className={`talle-chip ${t.cantidad === 0 ? 'agotado' : t.cantidad === 1 ? 'ultimo' : t.cantidad <= t.stock_minimo ? 'bajo' : ''}`}
-                title={`Talle ${t.talle_arg} arg / ${t.talle_us} us — ${t.cantidad_local ?? 0} en el local de ${t.cantidad} en total`}
+                title={`Talle ${etiquetaVarianteTN(t.talle_arg, t.talle_us)} — ${t.cantidad_local ?? 0} en el local de ${t.cantidad} en total`}
               >
                 {t.talle_arg}×{t.cantidad_local ?? 0}/{t.cantidad}
               </span>

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useRef } from 'react'
+import { textoUs } from '../../lib/talles'
 import type { ImportRow } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { buildCodigoRef } from '../../utils/codigos'
@@ -253,7 +254,7 @@ export function ExcelImport({ isOpen, onClose, onImported }: ExcelImportProps) {
                         <td>{row.marca}</td>
                         <td>{row.modelo}</td>
                         <td>{row.categoria} / {row.gama}</td>
-                        <td>{row.talle_us}us</td>
+                        <td>{textoUs(row.talle_us) || '—'}</td>
                         <td>{row.cantidad}</td>
                         <td>${row.precio_venta}</td>
                         <td className="ei-code">{row.codigo_ref_preview || '—'}</td>

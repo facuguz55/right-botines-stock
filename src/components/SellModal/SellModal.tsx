@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { textoUs } from '../../lib/talles'
 import type { Modelo, ModeloTalle } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { getPrecioReal } from '../../utils/precios'
@@ -72,7 +73,7 @@ export function SellModal({ modelo, onClose, onAdd }: SellModalProps) {
                 disabled={t.cantidad <= 0}
               >
                 <span className="talle-btn-arg">{t.talle_arg}</span>
-                <span className="talle-btn-us">{t.talle_us} us</span>
+                <span className="talle-btn-us">{textoUs(t.talle_us)}</span>
                 <span className="talle-btn-stock">×{t.cantidad}</span>
               </button>
             ))}

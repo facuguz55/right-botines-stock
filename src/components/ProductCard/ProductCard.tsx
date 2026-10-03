@@ -1,5 +1,6 @@
 // @ts-nocheck
 import type { Producto } from '../../types'
+import { etiquetaVarianteTN } from '../../lib/talles'
 import './ProductCard.css'
 
 interface ProductCardProps {
@@ -39,7 +40,7 @@ export function ProductCard({ producto, onSell, onEdit, onDelete, onIngreso, onP
         </div>
 
         <div className="card-details">
-          <span className="card-talle">{producto.talle_us}us / {producto.talle_arg}arg</span>
+          <span className="card-talle">{etiquetaVarianteTN(producto.talle_arg, producto.talle_us)}</span>
           <span className="card-cat">{producto.categoria}</span>
           <span className="card-gama">{producto.gama}</span>
         </div>

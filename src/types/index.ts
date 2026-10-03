@@ -38,6 +38,11 @@ export interface Modelo {
   modelo_fotos: ModeloFoto[]
   tn_product_id?: number | null
   tn_category_id?: number | null
+  // Medidas del paquete para que TiendaNube calcule el envío (migración 041).
+  peso_kg?: number | null
+  alto_cm?: number | null
+  ancho_cm?: number | null
+  profundidad_cm?: number | null
 }
 
 export interface HistorialPrecio {

@@ -2,34 +2,25 @@
 // Sin dependencias de supabase-js ni de import.meta.env: lo usan tanto
 // src/services/tnSync.ts (cliente) como api/tn-webhook.ts (Vercel Edge).
 
+import { usDeGuia, usDesdeEtiqueta } from './talles'
+
 export interface TNValue { es?: string; en?: string; [k: string]: string | undefined }
 export interface TNVariantLike { values?: TNValue[] }
 
 // ── Tablas de conversión de talles ──────────────────────────────────────────
 
-export const ARG_TO_US: Record<number, number> = {
-  34: 2, 34.5: 2.5,
-  35: 3, 35.5: 3.5,
-  36: 4, 36.5: 4.5,
-  37: 5, 37.5: 5.5,
-  38: 6, 38.5: 6.5,
-  39: 7, 39.5: 7.5,
-  40: 8, 40.5: 8.5,
-  41: 9, 41.5: 9.5,
-  42: 10, 42.5: 10.5,
-  43: 11, 43.5: 11.5,
-  44: 12, 44.5: 12.5,
-  45: 13, 45.5: 13.5,
-  46: 14, 46.5: 14.5,
-  47: 15,
+// La tabla ARG→US es la de la guía de talles de la web (src/lib/talles.ts).
+// La anterior (offset ARG−US = 32) no coincidía con la guía y publicaba los
+// talles mal en TiendaNube (ej. ARG 42 → "10 us", y es 9,5).
+export function getUsFromArg(arg: number): number {
+  return usDeGuia(arg) ?? 0
 }
 
-// Fallback para talles fuera de la tabla (ej. 33, 33.5, 48+): la tabla usa
-// consistentemente el offset ARG-US=32 (34→2, 42→10, 47→15) — el fallback
-// tenía 30.5, dando un talle US equivocado por 1.5 números fuera del rango
-// relevado (ej. 47.5 daba 17 en vez de 15.5).
-export function getUsFromArg(arg: number): number {
-  return ARG_TO_US[arg] ?? Math.round((arg - 32) * 2) / 2
+// US de una variante que viene de TiendaNube: el que figura en su nombre
+// ("40 arg / 8 us", que puede haber sido corregido a mano en TN) y, si no
+// tiene, el de la guía. 0 = sin US.
+export function usDeVariante(label: string, arg: number): number {
+  return usDesdeEtiqueta(label) ?? usDeGuia(arg) ?? 0
 }
 
 // ── Label de variante ────────────────────────────────────────────────────────

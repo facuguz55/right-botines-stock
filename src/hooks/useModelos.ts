@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { usParaGuardar } from '../lib/talles'
 import type { Modelo, ModeloFilters, PhotoSlot, TalleRow, MedioPago, CartItem } from '../types'
 import {
   fetchModelos, createModelo, updateModelo, deleteModelo,
@@ -82,7 +83,7 @@ export function useModelos() {
     const talles: { id: string; talleArg: number; talleUs: number; cantidad: number }[] = []
     for (const row of talleRows.filter(r => !r.toDelete)) {
       const talleArg = parseFloat(row.talle_arg)
-      const talleUs = parseFloat(row.talle_us)
+      const talleUs = usParaGuardar(row.talle_us)
       const cantidad = parseInt(row.cantidad) || 0
       const savedTalle = await upsertTalle({
         modelo_id: newModelo.id,
@@ -134,7 +135,7 @@ export function useModelos() {
           })
         }
       } else if (!row.toDelete) {
-        const talle_us = parseFloat(row.talle_us)
+        const talle_us = usParaGuardar(row.talle_us)
         const talle_arg = parseFloat(row.talle_arg)
         const cantidad = parseInt(row.cantidad) || 0
         const saved = await upsertTalle({
@@ -169,6 +170,10 @@ export function useModelos() {
       (data.marca !== undefined && data.marca !== current?.marca) ||
       (data.modelo !== undefined && data.modelo !== current?.modelo) ||
       (data.precio_venta !== undefined && data.precio_venta !== current?.precio_venta) ||
+      (data.precio_promocional !== undefined && data.precio_promocional !== current?.precio_promocional) ||
+      (['peso_kg', 'alto_cm', 'ancho_cm', 'profundidad_cm'] as const).some(
+        k => data[k] !== undefined && data[k] !== (current?.[k] ?? null)
+      ) ||
       (tnCategoryId !== undefined && tnCategoryId !== current?.tn_category_id)
 
     if (updated.tn_product_id && nombreOPrecioOCategoriaCambio) {

@@ -14,23 +14,36 @@ export async function fetchModelos(): Promise<Modelo[]> {
   return (data || []).map(normalizeModelo)
 }
 
+// Columnas de la migración 041 (medidas del paquete). Si todavía no se
+// aplicó, guardar el modelo no puede fallar por eso: se reintenta sin ellas.
+const COLUMNAS_PAQUETE = ['peso_kg', 'alto_cm', 'ancho_cm', 'profundidad_cm'] as const
+
+function sinPaquete<T extends object>(o: T): T {
+  const copia = { ...o } as Record<string, unknown>
+  for (const c of COLUMNAS_PAQUETE) delete copia[c]
+  return copia as T
+}
+
+function faltaColumnaPaquete(error: { message?: string } | null): boolean {
+  return !!error && COLUMNAS_PAQUETE.some(c => (error.message ?? '').includes(c))
+}
+
 export async function createModelo(input: ModeloInput): Promise<Modelo> {
-  const { data, error } = await supabase
-    .from('modelos')
-    .insert([input])
-    .select(SELECT)
-    .single()
+  let { data, error } = await supabase.from('modelos').insert([input]).select(SELECT).single()
+  if (faltaColumnaPaquete(error)) {
+    console.error('Falta la migración 041 (medidas del paquete): se guarda el modelo sin ellas')
+    ;({ data, error } = await supabase.from('modelos').insert([sinPaquete(input)]).select(SELECT).single())
+  }
   if (error) throw error
   return normalizeModelo(data)
 }
 
 export async function updateModelo(id: string, updates: Partial<ModeloInput>): Promise<Modelo> {
-  const { data, error } = await supabase
-    .from('modelos')
-    .update(updates)
-    .eq('id', id)
-    .select(SELECT)
-    .single()
+  let { data, error } = await supabase.from('modelos').update(updates).eq('id', id).select(SELECT).single()
+  if (faltaColumnaPaquete(error)) {
+    console.error('Falta la migración 041 (medidas del paquete): se guarda el modelo sin ellas')
+    ;({ data, error } = await supabase.from('modelos').update(sinPaquete(updates)).eq('id', id).select(SELECT).single())
+  }
   if (error) throw error
   return normalizeModelo(data)
 }

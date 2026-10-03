@@ -49,3 +49,8 @@
     grid-template-columns: 1fr 1fr 60px 60px 28px;
   }
 }
+
+/* Medidas del paquete: 4 columnas en PC, 2 en el celular. */
+.form-row.form-row-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 560px) { .form-row.form-row-4 { grid-template-columns: 1fr 1fr; } }
+.form-hint { font-size: .75rem; color: var(--text-secondary); margin: -.25rem 0 .5rem; }

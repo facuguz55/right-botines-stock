@@ -1,3 +1,4 @@
+import { etiquetaVarianteTN } from '../lib/talles'
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface TNProduct {
@@ -462,7 +463,7 @@ export async function updateTNVariant(
   token: string,
   productId: number,
   variantId: number,
-  data: { price?: string; stock?: number; values?: { es: string }[] },
+  data: { price?: string; stock?: number; values?: { es: string }[] } & Record<string, unknown>,
 ): Promise<void> {
   const path = `products/${productId}/variants/${variantId}`
 
@@ -494,7 +495,28 @@ export async function updateTNVariant(
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
 }
 
-export interface CreateTNProductInput {
+// Precio promocional y medidas del paquete que van en CADA variante de TN:
+// sin el promocional la web no muestra la oferta, y sin peso/medidas no puede
+// calcular el envío. Solo se mandan los que tienen valor (null = no tocar).
+export interface DatosVarianteTN {
+  precioPromocional?: number | null
+  pesoKg?: number | null
+  altoCm?: number | null
+  anchoCm?: number | null
+  profundidadCm?: number | null
+}
+
+export function camposVarianteTN(d: DatosVarianteTN): Record<string, string> {
+  const campos: Record<string, string> = {}
+  if (d.precioPromocional != null && d.precioPromocional > 0) campos.promotional_price = String(d.precioPromocional)
+  if (d.pesoKg != null && d.pesoKg > 0) campos.weight = String(d.pesoKg)
+  if (d.anchoCm != null && d.anchoCm > 0) campos.width = String(d.anchoCm)
+  if (d.altoCm != null && d.altoCm > 0) campos.height = String(d.altoCm)
+  if (d.profundidadCm != null && d.profundidadCm > 0) campos.depth = String(d.profundidadCm)
+  return campos
+}
+
+export interface CreateTNProductInput extends DatosVarianteTN {
   name: string
   categoryId: number | null
   precioVenta: number
@@ -518,8 +540,9 @@ export async function createTNProduct(
     attributes: [{ es: 'Talle' }],
     variants: input.talles.map(t => ({
       price: String(input.precioVenta),
+      ...camposVarianteTN(input),
       stock: t.cantidad,
-      values: [{ es: `${t.talleArg} arg / ${String(t.talleUs).replace('.', ',')} us` }],
+      values: [{ es: etiquetaVarianteTN(t.talleArg, t.talleUs) }],
     })),
     images: input.fotos.map(src => ({ src })),
   })
@@ -622,7 +645,7 @@ export async function deleteTNProduct(storeId: string, token: string, productId:
 
 // ── Escritura de variantes (altas/bajas de talle) ────────────────────────────
 
-export interface CreateTNVariantInput {
+export interface CreateTNVariantInput extends DatosVarianteTN {
   price: number
   stock: number
   talleArg: number
@@ -638,8 +661,9 @@ export async function createTNVariant(
   const path = `products/${productId}/variants`
   const body = JSON.stringify({
     price: String(input.price),
+    ...camposVarianteTN(input),
     stock: input.stock,
-    values: [{ es: `${input.talleArg} arg / ${String(input.talleUs).replace('.', ',')} us` }],
+    values: [{ es: etiquetaVarianteTN(input.talleArg, input.talleUs) }],
   })
 
   if (storeId && token) {

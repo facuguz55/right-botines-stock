@@ -1,7 +1,7 @@
 export const config = { runtime: 'edge' }
 
 import {
-  parseTalleArg, getUsFromArg, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
+  parseTalleArg, usDeVariante, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
   computePrecioEfectivo,
 } from '../src/lib/tnMapping'
 
@@ -120,7 +120,7 @@ export async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): 
     .map(v => {
       const talle_arg = parseTalleArg(variantLabel(v))
       return talle_arg !== null
-        ? { talle_arg, talle_us: getUsFromArg(talle_arg), stock: v.stock ?? 0, variantId: v.id }
+        ? { talle_arg, talle_us: usDeVariante(variantLabel(v), talle_arg), stock: v.stock ?? 0, variantId: v.id }
         : null
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)

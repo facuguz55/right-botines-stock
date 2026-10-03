@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState } from 'react'
+import { etiquetaVarianteTN } from '../../lib/talles'
 import type { Producto } from '../../types'
 import { Modal } from '../Modal/Modal'
 import './IngresoForm.css'
@@ -47,7 +48,7 @@ export function IngresoForm({ producto, onClose, onConfirm }: IngresoFormProps) 
         <div className="ingreso-producto-info">
           <p className="ingreso-modelo">{producto.marca} — {producto.modelo}</p>
           <p className="ingreso-talle">
-            Talle {producto.talle_us}us / {producto.talle_arg}arg · Stock actual: {producto.cantidad} par{producto.cantidad !== 1 ? 'es' : ''}
+            Talle {etiquetaVarianteTN(producto.talle_arg, producto.talle_us)} · Stock actual: {producto.cantidad} par{producto.cantidad !== 1 ? 'es' : ''}
           </p>
         </div>
 

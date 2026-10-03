@@ -3,16 +3,26 @@
 // de producto o talle) se empujan al toque. syncTNStock queda como resync de
 // respaldo (corre cada 1h, ver useTNSync.ts) para cubrir webhooks perdidos.
 
+import { etiquetaVarianteTN } from '../lib/talles'
 import { supabase } from '../lib/supabase'
 import { fetchModelos, createModelo, updateModelo, upsertTalle, deleteTalle, deleteModelo } from './modelos'
 import { uploadFotoFromUrl } from './storage'
 import {
-  fetchTNRawProducts, fetchTNProduct, updateTNVariant, createTNProduct,
-  updateTNProduct, deleteTNProduct, createTNVariant, deleteTNVariant,
-  getTNCredentials, type TNRawProduct,
+  fetchTNRawProducts,
+  fetchTNProduct,
+  updateTNVariant,
+  createTNProduct,
+  updateTNProduct,
+  deleteTNProduct,
+  createTNVariant,
+  deleteTNVariant,
+  getTNCredentials,
+  type TNRawProduct,
+  camposVarianteTN,
+  type DatosVarianteTN,
 } from './tiendanubeService'
 import {
-  parseTalleArg, getUsFromArg, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
+  parseTalleArg, usDeVariante, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
   computePrecioEfectivo,
 } from '../lib/tnMapping'
 import type { Modelo, ModeloTalle } from '../types'
@@ -59,7 +69,7 @@ export async function upsertModeloFromTNProduct(
     .map(v => {
       const talle_arg = parseTalleArg(variantLabel(v))
       return talle_arg !== null
-        ? { talle_arg, talle_us: getUsFromArg(talle_arg), stock: v.stock ?? 0, variantId: v.id }
+        ? { talle_arg, talle_us: usDeVariante(variantLabel(v), talle_arg), stock: v.stock ?? 0, variantId: v.id }
         : null
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -248,6 +258,17 @@ export async function pushStockToTN(modelo: Modelo, talleArg: number, nuevaCanti
   await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, { stock: Math.max(0, nuevaCantidad) })
 }
 
+// Precio promocional y medidas del paquete del modelo, para cada variante.
+function datosVarianteDeModelo(m: Modelo): DatosVarianteTN {
+  return {
+    precioPromocional: m.precio_promocional,
+    pesoKg: m.peso_kg ?? null,
+    altoCm: m.alto_cm ?? null,
+    anchoCm: m.ancho_cm ?? null,
+    profundidadCm: m.profundidad_cm ?? null,
+  }
+}
+
 // ── Edición/borrado de producto local → TiendaNube ───────────────────────────
 
 export async function pushModeloUpdateToTN(modelo: Modelo, opts: { categoryChanged?: boolean } = {}): Promise<void> {
@@ -263,7 +284,10 @@ export async function pushModeloUpdateToTN(modelo: Modelo, opts: { categoryChang
   for (const talle of modelo.modelo_talles) {
     const variantId = await resolveTNVariantId(modelo, talle)
     if (variantId) {
-      await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, { price: String(modelo.precio_venta) })
+      await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, {
+        price: String(modelo.precio_venta),
+        ...camposVarianteTN(datosVarianteDeModelo(modelo)),
+      })
     }
   }
 }
@@ -284,6 +308,7 @@ export async function pushTalleCreateToTN(
   const { storeId, token } = getTNCredentials()
   const { variantId } = await createTNVariant(storeId, token, modelo.tn_product_id, {
     price: modelo.precio_venta, stock: talle.cantidad, talleArg: talle.talle_arg, talleUs: talle.talle_us,
+    ...datosVarianteDeModelo(modelo),
   })
   await supabase.from('modelo_talles').update({ tn_variant_id: variantId }).eq('id', talle.id)
 }
@@ -309,7 +334,7 @@ export async function pushTalleUpdateToTN(
   const { storeId, token } = getTNCredentials()
   const data: { stock: number; values?: { es: string }[] } = { stock: Math.max(0, talle.cantidad) }
   if (opts.labelChanged) {
-    data.values = [{ es: `${talle.talle_arg} arg / ${String(talle.talle_us).replace('.', ',')} us` }]
+    data.values = [{ es: etiquetaVarianteTN(talle.talle_arg, talle.talle_us) }]
   }
   await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, data)
 }
@@ -328,6 +353,7 @@ export async function createTNProductAndLink(
     name: `${modelo.marca} ${modelo.modelo}`,
     categoryId,
     precioVenta: modelo.precio_venta,
+    ...datosVarianteDeModelo(modelo),
     talles: talles.map(({ talleArg, talleUs, cantidad }) => ({ talleArg, talleUs, cantidad })),
     fotos: fotoUrls,
   })

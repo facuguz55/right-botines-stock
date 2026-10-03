@@ -24,15 +24,15 @@ export const maxDuration = 300
 // "Cannot find module" en runtime siempre. Si se toca la lógica de precios
 // acá, tocar también tn-webhook.ts (que si puede importar de src/lib, corre
 // en runtime Edge, con otro bundler que sí resuelve imports relativos).
-const ARG_TO_US: Record<number, number> = {
-  34: 2, 34.5: 2.5, 35: 3, 35.5: 3.5, 36: 4, 36.5: 4.5, 37: 5, 37.5: 5.5,
-  38: 6, 38.5: 6.5, 39: 7, 39.5: 7.5, 40: 8, 40.5: 8.5, 41: 9, 41.5: 9.5,
-  42: 10, 42.5: 10.5, 43: 11, 43.5: 11.5, 44: 12, 44.5: 12.5, 45: 13, 45.5: 13.5,
-  46: 14, 46.5: 14.5, 47: 15,
-}
-// Mismo fix que src/lib/tnMapping.ts: la tabla usa offset ARG-US=32, no 30.5.
-function getUsFromArg(arg: number): number {
-  return ARG_TO_US[arg] ?? Math.round((arg - 32) * 2) / 2
+// COPIA de src/lib/talles.ts (este archivo no puede importar de src/lib):
+// la guía de talles de right.com.ar. Si cambia allá, cambiarla acá.
+const GUIA_ARG_A_US: Record<number, number> = { 39: 7, 40: 8, 41: 8.5, 42: 9.5, 43: 10, 44: 11 }
+// US de la variante: el que figura en su nombre en TN ("40 arg / 8 us") o,
+// si no tiene, el de la guía. 0 = sin US (la guía no tiene para 35–38, 45+).
+function usDeVariante(label: string, arg: number): number {
+  const m = label.toLowerCase().match(/(\d{1,2}(?:[.,]5)?)\s*us\b/)
+  if (m) return Number(m[1].replace(',', '.'))
+  return GUIA_ARG_A_US[arg] ?? 0
 }
 function variantLabel(v: { values?: { es?: string; en?: string; [k: string]: string | undefined }[] }): string {
   return (v.values ?? []).map(val => val.es ?? val.en ?? Object.values(val).find(x => x) ?? '').join(' ')
@@ -216,7 +216,7 @@ async function upsertModeloFromTNProductREST(
     .map(v => {
       const talle_arg = parseTalleArg(variantLabel(v))
       return talle_arg !== null
-        ? { talle_arg, talle_us: getUsFromArg(talle_arg), stock: v.stock ?? 0, variantId: v.id }
+        ? { talle_arg, talle_us: usDeVariante(variantLabel(v), talle_arg), stock: v.stock ?? 0, variantId: v.id }
         : null
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
