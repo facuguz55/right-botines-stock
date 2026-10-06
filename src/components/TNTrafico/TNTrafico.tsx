@@ -2,8 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { RefreshCw, Smartphone, Monitor, Tablet } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import type { Modelo } from '../../types'
-import { fetchTraficoResumen, fetchAnalisisProductos, type TraficoResumen, type AnalisisProductos } from '../../services/trafico'
+import {
+  fetchTraficoResumen, fetchAnalisisProductos, fetchTraficoCanales,
+  type TraficoResumen, type AnalisisProductos, type TraficoCanales as DatosCanales,
+} from '../../services/trafico'
 import { TraficoProductos } from './TraficoProductos'
+import { TraficoCanales } from './TraficoCanales'
 import './TNTrafico.css'
 
 // Fecha local (Argentina) en YYYY-MM-DD — toISOString() usaría UTC y de
@@ -55,6 +59,7 @@ export function TNTrafico({ modelos }: TNTraficoProps) {
   const [preset, setPreset] = useState('30d')
   const [data, setData] = useState<TraficoResumen | null>(null)
   const [analisis, setAnalisis] = useState<AnalisisProductos | null>(null)
+  const [canales, setCanales] = useState<DatosCanales | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -63,12 +68,14 @@ export function TNTrafico({ modelos }: TNTraficoProps) {
     setError(null)
     try {
       const { desde, hasta } = rango(preset)
-      const [resumen, porProducto] = await Promise.all([
+      const [resumen, porProducto, porCanal] = await Promise.all([
         fetchTraficoResumen(desde, hasta),
         fetchAnalisisProductos(desde, hasta),
+        fetchTraficoCanales(desde, hasta),
       ])
       setData(resumen)
       setAnalisis(porProducto)
+      setCanales(porCanal)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -202,6 +209,8 @@ export function TNTrafico({ modelos }: TNTraficoProps) {
           </ResponsiveContainer>
         )}
       </div>
+
+      {canales && <TraficoCanales datos={canales} />}
 
       <div className="analytics-row">
         <div className="tn-card">

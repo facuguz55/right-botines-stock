@@ -41,6 +41,7 @@ interface EventoEntrante {
   utm_campaign?: string | null
   talle?: string | null
   sin_stock?: boolean | null
+  click_id?: string | null
 }
 
 interface Payload {
@@ -60,6 +61,15 @@ function dispositivo(ua: string): 'mobile' | 'tablet' | 'desktop' {
   if (/ipad|tablet|(android(?!.*mobile))/i.test(ua)) return 'tablet'
   if (/mobi|iphone|ipod|android/i.test(ua)) return 'mobile'
   return 'desktop'
+}
+
+// Navegador interno de las apps: Instagram/Facebook/TikTok no siempre pasan
+// referrer, pero se identifican en el user-agent.
+function appDeOrigen(ua: string): 'instagram' | 'facebook' | 'tiktok' | null {
+  if (/Instagram/i.test(ua)) return 'instagram'
+  if (/FBAN|FBAV|FB_IAB|FBIOS/i.test(ua)) return 'facebook'
+  if (/musical_ly|BytedanceWebview|TikTok/i.test(ua)) return 'tiktok'
+  return null
 }
 
 function decodificar(v: string | null): string | null {
@@ -96,6 +106,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const disp = dispositivo(ua)
+  const app = appDeOrigen(ua)
   const ciudad = decodificar(req.headers.get('x-vercel-ip-city'))
   const pais = req.headers.get('x-vercel-ip-country')
 
@@ -114,6 +125,8 @@ export default async function handler(req: Request): Promise<Response> {
       utm_campaign: e.utm_campaign ?? null,
       talle: typeof e.talle === 'string' ? e.talle : null,
       sin_stock: typeof e.sin_stock === 'boolean' ? e.sin_stock : null,
+      click_id: e.click_id ?? null,
+      app,
       dispositivo: disp,
       ciudad,
       pais,

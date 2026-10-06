@@ -63,11 +63,16 @@
     var p = new URLSearchParams(location.search)
     var ref = document.referrer
     var externo = ref && ref.indexOf(location.host) === -1 ? ref : null
+    // IDs de click que agregan Google Ads (gclid), Meta (fbclid) y TikTok
+    // (ttclid): identifican el canal aunque el link no tenga UTM. Solo se
+    // guarda cuál vino, no el valor.
+    var clickId = p.get('gclid') ? 'gclid' : p.get('ttclid') ? 'ttclid' : p.get('fbclid') ? 'fbclid' : null
     return {
       referrer: externo,
       utm_source: p.get('utm_source'),
       utm_medium: p.get('utm_medium'),
       utm_campaign: p.get('utm_campaign'),
+      click_id: clickId,
     }
   }
 

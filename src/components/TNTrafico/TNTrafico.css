@@ -190,3 +190,61 @@
   .tp-tabla th:first-child { width: 42%; }
   .tp-prod .trafico-producto-foto { display: none; }
 }
+
+/* ── Canales (TraficoCanales) ── */
+.tc-tabla th:first-child { width: 28%; }
+.tc-canal { font-weight: 600; }
+.tc-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  vertical-align: middle;
+}
+
+.tc-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.tc-resultado {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.tc-link {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.tc-error {
+  font-size: 0.8125rem;
+  color: var(--warning);
+}
+
+.tc-meta {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 700px) {
+  .tc-form { grid-template-columns: minmax(0, 1fr); }
+  .tc-tabla { display: block; overflow-x: auto; }
+  .tc-tabla th:first-child { width: auto; }
+}

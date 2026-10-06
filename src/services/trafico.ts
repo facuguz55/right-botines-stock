@@ -55,3 +55,36 @@ export async function fetchTraficoResumen(desde: string, hasta: string): Promise
   if (error) throw error
   return data as TraficoResumen
 }
+
+export interface CanalTrafico {
+  canal: string
+  sesiones: number
+  visitantes: number
+  vieron_producto: number
+  carritos: number
+  checkouts: number
+  paginas_por_visita: number
+}
+
+export interface CampanaTrafico {
+  campana: string
+  utm_source: string | null
+  utm_medium: string | null
+  canal: string
+  sesiones: number
+  carritos: number
+  checkouts: number
+}
+
+export interface TraficoCanales {
+  canales: CanalTrafico[]
+  campanas: CampanaTrafico[]
+}
+
+// El canal de cada visita se decide en la base (web_canal): UTM → ID de
+// click → navegador interno de la app → referrer → Directo.
+export async function fetchTraficoCanales(desde: string, hasta: string): Promise<TraficoCanales> {
+  const { data, error } = await supabase.rpc('web_trafico_canales', { p_desde: desde, p_hasta: hasta })
+  if (error) throw error
+  return data as TraficoCanales
+}
