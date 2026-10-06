@@ -1,0 +1,130 @@
+/* Reutiliza .analytics-kpis / .analytics-row (TNAnalytics.css), .tn-card
+   (TNDashboard.css) y .ventas-presets (VentasHistory.css), igual que el
+   resto de las pantallas de Tienda Online. */
+.trafico { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.trafico-nota {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: -0.5rem;
+}
+.tn-card .trafico-nota { margin-top: 1rem; }
+
+.trafico-vacio p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Embudo ── */
+.trafico-embudo { display: flex; flex-direction: column; gap: 0.875rem; }
+
+.trafico-paso-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+.trafico-paso-top small { color: var(--text-muted); }
+.trafico-paso-top strong { color: var(--text-primary); font-size: 0.9375rem; }
+
+.trafico-barra {
+  height: 8px;
+  background: var(--bg-surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.trafico-barra-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.trafico-paso-pct {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* ── Listas (dispositivos, ciudades, páginas, productos) ── */
+.trafico-lista { display: flex; flex-direction: column; }
+
+.trafico-fila,
+.trafico-producto {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.trafico-fila:last-child,
+.trafico-producto:last-child { border-bottom: none; }
+
+.trafico-fila-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.trafico-path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.trafico-fila-valor {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.trafico-subtitulo { margin-top: 1.5rem; }
+
+.trafico-producto-foto {
+  width: 40px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.trafico-producto-foto.ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-2);
+  font-size: 0.875rem;
+}
+
+.trafico-producto-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.trafico-producto-nombre {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trafico-producto-meta {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}

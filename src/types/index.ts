@@ -131,7 +131,7 @@ export type Role = 'empleado' | 'dueno' | 'atencion'
 export type ActivePage =
   | 'stock' | 'dashboard' | 'ventas' | 'stock_avanzado' | 'carpetas' | 'configuracion' | 'seguimientos'
   | 'clientes_locales'
-  | 'tn_dashboard' | 'tn_analytics' | 'tn_ordenes' | 'tn_clientes' | 'tn_cupones' | 'tn_mails' | 'tn_preventa'
+  | 'tn_dashboard' | 'tn_analytics' | 'tn_trafico' | 'tn_ordenes' | 'tn_clientes' | 'tn_cupones' | 'tn_mails' | 'tn_preventa'
   | 'rentabilidad'
   | 'empleados' | 'caja'
   | 'proveedores' | 'devoluciones'

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Inbox, Clock, CalendarClock,
+  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Inbox, Clock, CalendarClock, MousePointerClick,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -23,7 +23,7 @@ interface LayoutProps {
 
 // Páginas visibles solo para el dueño
 export const SOLO_DUENO: ActivePage[] = [
-  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics', 'proveedores', 'crm_dashboard',
+  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics', 'tn_trafico', 'proveedores', 'crm_dashboard',
 ]
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
@@ -56,6 +56,7 @@ const ALL_NAV: NavItem[] = [
   { page: 'configuracion',  label: 'Ajustes',       Icon: Settings     },
   { page: 'tn_dashboard',   label: 'Dashboard',     Icon: ShoppingBag  },
   { page: 'tn_analytics',   label: 'Análisis',      Icon: TrendingUp   },
+  { page: 'tn_trafico',     label: 'Tráfico',       Icon: MousePointerClick },
   { page: 'tn_ordenes',     label: 'Órdenes',       Icon: ShoppingCart },
   { page: 'tn_preventa',    label: 'Preventas',     Icon: CalendarClock},
   { page: 'tn_clientes',    label: 'Clientes',      Icon: Users        },
@@ -134,7 +135,7 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       {esDueno && (
         <>
           <p className="nav-group-label">Análisis</p>
-          {(['tn_dashboard', 'tn_analytics'] as ActivePage[]).map(p => (
+          {(['tn_dashboard', 'tn_analytics', 'tn_trafico'] as ActivePage[]).map(p => (
             <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
           ))}
         </>
