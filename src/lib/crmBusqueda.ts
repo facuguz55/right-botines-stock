@@ -33,7 +33,10 @@ export const TALLE_ARG_MAX = 47
 // coincide con la tabla de alta de modelos (ModelForm.tsx, ARG_TO_US), que
 // dice por ejemplo US 8 = ARG 39; acá manda la guía porque es con la que el
 // cliente habla. Un US que la guía no tiene no se convierte a ojo.
+// 35–38 según los productos publicados (35 y 36 son los dos US 5: un "5 us"
+// es ambiguo y no se convierte).
 const US_TO_ARG: Record<string, number> = {
+  '5.5': 37, '6.5': 38,
   '7': 39, '8': 40, '8.5': 41, '9.5': 42, '10': 43, '11': 44,
 }
 

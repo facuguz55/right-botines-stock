@@ -25,10 +25,12 @@ export const maxDuration = 300
 // acá, tocar también tn-webhook.ts (que si puede importar de src/lib, corre
 // en runtime Edge, con otro bundler que sí resuelve imports relativos).
 // COPIA de src/lib/talles.ts (este archivo no puede importar de src/lib):
-// la guía de talles de right.com.ar. Si cambia allá, cambiarla acá.
-const GUIA_ARG_A_US: Record<number, number> = { 39: 7, 40: 8, 41: 8.5, 42: 9.5, 43: 10, 44: 11 }
+// la tabla de talles que usa Right en la web. Si cambia allá, cambiarla acá.
+const GUIA_ARG_A_US: Record<number, number> = {
+  35: 5, 36: 5, 37: 5.5, 38: 6.5, 39: 7, 40: 8, 41: 8.5, 42: 9.5, 43: 10, 44: 11,
+}
 // US de la variante: el que figura en su nombre en TN ("40 arg / 8 us") o,
-// si no tiene, el de la guía. 0 = sin US (la guía no tiene para 35–38, 45+).
+// si no tiene, el de la tabla. 0 = sin US (fuera de la tabla: 34, 45+).
 function usDeVariante(label: string, arg: number): number {
   const m = label.toLowerCase().match(/(\d{1,2}(?:[.,]5)?)\s*us\b/)
   if (m) return Number(m[1].replace(',', '.'))

@@ -1,14 +1,17 @@
-// Única tabla de talles de la app: la guía publicada en right.com.ar (la que
-// ven los clientes). Antes había cuatro tablas ARG→US distintas (alta de
-// modelos, ingreso de stock, import de TiendaNube) y ninguna coincidía con la
-// guía — por eso los talles se publicaban mal en la web (ej. ARG 40 salía
-// "9 us" y es "8 us").
+// Única tabla de talles de la app: la que usa Right en la web. Antes había
+// cuatro tablas ARG→US distintas (alta de modelos, ingreso de stock, import de
+// TiendaNube) y ninguna coincidía — por eso los talles se publicaban mal (ej.
+// ARG 40 salía "9 us" y es "8 us") y había que corregirlos a mano en TN.
 //
-// La guía no tiene US para ARG 35–38 ni para 45+ ("—" en la web): para esos
-// el US queda vacío (0 en la base, que no admite null) y en TiendaNube se
-// publica solo "35 arg".
+// 39–44 = guía de talles de right.com.ar. 35–38: la guía muestra "—", pero
+// los 144 productos publicados (relevados el 06/10/2026, ya corregidos a mano
+// por Right) usan 35→5, 36→5, 37→5,5, 38→6,5 sin excepción: se usa eso para
+// que lo nuevo salga igual que lo que ya está. Fuera de la tabla (34, 45+) el
+// US queda vacío (0 en la base, que no admite null) y en TiendaNube se publica
+// solo "45 arg".
 
 export const GUIA_ARG_A_US: Record<number, number> = {
+  35: 5, 36: 5, 37: 5.5, 38: 6.5,
   39: 7, 40: 8, 41: 8.5, 42: 9.5, 43: 10, 44: 11,
 }
 

@@ -29,6 +29,7 @@ describe('detectarBusqueda — talle', () => {
     ['talle 9.5 us', 42],
     ['tenés 9,5 US?', 42],
     ['us 10 tenes algo?', 43],
+    ['tenés 6,5 us?', 38],
     ['mido 26 cm', 40],
     ['el pie me mide 25,5cm', 40],
     ['24.2 cm', 38],
@@ -46,6 +47,7 @@ describe('detectarBusqueda — talle', () => {
     ['sale $38000?'],
     ['talle 38,5'],
     ['talle 12 us'], // US sin equivalencia cargada: no se adivina
+    ['uso 5 us'], // ambiguo: 35 y 36 son los dos US 5
     ['tenés 38 o 39?'], // ambiguo
     ['f 11'], // "11" no es un talle ARG
   ])('%s → sin talle', texto => {

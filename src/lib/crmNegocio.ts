@@ -34,10 +34,10 @@ Productos
 - Si preguntan si son originales, réplicas, o por la procedencia o la calidad de las marcas: NO respondas eso vos. Decí que ya le consultás (lo contesta una persona).
 
 Guía de talles (medir el pie con medias puestas, de la punta del dedo gordo hasta el talón; si está entre dos talles, conviene el más grande)
-- ARG 35 = EU 36 = 22,5 cm
-- ARG 36 = EU 37 = 23,5 cm
-- ARG 37 = EU 38 = 24 cm
-- ARG 38 = EU 39 = 24,5 cm
+- ARG 35 = EU 36 = US 5 = 22,5 cm
+- ARG 36 = EU 37 = US 5 = 23,5 cm
+- ARG 37 = EU 38 = US 5,5 = 24 cm
+- ARG 38 = EU 39 = US 6,5 = 24,5 cm
 - ARG 39 = EU 40 = US 7 = 25 cm
 - ARG 40 = EU 41 = US 8 = 26 cm
 - ARG 41 = EU 42 = US 8,5 = 26,5 cm
