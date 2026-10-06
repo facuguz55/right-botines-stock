@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { RefreshCw, Smartphone, Monitor, Tablet } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import type { Modelo } from '../../types'
-import { fetchTraficoResumen, type TraficoResumen } from '../../services/trafico'
+import { fetchTraficoResumen, fetchAnalisisProductos, type TraficoResumen, type AnalisisProductos } from '../../services/trafico'
+import { TraficoProductos } from './TraficoProductos'
 import './TNTrafico.css'
 
 // Fecha local (Argentina) en YYYY-MM-DD — toISOString() usaría UTC y de
@@ -53,6 +54,7 @@ interface TNTraficoProps {
 export function TNTrafico({ modelos }: TNTraficoProps) {
   const [preset, setPreset] = useState('30d')
   const [data, setData] = useState<TraficoResumen | null>(null)
+  const [analisis, setAnalisis] = useState<AnalisisProductos | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -61,7 +63,12 @@ export function TNTrafico({ modelos }: TNTraficoProps) {
     setError(null)
     try {
       const { desde, hasta } = rango(preset)
-      setData(await fetchTraficoResumen(desde, hasta))
+      const [resumen, porProducto] = await Promise.all([
+        fetchTraficoResumen(desde, hasta),
+        fetchAnalisisProductos(desde, hasta),
+      ])
+      setData(resumen)
+      setAnalisis(porProducto)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -294,6 +301,8 @@ export function TNTrafico({ modelos }: TNTraficoProps) {
           )}
         </div>
       </div>
+
+      {analisis && <TraficoProductos analisis={analisis} modelos={modelos} />}
     </div>
   )
 }

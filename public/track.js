@@ -4,7 +4,8 @@
  *   <script src="https://right-botines-stock.vercel.app/track.js" async></script>
  *
  * Registra: vistas de página, vistas de producto (usa LS.product de
- * TiendaNube), clicks en "Agregar al carrito" e "Iniciar compra".
+ * TiendaNube), talle elegido (y si estaba agotado), clicks en "Agregar al
+ * carrito" e "Iniciar compra".
  * Las compras NO salen de acá: TiendaNube bloquea scripts propios en el
  * checkout, así que se toman de las órdenes que llegan por webhook.
  *
@@ -91,6 +92,23 @@
     }
 
     var checkout = t.closest('[name="go_to_checkout"], [data-component="cart.checkout-button"], a[href*="/checkout"]')
-    if (checkout) enviar([{ tipo: 'checkout_start', path: location.pathname }])
+    if (checkout) { enviar([{ tipo: 'checkout_start', path: location.pathname }]); return }
+
+    // Talle elegido: la tienda muestra todos los talles como botones, también
+    // los agotados. Se marca sin_stock si ninguna variante con ese valor está
+    // disponible según LS.variants (el stock que tiene la página en ese momento).
+    var talle = t.closest('.js-insta-variant[data-option]')
+    if (talle) {
+      var valor = talle.getAttribute('data-option')
+      var grupo = talle.closest('[data-variation-id]')
+      var idx = grupo ? grupo.getAttribute('data-variation-id') : '0'
+      var sinStock = null
+      try {
+        var variantes = (window.LS && LS.variants) || []
+        var conEseValor = variantes.filter(function (v) { return v['option' + idx] === valor })
+        if (conEseValor.length) sinStock = !conEseValor.some(function (v) { return v.available })
+      } catch (e) { /* noop */ }
+      enviar([{ tipo: 'talle_select', path: location.pathname, tn_product_id: productoActualId(), talle: valor, sin_stock: sinStock }])
+    }
   }, true)
 })()

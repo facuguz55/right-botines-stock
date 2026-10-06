@@ -128,3 +128,65 @@
   font-size: 0.6875rem;
   color: var(--text-muted);
 }
+
+/* ── Análisis por producto (TraficoProductos) ── */
+.tp-subtitulo {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.tp-ayuda {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.tp-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  table-layout: fixed;
+}
+.tp-tabla th {
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 0.5rem 0.5rem 0;
+}
+.tp-tabla th:first-child { width: 50%; }
+.tp-tabla td {
+  padding: 0.5rem 0.5rem 0.5rem 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.tp-prod {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.tp-prod-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.tp-bueno { color: var(--accent); font-weight: 600; }
+.tp-medio { color: var(--warning); font-weight: 600; }
+.tp-malo { color: var(--danger); font-weight: 600; }
+.tp-neutro { color: var(--text-muted); }
+
+@media (max-width: 600px) {
+  .tp-tabla { font-size: 0.75rem; }
+  .tp-tabla th:first-child { width: 42%; }
+  .tp-prod .trafico-producto-foto { display: none; }
+}

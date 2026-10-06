@@ -19,6 +19,35 @@ export interface TraficoResumen {
   primer_evento: string | null
 }
 
+export interface ProductoAnalisis {
+  tn_product_id: number
+  vistas: number      // sesiones que vieron el producto
+  carritos: number    // sesiones que lo agregaron al carrito
+  checkouts: number   // de esas, las que después fueron al checkout
+  ordenes: number     // órdenes web que lo incluyen (tn_ordenes)
+  unidades: number
+  stock: number | null
+  nombre: string | null // nombre en TiendaNube, por si no está en el catálogo
+}
+
+export interface TalleAgotado {
+  tn_product_id: number
+  talle: string
+  sesiones: number
+  stock_actual: number | null
+}
+
+export interface AnalisisProductos {
+  productos: ProductoAnalisis[]
+  talles_agotados: TalleAgotado[]
+}
+
+export async function fetchAnalisisProductos(desde: string, hasta: string): Promise<AnalisisProductos> {
+  const { data, error } = await supabase.rpc('web_analisis_productos', { p_desde: desde, p_hasta: hasta })
+  if (error) throw error
+  return data as AnalisisProductos
+}
+
 // Todo el agregado se calcula en la base (RPC web_trafico_resumen) — los
 // eventos crudos pueden ser miles por día y no tiene sentido bajarlos.
 export async function fetchTraficoResumen(desde: string, hasta: string): Promise<TraficoResumen> {

@@ -29,7 +29,7 @@ const ORIGENES_PERMITIDOS = [
 
 const BOTS = /bot|crawl|spider|slurp|facebookexternalhit|headless|lighthouse|pingdom|preview|python|curl|wget|axios|node-fetch/i
 
-const TIPOS = new Set(['page_view', 'product_view', 'add_to_cart', 'checkout_start'])
+const TIPOS = new Set(['page_view', 'product_view', 'add_to_cart', 'checkout_start', 'talle_select'])
 
 interface EventoEntrante {
   tipo?: string
@@ -39,6 +39,8 @@ interface EventoEntrante {
   utm_source?: string | null
   utm_medium?: string | null
   utm_campaign?: string | null
+  talle?: string | null
+  sin_stock?: boolean | null
 }
 
 interface Payload {
@@ -110,6 +112,8 @@ export default async function handler(req: Request): Promise<Response> {
       utm_source: e.utm_source ?? null,
       utm_medium: e.utm_medium ?? null,
       utm_campaign: e.utm_campaign ?? null,
+      talle: typeof e.talle === 'string' ? e.talle : null,
+      sin_stock: typeof e.sin_stock === 'boolean' ? e.sin_stock : null,
       dispositivo: disp,
       ciudad,
       pais,
