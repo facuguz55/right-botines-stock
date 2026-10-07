@@ -49,6 +49,7 @@ import { useEmpleados } from './hooks/useEmpleados'
 import { useProveedores } from './hooks/useProveedores'
 import { useFichajeActual } from './hooks/useFichajeActual'
 import { fetchConfiguracionFichajes } from './services/configuracionFichajes'
+import { avisarFallaStockTN } from './services/stockTN'
 import { cerrarFichajesVencidos } from './services/fichajes'
 import { cerrarCajaPorCorteDeTurno } from './services/caja'
 import { AiChat } from './components/AiChat/AiChat'
@@ -284,7 +285,10 @@ export function App() {
             onCancel={() => setIngresoTarget(null)}
             onSave={(changes, newTalle, costoTotal) =>
               ingresarStockBatch(ingresoTarget.id, changes, newTalle, costoTotal)
-                .then(() => setIngresoTarget(null))
+                .then(({ avisoTN }) => {
+                  setIngresoTarget(null)
+                  if (avisoTN) avisarFallaStockTN('El ingreso de stock', avisoTN, empleadoId)
+                })
             }
           />
         ) : (
@@ -409,10 +413,11 @@ export function App() {
         addCliente={clientesLocales.addCliente}
         initialClienteId={crmVenta?.clienteLocalId ?? null}
         onSell={async (items, medioPago, clienteId, tarjeta, cuotas, recargoPct, montoEfectivo, montoTransferencia, montoTarjeta, montoRecibidoEfectivo, vueltoEfectivo) => {
-          await venderCarrito(
+          const { avisoTN } = await venderCarrito(
             items, medioPago, clienteId, tarjeta, cuotas, recargoPct, empleadoId,
             montoEfectivo, montoTransferencia, montoTarjeta, montoRecibidoEfectivo, vueltoEfectivo,
           )
+          if (avisoTN) avisarFallaStockTN('La venta', avisoTN, empleadoId)
 
           // Venta armada desde el "+" del CRM: vincular el cliente local
           // elegido/creado en el cobro (puede ser otro distinto al que ya

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { avisarFallaStockTN } from '../../services/stockTN'
 import { textoUs } from '../../lib/talles'
 import { Plus, Clock, ShieldAlert } from 'lucide-react'
 import type { Modelo, MedioPago, TipoDevolucionCambio, Venta, Proveedor, Role } from '../../types'
@@ -216,16 +217,7 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
       })
       onStockChanged()
       setModalOpen(false)
-      if (avisoTN) {
-        // Los cambios los hacen sobre todo empleados: el cartel lo ve solo
-        // quien lo cargó, así que también queda en la campanita de fallas
-        // del dueño (DevolucionesAlerts) para que alguien lo corrija.
-        logFallaDevolucionCambio(empleadoId, `Registrado, pero ${avisoTN} en TiendaNube — corregir el stock en la web`).catch(() => {})
-        window.alert(
-          `La ${tipo === 'cambio' ? 'operación de cambio' : 'devolución'} se registró, pero ${avisoTN} en TiendaNube.\n\n` +
-          'Revisá ese stock en la web (o avisale al dueño): si no se corrige, la próxima sincronización puede deshacer el ajuste.',
-        )
-      }
+      if (avisoTN) avisarFallaStockTN(tipo === 'cambio' ? 'El cambio' : 'La devolución', avisoTN, empleadoId)
     } catch (e) {
       const msg = (e as Error).message
       setError(msg)

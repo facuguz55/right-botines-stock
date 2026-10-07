@@ -12,6 +12,8 @@ const POLL_MS = 30000
 // transacción entera se cancela y no queda nada guardado en el historial
 // normal. Esto le da al dueño visibilidad de esos rechazos sin tener que
 // reconstruirlos a mano por ausencia de datos.
+// También recibe ventas, ingresos, cambios y devoluciones que se registraron
+// pero no llegaron a TiendaNube (services/stockTN.ts avisarFallaStockTN).
 export function DevolucionesAlerts() {
   const [noVistos, setNoVistos] = useState<FallaDevolucionCambio[]>([])
   const [historial, setHistorial] = useState<FallaDevolucionCambio[]>([])
@@ -53,14 +55,14 @@ export function DevolucionesAlerts() {
 
   return (
     <div className="access-alerts" ref={boxRef}>
-      <button className={`access-alerts-btn${noVistos.length > 0 ? ' alert' : ''}`} onClick={toggle} title="Devoluciones/cambios que fallaron">
+      <button className={`access-alerts-btn${noVistos.length > 0 ? ' alert' : ''}`} onClick={toggle} title="Problemas con ventas, ingresos, cambios y devoluciones">
         <AlertOctagon size={16} />
         {noVistos.length > 0 && <span className="access-alerts-badge">{noVistos.length}</span>}
       </button>
 
       {open && (
         <div className="access-alerts-panel" style={{ width: 300 }}>
-          <p className="access-alerts-title">Devoluciones/cambios que fallaron</p>
+          <p className="access-alerts-title">Problemas con ventas, ingresos, cambios y devoluciones</p>
           {historial.length === 0 ? (
             <p className="access-alerts-empty">Sin fallos registrados.</p>
           ) : (

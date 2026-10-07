@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { usParaGuardar } from '../lib/talles'
 import type { Modelo, ModeloTalle, ModeloFilters, PhotoSlot, TalleRow, MedioPago, CartItem } from '../types'
 import { supabase } from '../lib/supabase'
+import { reflejarStockEnTN } from '../services/stockTN'
 import {
   fetchModelos, createModelo, updateModelo, deleteModelo,
   sellCarrito, addIngreso, addIngresoBatch, upsertTalle, deleteTalle,
@@ -10,7 +11,7 @@ import {
 import { saveFotos, deleteFotosForModelo } from '../services/fotos'
 import { recordPriceChange } from '../services/historial_precios'
 import {
-  pushStockToTN, createTNProductAndLink,
+  createTNProductAndLink,
   pushModeloUpdateToTN, pushModeloDeleteToTN,
   pushTalleCreateToTN, pushTalleDeleteToTN, pushTalleUpdateToTN,
 } from '../services/tnSync'
@@ -289,16 +290,11 @@ export function useModelos() {
       }
     }))
 
-    // Best-effort: si el modelo viene de TiendaNube, reflejar el nuevo stock allá.
-    // No debe bloquear ni revertir la venta local si TN falla.
-    for (const { modelo, talleId, cantidad } of resolved) {
-      const talle = modelo.modelo_talles.find(t => t.id === talleId)
-      if (talle) {
-        pushStockToTN(modelo, talle.talle_arg, talle.cantidad - cantidad).catch(err => {
-          console.error('No se pudo actualizar el stock en TiendaNube:', err)
-        })
-      }
-    }
+    // Llevar el stock a TiendaNube. La venta ya quedó registrada: si TN
+    // falla no se revierte, pero se devuelve el aviso para que quien vendió
+    // (y el dueño) se entere — si no, la próxima sincronización la deshace.
+    const avisoTN = await reflejarStockEnTN(resolved.map(r => r.talleId))
+    return { avisoTN }
   }
 
   const ingresarStock = async (
@@ -313,13 +309,16 @@ export function useModelos() {
     await addIngreso(modeloId, talleArg, talleUs, cantidadActual, cantidad, costoTotal, talleId)
     await load()
 
-    // Best-effort: reflejar el nuevo stock en TiendaNube.
-    const modelo = modelos.find(m => m.id === modeloId)
-    if (modelo) {
-      pushStockToTN(modelo, talleArg, cantidadActual + cantidad).catch(err => {
-        console.error('No se pudo actualizar el stock en TiendaNube:', err)
-      })
+    // Llevar el stock a TiendaNube (ver venderCarrito). Sin talleId el talle
+    // es nuevo: se busca el recién creado por modelo + talle.
+    let id = talleId
+    if (!id) {
+      const { data } = await supabase.from('modelo_talles').select('id')
+        .eq('modelo_id', modeloId).eq('talle_arg', talleArg).maybeSingle()
+      id = data?.id
     }
+    const avisoTN = id ? await reflejarStockEnTN([id]) : null
+    return { avisoTN }
   }
 
   const ingresarStockBatch = async (
@@ -331,22 +330,24 @@ export function useModelos() {
     const { newTalleId } = await addIngresoBatch(modeloId, changes, newTalle, costoTotal)
     await load()
 
-    // Best-effort: reflejar el nuevo stock en TiendaNube.
+    // Llevar el stock a TiendaNube (ver venderCarrito): talles existentes
+    // con el stock real de la base, y el talle nuevo se crea como variante.
+    const fallas: string[] = []
+    const avisoStock = await reflejarStockEnTN(changes.map(c => c.talleId))
+    if (avisoStock) fallas.push(avisoStock)
+
     const modelo = modelos.find(m => m.id === modeloId)
-    if (modelo) {
-      for (const c of changes) {
-        pushStockToTN(modelo, c.talleArg, c.cantidadActual + c.delta).catch(err => {
-          console.error('No se pudo actualizar el stock en TiendaNube:', err)
-        })
-      }
-      if (newTalle && newTalleId && modelo.tn_product_id) {
-        pushTalleCreateToTN(modelo, {
+    if (modelo && newTalle && newTalleId && modelo.tn_product_id) {
+      try {
+        await pushTalleCreateToTN(modelo, {
           id: newTalleId, talle_arg: newTalle.talleArg, talle_us: newTalle.talleUs, cantidad: newTalle.cantidad,
-        }).catch(err => {
-          console.error('No se pudo crear el talle nuevo en TiendaNube:', err)
         })
+      } catch (err) {
+        console.error('No se pudo crear el talle nuevo en TiendaNube:', err)
+        fallas.push(`no se pudo crear el talle ${newTalle.talleArg} de ${modelo.marca} ${modelo.modelo}`)
       }
     }
+    return { avisoTN: fallas.length ? fallas.join('; ') : null }
   }
 
   const clearAll = async () => {

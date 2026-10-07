@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
-import type { DevolucionCambio, MedioPago, Modelo, TipoDevolucionCambio } from '../types'
-import { pushStockToTN } from './tnSync'
+import type { DevolucionCambio, MedioPago, TipoDevolucionCambio } from '../types'
+import { reflejarStockEnTN } from './stockTN'
 
 const SELECT = `*,
   modelo_original:modelos!devoluciones_cambios_modelo_id_original_fkey(modelo, marca),
@@ -38,37 +38,6 @@ export interface RegistrarDevolucionCambioInput {
 // registrar_devolucion_cambio (supabase/migrations/028_venta_y_devolucion_atomicas.sql,
 // 035_devolucion_sin_stock.sql, 037_garantias.sql), con el mismo criterio que
 // registrar_venta_carrito.
-// Lleva a TiendaNube el stock de los talles que tocó la devolución/cambio.
-// Sin esto, TiendaNube seguía con el stock viejo y la siguiente
-// sincronización (TN → app) pisaba `cantidad` y deshacía el cambio: el par
-// devuelto "desaparecía" del stock y el entregado "volvía". Solo sobrevivía
-// `cantidad_local`, que no se sincroniza (pasó el 07/10 con un cambio de
-// talle 40 → 41). Se lee el stock ya actualizado de la base (no el de la
-// pantalla), porque la base es la que hizo la cuenta.
-// Devuelve un aviso si algún talle no se pudo llevar a TiendaNube.
-async function reflejarStockEnTN(talleIds: string[]): Promise<string | null> {
-  const ids = [...new Set(talleIds)]
-  const { data: talles, error } = await supabase
-    .from('modelo_talles').select('id, modelo_id, talle_arg, cantidad').in('id', ids)
-  if (error || !talles) return 'no se pudo leer el stock actualizado'
-
-  const fallas: string[] = []
-  for (const t of talles) {
-    let nombre = `talle ${t.talle_arg}`
-    try {
-      const { data: modelo, error: errModelo } = await supabase
-        .from('modelos').select('*, modelo_talles(*)').eq('id', t.modelo_id).single()
-      if (errModelo || !modelo) throw errModelo ?? new Error('modelo no encontrado')
-      nombre = `${modelo.marca} ${modelo.modelo} talle ${t.talle_arg} (debería quedar en ${t.cantidad})`
-      await pushStockToTN(modelo as Modelo, Number(t.talle_arg), t.cantidad)
-    } catch (e) {
-      console.error('No se pudo actualizar el stock en TiendaNube:', e)
-      fallas.push(nombre)
-    }
-  }
-  return fallas.length ? `no se pudo actualizar ${fallas.join(', ')}` : null
-}
-
 export async function registrarDevolucionCambio(input: RegistrarDevolucionCambioInput): Promise<{ avisoTN: string | null }> {
   const { error } = await supabase.rpc('registrar_devolucion_cambio', {
     p_tipo: input.tipo,

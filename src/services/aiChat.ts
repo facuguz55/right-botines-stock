@@ -1,5 +1,7 @@
 ﻿import { fetchModelos, updateModelo, addIngreso } from './modelos'
 import { fetchVentas } from './ventas'
+import { reflejarStockEnTN } from './stockTN'
+import { supabase } from '../lib/supabase'
 import { toISOLocal } from '../utils/fecha'
 
 const API_URL = 'https://api.anthropic.com/v1/messages'
@@ -112,7 +114,17 @@ async function executeTool(name: string, input: any): Promise<string> {
     }
     case 'agregar_stock': {
       await addIngreso(input.modelo_id, input.talle_arg, input.talle_us, input.cantidad_actual, input.cantidad_agregar, input.costo_total ?? 0, input.talle_id)
-      return `Stock actualizado: +${input.cantidad_agregar} par${input.cantidad_agregar !== 1 ? 'es' : ''} al talle ARG ${input.talle_arg}`
+      // Igual que un ingreso manual: sin llevarlo a TiendaNube, la próxima
+      // sincronización deshacía el stock agregado por el asistente.
+      let talleId: string | undefined = input.talle_id
+      if (!talleId) {
+        const { data } = await supabase.from('modelo_talles').select('id')
+          .eq('modelo_id', input.modelo_id).eq('talle_arg', input.talle_arg).maybeSingle()
+        talleId = data?.id
+      }
+      const avisoTN = talleId ? await reflejarStockEnTN([talleId]) : null
+      const ok = `Stock actualizado: +${input.cantidad_agregar} par${input.cantidad_agregar !== 1 ? 'es' : ''} al talle ARG ${input.talle_arg}`
+      return avisoTN ? `${ok}. ATENCION: ${avisoTN} en TiendaNube, hay que corregir ese stock en la web.` : ok
     }
     case 'actualizar_precio': {
       const updates: Partial<{ precio_venta: number; precio_costo: number }> = {}
