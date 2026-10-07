@@ -159,7 +159,7 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginAte
           </div>
 
           {error && (
-            <p className="login-pin-error"><AlertTriangle size={13} /> PIN incorrecto</p>
+            <p className="login-pin-error"><AlertTriangle size={13} /> PIN incorrecto (con 5 errores seguidos hay que esperar 15 minutos)</p>
           )}
 
           <div className="login-keypad">

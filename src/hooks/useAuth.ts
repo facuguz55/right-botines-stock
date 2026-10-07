@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { Empleado, Role } from '../types'
-import { logFailedOwnerAttempt, verifyOwnerPin } from '../services/auth'
+import { verifyOwnerPin } from '../services/auth'
 
 const ROLE_KEY = 'rb_role'
 const EMPLEADO_ID_KEY = 'rb_empleado_id'
@@ -79,9 +79,8 @@ export function useAuth() {
     if (ok) {
       try { sessionStorage.setItem(ROLE_KEY, 'dueno') } catch { /* noop */ }
       setRole('dueno')
-    } else {
-      try { await logFailedOwnerAttempt() } catch { /* noop */ }
     }
+    // El intento fallido lo anota la base (verify_owner_pin, migración 048).
     return ok
   }, [])
 

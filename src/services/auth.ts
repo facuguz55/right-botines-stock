@@ -6,9 +6,13 @@ export async function verifyOwnerPin(pin: string): Promise<boolean> {
   return Boolean(data)
 }
 
-export async function setOwnerPin(newPin: string): Promise<void> {
-  const { error } = await supabase.rpc('set_owner_pin', { new_pin: newPin })
+// Pide el PIN actual: sin eso cualquiera con la clave pública de la app podía
+// cambiarlo. La base responde { ok, error } (y limita los intentos fallidos).
+export async function setOwnerPin(currentPin: string, newPin: string): Promise<void> {
+  const { data, error } = await supabase.rpc('set_owner_pin', { current_pin: currentPin, new_pin: newPin })
   if (error) throw error
+  const res = data as { ok?: boolean; error?: string } | null
+  if (!res?.ok) throw new Error(res?.error ?? 'No se pudo actualizar el PIN')
 }
 
 export async function logFailedOwnerAttempt(): Promise<void> {

@@ -72,6 +72,7 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
   const [accentColor, setAccentColor] = useState(getSavedAccent)
 
   // PIN de acceso dueño
+  const [pinActual, setPinActual] = useState('')
   const [nuevoPin, setNuevoPin] = useState('')
   const [confirmarPin, setConfirmarPin] = useState('')
   const [pinMsg, setPinMsg] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -79,6 +80,10 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
 
   const handleGuardarPin = async () => {
     setPinMsg(null)
+    if (!/^\d{4}$/.test(pinActual)) {
+      setPinMsg({ ok: false, msg: 'Poné el PIN actual (4 dígitos).' })
+      return
+    }
     if (!/^\d{4}$/.test(nuevoPin)) {
       setPinMsg({ ok: false, msg: 'El PIN debe tener 4 dígitos.' })
       return
@@ -89,8 +94,9 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
     }
     setGuardandoPin(true)
     try {
-      await setOwnerPin(nuevoPin)
+      await setOwnerPin(pinActual, nuevoPin)
       setPinMsg({ ok: true, msg: '✓ PIN actualizado' })
+      setPinActual('')
       setNuevoPin('')
       setConfirmarPin('')
     } catch (e: any) {
@@ -654,6 +660,20 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
         </p>
         <div className="config-card">
           <div className="config-row">
+            <label className="config-label"><Key size={11} /> PIN actual</label>
+            <div className="config-input-wrap" style={{ maxWidth: 140 }}>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                className="config-input"
+                value={pinActual}
+                onChange={e => setPinActual(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+              />
+            </div>
+          </div>
+          <div className="config-row">
             <label className="config-label"><Key size={11} /> Nuevo PIN</label>
             <div className="config-input-wrap" style={{ maxWidth: 140 }}>
               <input
@@ -687,7 +707,7 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
           <div className="config-actions">
             <button
               className="btn btn-primary"
-              disabled={guardandoPin || nuevoPin.length !== 4 || confirmarPin.length !== 4}
+              disabled={guardandoPin || pinActual.length !== 4 || nuevoPin.length !== 4 || confirmarPin.length !== 4}
               onClick={handleGuardarPin}
             >
               {guardandoPin ? 'Guardando...' : 'Actualizar PIN'}
