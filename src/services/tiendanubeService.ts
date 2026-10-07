@@ -1,4 +1,5 @@
 import { etiquetaVarianteTN } from '../lib/talles'
+import { headerDispositivo, revisarRespuestaProxy } from '../lib/dispositivo'
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface TNProduct {
@@ -271,6 +272,18 @@ export function clearTNCredentials() {
 const TN_BASE = 'https://api.tiendanube.com/v1'
 const USER_AGENT = 'RightBotinesStock (contacto@rightbotines.com)'
 
+// Toda llamada al proxy /api/tiendanube pasa por acá: agrega el permiso de
+// este dispositivo (sin él, el proxy no usa las credenciales del servidor) y
+// avisa a la app si el dispositivo no está habilitado.
+async function fetchProxy(url: string, init: RequestInit = {}): Promise<Response> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { ...(init.headers as Record<string, string> | undefined), ...headerDispositivo() },
+  })
+  await revisarRespuestaProxy(res)
+  return res
+}
+
 function tnHeaders(token: string): HeadersInit {
   return { Authentication: `bearer ${token}`, 'User-Agent': USER_AGENT }
 }
@@ -323,7 +336,7 @@ async function tnFetch(
   const ctrl2 = new AbortController()
   const tid2 = setTimeout(() => ctrl2.abort(), 25000)
   const proxyParams = new URLSearchParams({ path, ...params })
-  const proxyRes = await fetch(`/api/tiendanube?${proxyParams}`, {
+  const proxyRes = await fetchProxy(`/api/tiendanube?${proxyParams}`, {
     signal: ctrl2.signal,
     headers: {
       ...(storeId ? { 'x-tn-store': storeId } : {}),
@@ -483,7 +496,7 @@ export async function updateTNVariant(
   // Sin credenciales locales o falló el directo: el proxy Vercel usa las
   // credenciales del servidor si no le mandamos headers.
   const qs = new URLSearchParams({ path })
-  const res = await fetch(`/api/tiendanube?${qs}`, {
+  const res = await fetchProxy(`/api/tiendanube?${qs}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -566,7 +579,7 @@ export async function createTNProduct(
   // Sin credenciales locales o falló el directo: el proxy Vercel usa las
   // credenciales del servidor si no le mandamos headers.
   const qs = new URLSearchParams({ path: 'products' })
-  const res = await fetch(`/api/tiendanube?${qs}`, {
+  const res = await fetchProxy(`/api/tiendanube?${qs}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -608,7 +621,7 @@ export async function updateTNProduct(
   }
 
   const qs = new URLSearchParams({ path })
-  const res = await fetch(`/api/tiendanube?${qs}`, {
+  const res = await fetchProxy(`/api/tiendanube?${qs}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -633,7 +646,7 @@ export async function deleteTNProduct(storeId: string, token: string, productId:
   }
 
   const qs = new URLSearchParams({ path })
-  const res = await fetch(`/api/tiendanube?${qs}`, {
+  const res = await fetchProxy(`/api/tiendanube?${qs}`, {
     method: 'DELETE',
     headers: {
       ...(storeId ? { 'x-tn-store': storeId } : {}),
@@ -683,7 +696,7 @@ export async function createTNVariant(
   }
 
   const qs = new URLSearchParams({ path })
-  const res = await fetch(`/api/tiendanube?${qs}`, {
+  const res = await fetchProxy(`/api/tiendanube?${qs}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -715,7 +728,7 @@ export async function deleteTNVariant(
   }
 
   const qs = new URLSearchParams({ path })
-  const res = await fetch(`/api/tiendanube?${qs}`, {
+  const res = await fetchProxy(`/api/tiendanube?${qs}`, {
     method: 'DELETE',
     headers: {
       ...(storeId ? { 'x-tn-store': storeId } : {}),
@@ -756,7 +769,7 @@ export async function createTNWebhook(storeId: string, token: string, event: str
   }
 
   const qs = new URLSearchParams({ path })
-  const res = await fetch(`/api/tiendanube?${qs}`, {
+  const res = await fetchProxy(`/api/tiendanube?${qs}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { DispositivosSection } from './DispositivosSection'
 import { Percent, DollarSign, CheckCircle, AlertTriangle, Palette, ShoppingBag, Key, Trash2, ShieldCheck, SlidersHorizontal, Wallet, Mail, LogOut } from 'lucide-react'
 import type { Modelo, AjustePrecioConfig, AjusteTipo, AjusteOperacion } from '../../types'
 import { previewAjuste, aplicarAjuste } from '../../services/ajuste_precios'
@@ -694,6 +695,8 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
           </div>
         </div>
       </section>
+
+      <DispositivosSection />
 
       </div>}
 

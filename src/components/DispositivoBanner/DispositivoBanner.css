@@ -1,0 +1,26 @@
+.dispositivo-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--warning-dim);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  border-radius: var(--radius-md);
+  color: var(--warning);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.dispositivo-banner svg { flex-shrink: 0; }
+.dispositivo-banner span { flex: 1; color: var(--text-primary); }
+.dispositivo-banner .btn { flex-shrink: 0; }
+
+.dispositivo-form { display: flex; flex-direction: column; gap: 1rem; }
+.dispositivo-ayuda { font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.4; }
+.dispositivo-error { font-size: 0.8125rem; color: var(--danger); }
+.dispositivo-ok { font-size: 0.875rem; color: var(--accent); line-height: 1.4; }
+.dispositivo-acciones { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+@media (max-width: 600px) {
+  .dispositivo-banner { flex-wrap: wrap; }
+}

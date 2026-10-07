@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
+import { DispositivoBanner } from '../DispositivoBanner/DispositivoBanner'
 import { DevolucionesAlerts } from '../DevolucionesAlerts/DevolucionesAlerts'
 import { FichajeWidget } from '../FichajeWidget/FichajeWidget'
 import type { useFichajeActual } from '../../hooks/useFichajeActual'
@@ -195,6 +196,7 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       </aside>
 
       <main className="main-content">
+        <DispositivoBanner />
         <div key={activePage} className="page-enter">{children}</div>
       </main>
 

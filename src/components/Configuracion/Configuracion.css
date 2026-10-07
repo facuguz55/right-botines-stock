@@ -457,3 +457,17 @@
   .config-actions { flex-direction: column; }
   .config-actions .btn { width: 100%; justify-content: center; }
 }
+
+/* ── Dispositivos habilitados (DispositivosSection) ── */
+.dispositivos-lista { display: flex; flex-direction: column; }
+.dispositivos-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.dispositivos-fila:last-child { border-bottom: none; }
+.dispositivos-nombre { font-size: 0.875rem; font-weight: 600; color: var(--text-primary); }
+.dispositivos-meta { font-size: 0.75rem; color: var(--text-muted); }
