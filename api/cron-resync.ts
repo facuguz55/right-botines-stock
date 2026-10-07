@@ -109,6 +109,26 @@ async function sbFetch(path: string, options: RequestInit = {}) {
   return res
 }
 
+// Copia de insertarTalleSinDuplicar de api/tn-webhook.ts (este archivo no
+// puede importar de otros módulos de api/): si otro proceso insertó el mismo
+// talle antes, el índice único (migración 047) responde 409 y se actualiza esa
+// fila en vez de duplicar.
+async function insertarTalleSinDuplicar(row: {
+  modelo_id: string; talle_us: number; talle_arg: number; cantidad: number
+  stock_minimo: number; tn_variant_id: number
+}) {
+  try {
+    await sbFetch('modelo_talles', { method: 'POST', body: JSON.stringify(row) })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ''
+    if (!msg.includes('→ 409') && !msg.includes('23505')) throw e
+    await sbFetch(`modelo_talles?modelo_id=eq.${row.modelo_id}&talle_arg=eq.${row.talle_arg}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ talle_us: row.talle_us, cantidad: row.cantidad, tn_variant_id: row.tn_variant_id }),
+    })
+  }
+}
+
 interface TNRawProductMinimal {
   id: number
   name: Record<string, string>
@@ -283,12 +303,9 @@ async function upsertModeloFromTNProductREST(
         body: JSON.stringify({ talle_us: vt.talle_us, talle_arg: vt.talle_arg, cantidad: vt.stock, tn_variant_id: vt.variantId }),
       }))
     } else {
-      talleWrites.push(sbFetch('modelo_talles', {
-        method: 'POST',
-        body: JSON.stringify({
-          modelo_id: modeloId, talle_us: vt.talle_us, talle_arg: vt.talle_arg,
-          cantidad: vt.stock, stock_minimo: 1, tn_variant_id: vt.variantId,
-        }),
+      talleWrites.push(insertarTalleSinDuplicar({
+        modelo_id: modeloId, talle_us: vt.talle_us, talle_arg: vt.talle_arg,
+        cantidad: vt.stock, stock_minimo: 1, tn_variant_id: vt.variantId,
       }))
     }
   }

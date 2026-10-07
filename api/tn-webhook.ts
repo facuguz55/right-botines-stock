@@ -31,6 +31,27 @@ export async function sbFetch(path: string, options: RequestInit = {}) {
   return res
 }
 
+// Crear un producto en TiendaNube dispara varios webhooks casi juntos: cada
+// uno veía que el talle no existía y lo insertaba, y quedaban filas repetidas
+// (mismo talle dos o tres veces). La base ahora tiene un índice único por
+// (modelo_id, talle_arg) (migración 047): si otro webhook se adelantó, se
+// actualiza esa fila en vez de fallar o duplicar.
+export async function insertarTalleSinDuplicar(row: {
+  modelo_id: string; talle_us: number; talle_arg: number; cantidad: number
+  stock_minimo: number; tn_variant_id: number
+}) {
+  try {
+    await sbFetch('modelo_talles', { method: 'POST', body: JSON.stringify(row) })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ''
+    if (!msg.includes('→ 409') && !msg.includes('23505')) throw e
+    await sbFetch(`modelo_talles?modelo_id=eq.${row.modelo_id}&talle_arg=eq.${row.talle_arg}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ talle_us: row.talle_us, cantidad: row.cantidad, tn_variant_id: row.tn_variant_id }),
+    })
+  }
+}
+
 async function verifyHmac(req: Request, rawBody: string): Promise<boolean> {
   const secret = process.env.TN_WEBHOOK_SECRET
   if (!secret) return true
@@ -191,12 +212,9 @@ export async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): 
         body: JSON.stringify({ talle_us: vt.talle_us, talle_arg: vt.talle_arg, cantidad: vt.stock, tn_variant_id: vt.variantId }),
       })
     } else {
-      await sbFetch('modelo_talles', {
-        method: 'POST',
-        body: JSON.stringify({
-          modelo_id: modeloId, talle_us: vt.talle_us, talle_arg: vt.talle_arg,
-          cantidad: vt.stock, stock_minimo: 1, tn_variant_id: vt.variantId,
-        }),
+      await insertarTalleSinDuplicar({
+        modelo_id: modeloId, talle_us: vt.talle_us, talle_arg: vt.talle_arg,
+        cantidad: vt.stock, stock_minimo: 1, tn_variant_id: vt.variantId,
       })
     }
   }
