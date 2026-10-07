@@ -54,14 +54,16 @@ async function reflejarStockEnTN(talleIds: string[]): Promise<string | null> {
 
   const fallas: string[] = []
   for (const t of talles) {
+    let nombre = `talle ${t.talle_arg}`
     try {
       const { data: modelo, error: errModelo } = await supabase
         .from('modelos').select('*, modelo_talles(*)').eq('id', t.modelo_id).single()
       if (errModelo || !modelo) throw errModelo ?? new Error('modelo no encontrado')
+      nombre = `${modelo.marca} ${modelo.modelo} talle ${t.talle_arg} (debería quedar en ${t.cantidad})`
       await pushStockToTN(modelo as Modelo, Number(t.talle_arg), t.cantidad)
     } catch (e) {
       console.error('No se pudo actualizar el stock en TiendaNube:', e)
-      fallas.push(`talle ${t.talle_arg}`)
+      fallas.push(nombre)
     }
   }
   return fallas.length ? `no se pudo actualizar ${fallas.join(', ')}` : null
