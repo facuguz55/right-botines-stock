@@ -319,3 +319,16 @@
 @media (max-width: 600px) {
   .tn-monthly-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Hoy / semana / mes: cantidad de ventas al lado de la facturación */
+.tn-metric-split {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  row-gap: 0.375rem;
+}
+.tn-metric-sublabel {
+  font-size: 0.625rem;
+  color: var(--text-muted, var(--text-secondary));
+  margin-bottom: 3px;
+}

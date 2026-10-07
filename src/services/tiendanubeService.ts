@@ -137,6 +137,11 @@ export interface TNMetrics {
   ventasHoy: number
   ventasSemana: number
   ventasMes: number
+  // Cantidad de ventas (órdenes pagadas) de cada período; ventasHoy/Semana/Mes
+  // son la plata facturada.
+  cantidadHoy: number
+  cantidadSemana: number
+  cantidadMes: number
   totalOrdenes: number
   ordenesPagadas: number
   ordenesPendientes: number
@@ -849,6 +854,9 @@ export function buildTNMetrics(allOrders: TNOrder[]): TNMetrics {
   let ventasHoy      = 0
   let ventasSemana   = 0
   let ventasMes      = 0
+  let cantidadHoy    = 0
+  let cantidadSemana = 0
+  let cantidadMes    = 0
   let ordenesPagadas = 0
   let ordenesPend    = 0
   let ordenesCan     = 0
@@ -873,9 +881,9 @@ export function buildTNMetrics(allOrders: TNOrder[]): TNMetrics {
     else { ordenesPend++; continue }
 
     totalFacturado += total
-    if (ts >= todayStart) ventasHoy    += total
-    if (ts >= weekStart)  ventasSemana += total
-    if (ts >= monthStart) ventasMes    += total
+    if (ts >= todayStart) { ventasHoy    += total; cantidadHoy++ }
+    if (ts >= weekStart)  { ventasSemana += total; cantidadSemana++ }
+    if (ts >= monthStart) { ventasMes    += total; cantidadMes++ }
 
     // Día
     const dl = dayLabel(order.created_at)
@@ -959,6 +967,9 @@ export function buildTNMetrics(allOrders: TNOrder[]): TNMetrics {
     ventasHoy,
     ventasSemana,
     ventasMes,
+    cantidadHoy,
+    cantidadSemana,
+    cantidadMes,
     totalOrdenes: allOrders.length,
     ordenesPagadas,
     ordenesPendientes: ordenesPend,

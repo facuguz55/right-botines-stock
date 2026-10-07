@@ -34,6 +34,7 @@ export function TNDashboard() {
 
   const {
     ventasHoy, ventasSemana, ventasMes, totalFacturado,
+    cantidadHoy, cantidadSemana, cantidadMes,
     ordenesPagadas, ticketPromedio,
     clientesNuevos, clientesRecurrentes,
     topProductos, metodosPago, ventasPorMes, ultimaVenta,
@@ -61,7 +62,16 @@ export function TNDashboard() {
           </div>
           <div className="tn-metric-content">
             <p className="tn-metric-label">Hoy</p>
-            <p className="tn-metric-value">${formatARS(ventasHoy)}</p>
+            <div className="tn-metric-split">
+              <div>
+                <p className="tn-metric-sublabel">Ventas</p>
+                <p className="tn-metric-value">{cantidadHoy.toLocaleString('es-AR')}</p>
+              </div>
+              <div>
+                <p className="tn-metric-sublabel">Facturación</p>
+                <p className="tn-metric-value">${formatARS(ventasHoy)}</p>
+              </div>
+            </div>
           </div>
         </div>
         <div className="tn-metric-card">
@@ -70,7 +80,16 @@ export function TNDashboard() {
           </div>
           <div className="tn-metric-content">
             <p className="tn-metric-label">Esta semana</p>
-            <p className="tn-metric-value">${formatARS(ventasSemana)}</p>
+            <div className="tn-metric-split">
+              <div>
+                <p className="tn-metric-sublabel">Ventas</p>
+                <p className="tn-metric-value">{cantidadSemana.toLocaleString('es-AR')}</p>
+              </div>
+              <div>
+                <p className="tn-metric-sublabel">Facturación</p>
+                <p className="tn-metric-value">${formatARS(ventasSemana)}</p>
+              </div>
+            </div>
           </div>
         </div>
         <div className="tn-metric-card">
@@ -79,7 +98,16 @@ export function TNDashboard() {
           </div>
           <div className="tn-metric-content">
             <p className="tn-metric-label">Este mes</p>
-            <p className="tn-metric-value accent">${formatARS(ventasMes)}</p>
+            <div className="tn-metric-split">
+              <div>
+                <p className="tn-metric-sublabel">Ventas</p>
+                <p className="tn-metric-value">{cantidadMes.toLocaleString('es-AR')}</p>
+              </div>
+              <div>
+                <p className="tn-metric-sublabel">Facturación</p>
+                <p className="tn-metric-value accent">${formatARS(ventasMes)}</p>
+              </div>
+            </div>
           </div>
         </div>
         <div className="tn-metric-card">
