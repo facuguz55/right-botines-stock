@@ -197,7 +197,7 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
 
     setSaving(true)
     try {
-      await registrar({
+      const { avisoTN } = await registrar({
         tipo,
         ventaId: ventaSeleccionada?.id ?? null,
         talleIdOriginal: talleOriginal.id,
@@ -216,6 +216,12 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
       })
       onStockChanged()
       setModalOpen(false)
+      if (avisoTN) {
+        window.alert(
+          `La ${tipo === 'cambio' ? 'operación de cambio' : 'devolución'} se registró, pero ${avisoTN} en TiendaNube.\n\n` +
+          'Revisá ese stock en la web (o avisale al dueño): si no se corrige, la próxima sincronización puede deshacer el ajuste.',
+        )
+      }
     } catch (e) {
       const msg = (e as Error).message
       setError(msg)

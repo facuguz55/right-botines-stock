@@ -24,8 +24,9 @@ export function useDevoluciones(startDate?: string, endDate?: string) {
   useEffect(() => { load() }, [load])
 
   const registrar = async (input: RegistrarDevolucionCambioInput) => {
-    await registrarDevolucionCambio(input)
+    const resultado = await registrarDevolucionCambio(input)
     await load()
+    return resultado
   }
 
   return { registros, loading, error, reload: load, registrar }
