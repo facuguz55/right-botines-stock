@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { usParaGuardar } from '../lib/talles'
-import type { Modelo, ModeloFilters, PhotoSlot, TalleRow, MedioPago, CartItem } from '../types'
+import type { Modelo, ModeloTalle, ModeloFilters, PhotoSlot, TalleRow, MedioPago, CartItem } from '../types'
+import { supabase } from '../lib/supabase'
 import {
   fetchModelos, createModelo, updateModelo, deleteModelo,
   sellCarrito, addIngreso, addIngresoBatch, upsertTalle, deleteTalle,
@@ -70,6 +71,65 @@ export function useModelos() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Stock en tiempo real entre dispositivos: cada celular cargaba el stock al
+  // abrir la app y no se enteraba de lo que cambiaban los demás (ventas,
+  // cambios y devoluciones hechos por otra empleada). Se escuchan los
+  // cambios de modelo_talles y se corrige la pantalla al instante.
+  useEffect(() => {
+    // Una sincronización con TiendaNube toca cientos de talles de golpe: se
+    // juntan los cambios y se aplican en un solo render cada 300 ms.
+    let pendientes = new Map<string, Partial<ModeloTalle>>()
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let recargaTimer: ReturnType<typeof setTimeout> | null = null
+
+    const aplicar = () => {
+      timer = null
+      const cambios = pendientes
+      pendientes = new Map()
+      setModelos(prev => {
+        const next = prev.map(m => {
+          if (!m.modelo_talles.some(t => cambios.has(t.id))) return m
+          return { ...m, modelo_talles: m.modelo_talles.map(t => (cambios.has(t.id) ? { ...t, ...cambios.get(t.id) } : t)) }
+        })
+        saveModelosCache(next)
+        return next
+      })
+    }
+
+    // Talles nuevos o borrados cambian la estructura del modelo: más simple
+    // y seguro recargar todo (pasa poco, al editar un modelo).
+    const recargar = () => {
+      if (recargaTimer) clearTimeout(recargaTimer)
+      recargaTimer = setTimeout(() => { load() }, 1000)
+    }
+
+    const channel = supabase
+      .channel('stock-talles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'modelo_talles' }, payload => {
+        if (payload.eventType === 'UPDATE') {
+          const t = payload.new as ModeloTalle
+          pendientes.set(t.id, { cantidad: t.cantidad, cantidad_local: t.cantidad_local, stock_minimo: t.stock_minimo, tn_variant_id: t.tn_variant_id })
+          if (!timer) timer = setTimeout(aplicar, 300)
+        } else {
+          recargar()
+        }
+      })
+      .subscribe()
+
+    // En el celular, con la app en segundo plano (o la pantalla bloqueada) la
+    // conexión en tiempo real se corta y los cambios de ese rato se pierden:
+    // al volver a la app se recarga el stock completo.
+    const alVolver = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', alVolver)
+
+    return () => {
+      supabase.removeChannel(channel)
+      document.removeEventListener('visibilitychange', alVolver)
+      if (timer) clearTimeout(timer)
+      if (recargaTimer) clearTimeout(recargaTimer)
+    }
+  }, [load])
 
   const addModelo = async (
     data: ModeloInput,
