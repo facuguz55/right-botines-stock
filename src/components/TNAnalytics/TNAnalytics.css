@@ -2,7 +2,7 @@
 
 .analytics-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
 }
 
@@ -47,41 +47,127 @@
   gap: 1rem;
 }
 
-@media (max-width: 900px) {
-  .analytics-row  { grid-template-columns: 1fr; }
-}
-
-/* ── Filtro de fechas ── */
-.analytics-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
-.analytics-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
-.analytics-chip {
-  padding: 0.4rem 0.875rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
-}
-.analytics-chip:hover { color: var(--text-primary); border-color: var(--text-muted); }
-.analytics-chip.active {
-  color: var(--accent);
-  background: var(--accent-dim);
-  border-color: var(--accent);
-}
-.analytics-custom { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-.analytics-custom label {
-  display: flex; align-items: center; gap: 0.5rem;
-  font-size: 0.75rem; color: var(--text-secondary);
-}
-.analytics-custom input {
+/* ── Filtros de período ── */
+.analytics-filtros {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  padding: 0.875rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.analytics-presets { margin-bottom: 0; }
+.analytics-filtros-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+.analytics-fecha {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.analytics-fecha input {
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   padding: 0.375rem 0.5rem;
   font-size: 0.8125rem;
   color-scheme: dark;
+}
+.analytics-fecha input:focus { outline: none; border-color: var(--accent); }
+.analytics-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.analytics-check input { accent-color: var(--accent); }
+
+.analytics-nota {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: -0.5rem;
+}
+
+/* Variación vs período anterior */
+.analytics-delta {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.analytics-delta.up { color: #10b981; }
+.analytics-delta.down { color: #ef4444; }
+.analytics-delta.neutral { color: var(--text-muted); font-weight: 500; }
+
+.analytics-leyenda-comp { color: #9ca3af; }
+
+/* ── Mes contra mes ── */
+.analytics-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.analytics-card-head .tn-card-title { margin-bottom: 0; }
+.analytics-meses {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.analytics-sel-a { border-color: var(--accent); }
+.analytics-vs { font-size: 0.75rem; color: var(--text-muted); }
+
+.analytics-mvm {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.analytics-mvm-item {
+  background: var(--bg-surface-2, var(--bg-surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.625rem 0.75rem;
+}
+.analytics-mvm-a {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.2;
+}
+.analytics-mvm-b {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .analytics-kpis { grid-template-columns: repeat(2, 1fr); }
+  .analytics-row  { grid-template-columns: 1fr; }
+  .analytics-mvm  { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .analytics-presets {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .analytics-presets::-webkit-scrollbar { display: none; }
+  .analytics-meses { width: 100%; }
+  .analytics-meses select { flex: 1; min-width: 0; font-size: 0.8125rem; padding: 0.4375rem 0.5rem; }
+  .analytics-kpi-value { font-size: 1.25rem; }
 }

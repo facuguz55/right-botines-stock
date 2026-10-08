@@ -16,13 +16,23 @@ import { fetchModelos } from './modelos'
 // TNCoupon para poder reusar toda la UI y los helpers ya existentes
 // (paymentStatusLabel, formatARS, etc.) sin cambios.
 
+// Supabase devuelve como máximo 1000 filas por pedido: se lee por páginas
+// para que el historial completo (y los totales de Análisis) no se corten.
 export async function fetchLocalTNOrdenes(): Promise<TNOrder[]> {
-  const { data, error } = await supabase
-    .from('tn_ordenes')
-    .select('*, preparada_por_empleado:empleados!tn_ordenes_preparada_por_fkey(nombre)')
-    .order('tn_created_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(orderRowToTNOrder)
+  const PAGE = 1000
+  const rows: Record<string, unknown>[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('tn_ordenes')
+      .select('*, preparada_por_empleado:empleados!tn_ordenes_preparada_por_fkey(nombre)')
+      .order('tn_created_at', { ascending: false })
+      .order('tn_order_id', { ascending: false })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    rows.push(...(data ?? []))
+    if (!data || data.length < PAGE) break
+  }
+  return rows.map(orderRowToTNOrder)
 }
 
 // El empleado marca (o desmarca) una orden como preparada al armar el
