@@ -8,6 +8,7 @@ import { useTiendaNube } from '../../hooks/useTiendaNube'
 import { formatARS, type TNOrder } from '../../services/tiendanubeService'
 import { fechaAR, sumarDias, cantidadDias } from '../../lib/tnRango'
 import './TNAnalytics.css'
+import { ErrorTienda } from '../DispositivoBanner/ErrorTienda'
 
 // ── Fechas en hora Argentina, como texto YYYY-MM-DD ──────────────────────────
 // Se trabaja con texto (no Date) para que el corte de cada día sea el de
@@ -305,12 +306,7 @@ export function TNAnalytics() {
     )
   }
 
-  if (error) return (
-    <div className="tn-error">
-      <p>⚠ {error}</p>
-      <button className="btn btn-secondary btn-sm" onClick={reload}>Reintentar</button>
-    </div>
-  )
+  if (error) return <ErrorTienda error={error} onRetry={reload} />
 
   if (!metrics) return null
 

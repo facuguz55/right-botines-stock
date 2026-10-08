@@ -3,6 +3,7 @@ import { RefreshCw, Tag } from 'lucide-react'
 import { type TNCoupon } from '../../services/tiendanubeService'
 import { fetchLocalTNCupones, syncTNCupones } from '../../services/tnOrdersSync'
 import './TNCupones.css'
+import { ErrorTienda } from '../DispositivoBanner/ErrorTienda'
 
 export function TNCupones() {
   const [coupons, setCoupons] = useState<TNCoupon[]>([])
@@ -39,7 +40,7 @@ export function TNCupones() {
   useEffect(() => { load() }, [])
 
   if (loading) return <div className="tn-loading"><div className="spinner" /><p>Cargando cupones...</p></div>
-  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={() => load()}>Reintentar</button></div>
+  if (error) return <ErrorTienda error={error} onRetry={() => load()} />
 
   const now = new Date()
 

@@ -6,6 +6,7 @@ import {
 } from '../../services/tiendanubeService'
 import { fetchLocalTNClientes, fetchLocalTNOrdenes, syncTNClientes } from '../../services/tnOrdersSync'
 import './TNClientes.css'
+import { ErrorTienda } from '../DispositivoBanner/ErrorTienda'
 
 export function TNClientes() {
   const [customers, setCustomers]   = useState<TNCustomer[]>([])
@@ -49,7 +50,7 @@ export function TNClientes() {
   }
 
   if (loading) return <div className="tn-loading"><div className="spinner" /><p>Cargando clientes...</p></div>
-  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={() => load()}>Reintentar</button></div>
+  if (error) return <ErrorTienda error={error} onRetry={() => load()} />
 
   const filtered = customers.filter(c => {
     if (!search) return true

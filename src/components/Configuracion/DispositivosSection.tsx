@@ -1,6 +1,11 @@
-import { useState } from 'react'
-import { MonitorSmartphone, Trash2 } from 'lucide-react'
-import { listarDispositivos, quitarDispositivo, type DispositivoHabilitado } from '../../services/dispositivos'
+import { useEffect, useState } from 'react'
+import { MonitorSmartphone, Trash2, ShieldCheck } from 'lucide-react'
+import { getDeviceToken } from '../../lib/dispositivo'
+import { getTNCredentials } from '../../services/tiendanubeService'
+import { HabilitarDispositivoModal } from '../DispositivoBanner/HabilitarDispositivoModal'
+import {
+  listarDispositivos, quitarDispositivo, esteDispositivoHabilitado, type DispositivoHabilitado,
+} from '../../services/dispositivos'
 
 function fecha(iso: string | null): string {
   if (!iso) return 'nunca'
@@ -15,6 +20,17 @@ export function DispositivosSection() {
   const [lista, setLista] = useState<DispositivoHabilitado[] | null>(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [abierto, setAbierto] = useState(false)
+  // null = chequeando. Un dispositivo con credenciales propias de TiendaNube
+  // cargadas en Ajustes no necesita el permiso.
+  const [estaHabilitado, setEstaHabilitado] = useState<boolean | null>(null)
+
+  const chequearEste = () => {
+    const { storeId, token } = getTNCredentials()
+    if (storeId && token) { setEstaHabilitado(true); return }
+    esteDispositivoHabilitado(getDeviceToken()).then(setEstaHabilitado)
+  }
+  useEffect(chequearEste, [])
 
   const cargar = async () => {
     setError(null)
@@ -51,6 +67,24 @@ export function DispositivosSection() {
         tardar hasta 5 minutos en dejar de funcionar.
       </p>
       <div className="config-card">
+        <div className="config-row">
+          <label className="config-label"><ShieldCheck size={11} /> Este dispositivo</label>
+          {estaHabilitado === null ? (
+            <span className="config-section-desc">Revisando...</span>
+          ) : estaHabilitado ? (
+            <span style={{ fontSize: '.8125rem', color: 'var(--accent)' }}>✓ Habilitado</span>
+          ) : (
+            <>
+              <span style={{ fontSize: '.8125rem', color: 'var(--warning)' }}>No habilitado</span>
+              <button className="btn btn-primary btn-sm" onClick={() => setAbierto(true)}>Habilitar este dispositivo</button>
+            </>
+          )}
+        </div>
+        <HabilitarDispositivoModal
+          isOpen={abierto}
+          onClose={() => setAbierto(false)}
+          onHabilitado={() => { chequearEste(); setLista(null) }}
+        />
         {lista === null ? (
           <div className="config-row">
             <label className="config-label">Tu PIN</label>

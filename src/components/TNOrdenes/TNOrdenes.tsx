@@ -4,6 +4,7 @@ import { paymentStatusLabel, paymentStatusClass, humanizePaymentMethod, formatAR
 import { fetchLocalTNOrdenes, syncTNOrdenes, marcarOrdenPreparada } from '../../services/tnOrdersSync'
 import { toISOLocal, semanaActual } from '../../utils/fecha'
 import './TNOrdenes.css'
+import { ErrorTienda } from '../DispositivoBanner/ErrorTienda'
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'cancelled'
 
@@ -107,7 +108,7 @@ export function TNOrdenes({ empleadoId }: TNOrdenesProps) {
       <p>Cargando órdenes...</p>
     </div>
   )
-  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={() => load()}>Reintentar</button></div>
+  if (error) return <ErrorTienda error={error} onRetry={() => load()} />
 
   const filtered = orders.filter(o => {
     if (statusFilter === 'paid' && o.payment_status !== 'paid' && o.payment_status !== 'authorized') return false

@@ -6,6 +6,7 @@ import { enviarMailAVarios, type EnviarMailResultado } from '../../services/gmai
 import { getSessionPin, setSessionPin } from '../../lib/pinSession'
 import { Modal } from '../Modal/Modal'
 import './TNPreventa.css'
+import { ErrorTienda } from '../DispositivoBanner/ErrorTienda'
 
 // Ver el mismo comentario en ClientesLocales.tsx: WhatsApp necesita el
 // número con código de país, si no ya lo trae.
@@ -139,7 +140,7 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
       <p>Cargando preventas...</p>
     </div>
   )
-  if (error) return <div className="tn-error"><p>⚠ {error}</p><button className="btn btn-secondary btn-sm" onClick={() => load()}>Reintentar</button></div>
+  if (error) return <ErrorTienda error={error} onRetry={() => load()} />
 
   const filtered = orders.filter(o => {
     if (!search) return true

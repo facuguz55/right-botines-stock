@@ -6,6 +6,7 @@ import {
 import { useTiendaNube } from '../../hooks/useTiendaNube'
 import { formatARS } from '../../services/tiendanubeService'
 import './TNDashboard.css'
+import { ErrorTienda } from '../DispositivoBanner/ErrorTienda'
 
 const PIE_COLORS = ['var(--accent)', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899']
 
@@ -21,14 +22,7 @@ export function TNDashboard() {
     )
   }
 
-  if (error) {
-    return (
-      <div className="tn-error">
-        <p>⚠ {error}</p>
-        <button className="btn btn-secondary btn-sm" onClick={reload}>Reintentar</button>
-      </div>
-    )
-  }
+  if (error) return <ErrorTienda error={error} onRetry={reload} />
 
   if (!metrics) return null
 
