@@ -2,7 +2,7 @@
 
 .analytics-kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 0.75rem;
 }
 
@@ -48,6 +48,40 @@
 }
 
 @media (max-width: 900px) {
-  .analytics-kpis { grid-template-columns: repeat(2, 1fr); }
   .analytics-row  { grid-template-columns: 1fr; }
+}
+
+/* ── Filtro de fechas ── */
+.analytics-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.analytics-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.analytics-chip {
+  padding: 0.4rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.analytics-chip:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.analytics-chip.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+.analytics-custom { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.analytics-custom label {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.75rem; color: var(--text-secondary);
+}
+.analytics-custom input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  color-scheme: dark;
 }

@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar,
@@ -5,10 +6,34 @@ import {
 } from 'recharts'
 import { useTiendaNube } from '../../hooks/useTiendaNube'
 import { formatARS } from '../../services/tiendanubeService'
+import {
+  fechaAR, rangoDe, resumirRango, tituloRango, cantidadDias,
+  type PresetRango, type RangoFechas,
+} from '../../lib/tnRango'
 import './TNAnalytics.css'
+
+const PRESETS: { id: PresetRango; label: string }[] = [
+  { id: 'hoy', label: 'Hoy' },
+  { id: 'ayer', label: 'Ayer' },
+  { id: 'mes', label: 'Este mes' },
+  { id: '60d', label: 'Últimos 60 días' },
+  { id: 'custom', label: 'Personalizado' },
+]
 
 export function TNAnalytics() {
   const { metrics, loading, error, progress, reload } = useTiendaNube()
+  const [preset, setPreset] = useState<PresetRango>('mes')
+  const [custom, setCustom] = useState<RangoFechas>(() => {
+    const hoy = fechaAR(Date.now())
+    return { desde: hoy, hasta: hoy }
+  })
+
+  const hoy = fechaAR(Date.now())
+  const rango = useMemo(() => rangoDe(preset, hoy, custom), [preset, hoy, custom])
+  const resumen = useMemo(
+    () => (metrics ? resumirRango(metrics.orders, rango) : null),
+    [metrics, rango],
+  )
 
   if (loading) {
     return (
@@ -28,23 +53,15 @@ export function TNAnalytics() {
 
   if (!metrics) return null
 
-  const { ventasPorDia, ventasPorHora, ventasPorMes } = metrics
+  const { ventasPorMes } = metrics
+  if (!resumen) return null
 
-  // Últimos 60 días para los gráficos diarios
-  const diasRecientes = ventasPorDia.slice(-60)
-
-  // Hora pico
-  const horaPico = ventasPorHora.reduce(
-    (max, h) => h.value > max.value ? h : max,
-    { name: '—', value: 0 }
-  )
+  const { porDia: diasRango, porHora: ventasPorHora, horaPico } = resumen
+  const nombreRango = tituloRango(preset, rango)
+  const variosDias = cantidadDias(rango) > 1
 
   // Mes con más ventas
   const mejorMes = [...ventasPorMes].sort((a, b) => b.facturado - a.facturado)[0]
-
-  // Total órdenes en periodo visible
-  const totalOrdenesDias = diasRecientes.reduce((s, d) => s + d.value, 0)
-  const totalFacturadoDias = diasRecientes.reduce((s, d) => s + d.facturado, 0)
 
   return (
     <div className="tn-analytics">
@@ -58,15 +75,56 @@ export function TNAnalytics() {
         </button>
       </div>
 
+      {/* ── Filtro de fechas ── */}
+      <div className="analytics-filtros">
+        <div className="analytics-chips">
+          {PRESETS.map(p => (
+            <button
+              key={p.id}
+              className={`analytics-chip${preset === p.id ? ' active' : ''}`}
+              onClick={() => setPreset(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {preset === 'custom' && (
+          <div className="analytics-custom">
+            <label>
+              Desde
+              <input
+                type="date"
+                value={custom.desde}
+                max={hoy}
+                onChange={e => e.target.value && setCustom(c => ({ ...c, desde: e.target.value }))}
+              />
+            </label>
+            <label>
+              Hasta
+              <input
+                type="date"
+                value={custom.hasta}
+                max={hoy}
+                onChange={e => e.target.value && setCustom(c => ({ ...c, hasta: e.target.value }))}
+              />
+            </label>
+          </div>
+        )}
+      </div>
+
       {/* ── KPIs rápidos ── */}
       <div className="analytics-kpis">
         <div className="analytics-kpi">
-          <p className="analytics-kpi-label">Órdenes (últ. 60 días)</p>
-          <p className="analytics-kpi-value">{totalOrdenesDias}</p>
+          <p className="analytics-kpi-label">Ventas ({nombreRango})</p>
+          <p className="analytics-kpi-value">{resumen.ordenes.toLocaleString('es-AR')}</p>
         </div>
         <div className="analytics-kpi">
-          <p className="analytics-kpi-label">Facturado (últ. 60 días)</p>
-          <p className="analytics-kpi-value accent">${formatARS(totalFacturadoDias)}</p>
+          <p className="analytics-kpi-label">Facturación ({nombreRango})</p>
+          <p className="analytics-kpi-value accent">${formatARS(resumen.facturado)}</p>
+        </div>
+        <div className="analytics-kpi">
+          <p className="analytics-kpi-label">Ticket promedio</p>
+          <p className="analytics-kpi-value">${formatARS(resumen.ticketPromedio)}</p>
         </div>
         <div className="analytics-kpi">
           <p className="analytics-kpi-label">Hora pico</p>
@@ -75,7 +133,7 @@ export function TNAnalytics() {
         </div>
         {mejorMes && (
           <div className="analytics-kpi">
-            <p className="analytics-kpi-label">Mejor mes</p>
+            <p className="analytics-kpi-label">Mejor mes (últ. 12)</p>
             <p className="analytics-kpi-value">{mejorMes.label}</p>
             <p className="analytics-kpi-sub">${formatARS(mejorMes.facturado)}</p>
           </div>
@@ -83,13 +141,13 @@ export function TNAnalytics() {
       </div>
 
       {/* ── Ventas por día (line) ── */}
-      <div className="tn-card">
-        <h3 className="tn-card-title">Ventas por día — últimos 60 días</h3>
-        {diasRecientes.length === 0 ? (
+      {variosDias && <div className="tn-card">
+        <h3 className="tn-card-title">Ventas por día — {nombreRango}</h3>
+        {diasRango.length === 0 ? (
           <p className="tn-no-data">Sin datos suficientes.</p>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={diasRecientes} margin={{ top: 4, right: 12, left: -20, bottom: 0 }}>
+            <LineChart data={diasRango} margin={{ top: 4, right: 12, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="name"
@@ -114,16 +172,16 @@ export function TNAnalytics() {
             </LineChart>
           </ResponsiveContainer>
         )}
-      </div>
+      </div>}
 
       {/* ── Facturación por día (bar) ── */}
-      <div className="tn-card">
-        <h3 className="tn-card-title">Facturación diaria — últimos 60 días</h3>
-        {diasRecientes.length === 0 ? (
+      {variosDias && <div className="tn-card">
+        <h3 className="tn-card-title">Facturación diaria — {nombreRango}</h3>
+        {diasRango.length === 0 ? (
           <p className="tn-no-data">Sin datos suficientes.</p>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={diasRecientes} margin={{ top: 4, right: 12, left: -20, bottom: 0 }}>
+            <BarChart data={diasRango} margin={{ top: 4, right: 12, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="name"
@@ -144,13 +202,13 @@ export function TNAnalytics() {
             </BarChart>
           </ResponsiveContainer>
         )}
-      </div>
+      </div>}
 
       {/* ── Ventas por hora ── */}
       <div className="analytics-row">
         <div className="tn-card">
           <h3 className="tn-card-title">Ventas por hora del día</h3>
-          <p className="analytics-chart-sub">Distribución horaria de órdenes (hora Argentina)</p>
+          <p className="analytics-chart-sub">Órdenes de {nombreRango} por hora (hora Argentina)</p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={ventasPorHora} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
