@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Wallet } from 'lucide-react'
+import { mensajeDeError } from '../../lib/errorConexion'
 import './AperturaCajaGate.css'
 
 interface AperturaCajaGateProps {
@@ -27,7 +28,7 @@ export function AperturaCajaGate({ empleadoNombre, onConfirm, onLogout }: Apertu
     try {
       await onConfirm(n)
     } catch (e) {
-      setError((e as Error).message)
+      setError(mensajeDeError(e))
     } finally {
       setLoading(false)
     }
