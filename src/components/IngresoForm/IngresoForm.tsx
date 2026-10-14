@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { etiquetaVarianteTN } from '../../lib/talles'
 import type { Producto } from '../../types'
 import { Modal } from '../Modal/Modal'
+import { mensajeDeError } from '../../lib/errorConexion'
 import './IngresoForm.css'
 
 interface IngresoFormProps {
@@ -31,7 +32,7 @@ export function IngresoForm({ producto, onClose, onConfirm }: IngresoFormProps) 
       await onConfirm(producto.id, cant, parseFloat(costoTotal) || 0)
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(mensajeDeError(e))
     } finally {
       setLoading(false)
     }

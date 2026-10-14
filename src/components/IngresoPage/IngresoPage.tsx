@@ -2,6 +2,7 @@
 import { textoUs, usDeGuia } from '../../lib/talles'
 import { ArrowLeft } from 'lucide-react'
 import type { Modelo } from '../../types'
+import { mensajeDeError } from '../../lib/errorConexion'
 import './IngresoPage.css'
 
 const TALLES_ARG = [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
@@ -71,7 +72,7 @@ export function IngresoPage({ modelo, onCancel, onSave }: IngresoPageProps) {
     try {
       await onSave(changes, newTalle, parseFloat(costoTotal) || 0)
     } catch (e) {
-      setError((e as Error).message)
+      setError(mensajeDeError(e))
       setLoading(false)
     }
   }

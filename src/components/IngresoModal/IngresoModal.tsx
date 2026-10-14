@@ -2,6 +2,7 @@
 import { textoUs, usDeGuia } from '../../lib/talles'
 import type { Modelo } from '../../types'
 import { Modal } from '../Modal/Modal'
+import { mensajeDeError } from '../../lib/errorConexion'
 import './IngresoModal.css'
 
 interface IngresoModalProps {
@@ -58,7 +59,7 @@ export function IngresoModal({ modelo, onClose, onConfirm }: IngresoModalProps) 
       }
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(mensajeDeError(e))
     } finally {
       setLoading(false)
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { avisarFallaStockTN } from '../../services/stockTN'
+import { mensajeDeError } from '../../lib/errorConexion'
 import { textoUs } from '../../lib/talles'
 import { Plus, Clock, ShieldAlert } from 'lucide-react'
 import type { Modelo, MedioPago, TipoDevolucionCambio, Venta, Proveedor, Role } from '../../types'
@@ -220,7 +221,7 @@ export function Devoluciones({ modelos, empleadoId, onStockChanged, proveedores,
       if (avisoTN) avisarFallaStockTN(tipo === 'cambio' ? 'El cambio' : 'La devolución', avisoTN, empleadoId)
     } catch (e) {
       const msg = (e as Error).message
-      setError(msg)
+      setError(mensajeDeError(e))
       // Best-effort: si esto falla no debe tapar el error real de arriba.
       logFallaDevolucionCambio(empleadoId, msg).catch(() => {})
     } finally {

@@ -3,6 +3,7 @@ import type { CartItem, ClienteLocal, MedioPago, RecargoTarjeta } from '../../ty
 import { Modal } from '../Modal/Modal'
 import { filterClientes } from '../../hooks/useClientesLocales'
 import { getPrecioItem, getRecargoPct, getPrecioConRecargo, tarjetasDisponibles, cuotasDisponibles } from '../../utils/precios'
+import { mensajeDeError } from '../../lib/errorConexion'
 import './CartModal.css'
 
 interface CartModalProps {
@@ -224,7 +225,7 @@ export function CartModal({ isOpen, onClose, items, recargos, clear, clientes, a
       clear()
       handleClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(mensajeDeError(e))
     } finally {
       setLoading(false)
     }
