@@ -100,36 +100,31 @@
 .app-blocked-screen--preview .app-blocked-mensaje h2 { font-size: 1rem; }
 .app-blocked-screen--preview .app-blocked-mensaje { font-size: 0.8125rem; }
 
-/* Bloqueo sin mensaje: 404 genérico, neutro (claro, sin la estética de la app). */
+/* Bloqueo sin mensaje: 404 genérico sobre azul. */
 .app-404-screen {
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.25rem;
-  background: #fff;
-  color: #000;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  padding: 1rem;
+  background: radial-gradient(ellipse at 50% 35%, #1e3a8a 0%, #0f1f4d 45%, #070d24 100%);
 }
+.app-404-screen .app-404-box {
+  background: rgba(15, 31, 77, 0.55);
+  border-color: rgba(147, 197, 253, 0.18);
+}
+.app-404-box { gap: 0.5rem; padding: 3rem 2rem; }
 .app-404-code {
-  font-size: 1.5rem;
-  font-weight: 500;
+  font-size: 5rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
   margin: 0;
 }
-.app-404-sep {
-  width: 1px;
-  height: 49px;
-  background: rgba(0, 0, 0, 0.3);
+.app-404-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
 }
 .app-404-text {
   font-size: 0.875rem;
+  color: var(--text-secondary);
   margin: 0;
-}
-.app-404-screen.app-blocked-screen--preview {
-  height: 100%;
-  width: 100%;
-  min-height: 320px;
-  border-radius: var(--radius-lg);
 }

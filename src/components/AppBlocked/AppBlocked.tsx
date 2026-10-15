@@ -24,10 +24,12 @@ export function AppBlocked({ mensaje, preview = false }: AppBlockedProps) {
 
   if (es404) {
     return (
-      <div className={`app-404-screen${preview ? ' app-blocked-screen--preview' : ''}`}>
-        <h1 className="app-404-code">404</h1>
-        <div className="app-404-sep" />
-        <p className="app-404-text">No se encontró la página.</p>
+      <div className={`app-blocked-screen app-404-screen${preview ? ' app-blocked-screen--preview' : ''}`}>
+        <div className="app-blocked-box app-404-box">
+          <p className="app-404-code">404</p>
+          <p className="app-404-title">Página no encontrada</p>
+          <p className="app-404-text">El servidor no pudo encontrar el recurso solicitado.</p>
+        </div>
       </div>
     )
   }
