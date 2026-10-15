@@ -99,3 +99,37 @@
 .app-blocked-screen--preview .app-blocked-mensaje h1 { font-size: 1.25rem; }
 .app-blocked-screen--preview .app-blocked-mensaje h2 { font-size: 1rem; }
 .app-blocked-screen--preview .app-blocked-mensaje { font-size: 0.8125rem; }
+
+/* Bloqueo sin mensaje: 404 genérico, neutro (claro, sin la estética de la app). */
+.app-404-screen {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: #fff;
+  color: #000;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  padding: 1rem;
+}
+.app-404-code {
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0;
+}
+.app-404-sep {
+  width: 1px;
+  height: 49px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.app-404-text {
+  font-size: 0.875rem;
+  margin: 0;
+}
+.app-404-screen.app-blocked-screen--preview {
+  height: 100%;
+  width: 100%;
+  min-height: 320px;
+  border-radius: var(--radius-lg);
+}
