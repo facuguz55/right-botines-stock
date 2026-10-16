@@ -19,7 +19,7 @@ const CREATOR_PANEL_PATH = '/panel-e497cc20af25ea91015647aae28a24e9'
 // apenas abre, para todos, sin consultar nada (no depende de la red ni del
 // panel). No toca datos: la tienda web, webhooks y sincronización siguen.
 // Para reactivar: volver a false y publicar.
-const APP_SUSPENDIDA = true
+const APP_SUSPENDIDA = false
 
 function Root() {
   const isCreatorPanel = window.location.pathname === CREATOR_PANEL_PATH
