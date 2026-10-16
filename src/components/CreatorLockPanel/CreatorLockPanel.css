@@ -260,9 +260,3 @@
 
 .clp-spin { animation: clp-spin 0.8s linear infinite; }
 @keyframes clp-spin { to { transform: rotate(360deg); } }
-
-.clp-hint {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin: -0.25rem 0 0.5rem;
-}

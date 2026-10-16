@@ -153,7 +153,6 @@ export function CreatorLockPanel() {
         <div className="clp-main">
           <section className="clp-editor-col">
             <p className="clp-section-label">Mensaje para los usuarios bloqueados</p>
-            <p className="clp-hint">Si lo dejás vacío, la app muestra un error 404 genérico.</p>
             <RichTextEditor value={mensaje} onChange={setMensaje} />
 
             <div className="clp-actions">
