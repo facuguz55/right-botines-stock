@@ -56,6 +56,7 @@ import { AiChat } from './components/AiChat/AiChat'
 import CrmInbox from './components/CRM/CrmInbox/CrmInbox'
 import { CrmDashboard } from './components/CRM/CrmDashboard/CrmDashboard'
 import { PhotoSender } from './components/CRM/PhotoSender/PhotoSender'
+import { PushBanner } from './components/CRM/PushBanner/PushBanner'
 import { sendImageMessage, sendTextMessage } from './services/crmMessages'
 import { linkClienteLocal } from './services/crmClients'
 import type { CrmVentaInfo, PhotoMatch } from './types/crm'
@@ -97,6 +98,9 @@ export function App() {
       // de que la sesión pasara a sessionStorage) — no perder el destino
       // inicial correcto para quien ya estaba logueado como "atencion".
       const savedRole = sessionStorage.getItem('rb_role') ?? localStorage.getItem('rb_role')
+      // /crm es la app instalable solo del CRM (manifest-crm.webmanifest): abre
+      // directo en la bandeja de mensajes.
+      if (window.location.pathname.startsWith('/crm')) return 'crm_inbox'
       return savedRole === 'atencion' ? 'crm_inbox' : 'stock'
     } catch { return 'stock' }
   })
@@ -379,6 +383,7 @@ export function App() {
         <Rentabilidad onConfigurarCostos={() => { setConfigTabInicial('costos'); setActivePage('configuracion') }} />
       )}
 
+      {activePage === 'crm_inbox' && <PushBanner nombre={empleadoNombre} />}
       {activePage === 'crm_inbox' && (
         <CrmInbox
           empleadoId={empleadoId}

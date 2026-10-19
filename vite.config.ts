@@ -16,7 +16,7 @@ export default defineConfig({
       // "esperando" hasta cerrar todas las pestañas: la compu del mostrador,
       // abierta todo el día, no recibía las actualizaciones. Con esto la
       // versión nueva se activa sola y pwaUpdate.ts recarga la página.
-      workbox: { skipWaiting: true, clientsClaim: true },
+      workbox: { skipWaiting: true, clientsClaim: true, importScripts: ['push-handler.js'] },
       // Solo se precachean los assets del build (JS/CSS/HTML/íconos). Las
       // llamadas a Supabase y al proxy de TiendaNube nunca se cachean, para
       // no mostrar stock ni órdenes desactualizados.

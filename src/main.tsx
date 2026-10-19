@@ -10,6 +10,15 @@ import { getAppLockStatus } from './services/creatorLock'
 
 initPwaUpdate()
 
+// /crm es una app instalable aparte (ícono y nombre propios, abre directo en
+// los mensajes). El manifest se cambia antes de que el navegador ofrezca
+// instalar, para que "Añadir a pantalla de inicio" use el del CRM.
+if (window.location.pathname.startsWith('/crm')) {
+  document.title = 'Right CRM'
+  document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/manifest-crm.webmanifest')
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', 'Right CRM')
+}
+
 // Ruta secreta del panel de creadores: no se linkea desde ningún lado de la
 // UI, solo se llega escribiendo esta URL a mano. Además pide su propio pin
 // server-side, así que conocer la URL sola no alcanza para nada.

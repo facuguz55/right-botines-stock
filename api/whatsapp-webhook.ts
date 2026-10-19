@@ -16,6 +16,7 @@ import {
 } from '../src/lib/crmBusqueda'
 import { EJEMPLOS_ESTILO_CAMI, INFO_NEGOCIO } from '../src/lib/crmNegocio'
 import { humanizar } from '../src/lib/crmTexto'
+import { enviarPush } from '../src/lib/webpush'
 import {
   esConsultaEnvioSegura,
   extraerNumeroPedido,
@@ -581,6 +582,28 @@ export default async function handler(req: Request): Promise<Response> {
               nombre: name || phone,
             }),
           })
+
+          // Aviso al celular de quien atiende, aunque la app esté cerrada. Se
+          // espera (con tope) por el mismo motivo que la IA de más abajo: en las
+          // funciones edge lo que queda pendiente al devolver la Response se corta.
+          await Promise.race([
+            enviarPush(
+              {
+                supabaseUrl: SB_URL,
+                supabaseKey: SB_KEY,
+                vapidPublic: process.env.VAPID_PUBLIC_KEY ?? '',
+                vapidPrivate: process.env.VAPID_PRIVATE_KEY ?? '',
+                vapidSubject: process.env.VAPID_SUBJECT ?? 'https://right-botines-stock.vercel.app',
+              },
+              {
+                titulo: name || phone,
+                cuerpo: contenido?.slice(0, 140) || (tipo === 'image' ? 'Te mandó una foto' : tipo === 'audio' ? 'Te mandó un audio' : 'Mensaje nuevo'),
+                url: '/crm',
+                tag: `conv-${conversacionId}`,
+              },
+            ),
+            new Promise<number>(resolve => setTimeout(() => resolve(0), 4000)),
+          ]).catch(console.error)
 
           if (contenido) {
             // OJO: hay que ESPERARLA antes de responder. En las funciones

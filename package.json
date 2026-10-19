@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@block65/webcrypto-web-push": "^2.0.0",
     "@supabase/supabase-js": "^2.39.0",
     "lucide-react": "^1.14.0",
     "react": "^19.0.0",
