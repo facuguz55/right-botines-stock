@@ -223,12 +223,12 @@ describe('respuestas según el stock real', () => {
   it('el caso de la captura: talle 32 sin stock → lo dice, no inventa', () => {
     expect(detectarBusqueda('Hola qué tenes en talle 32').talle).toBe(32)
     const r = respuestaSugeridaBusqueda({ talle: 32, tipo: null, modelo: null }, stock({}))
-    expect(r).toBe('Uh, por el momento en el 32 no nos queda nada 😔 Si querés te aviso cuando entre!')
+    expect(r).toBe('Uh, por el momento en el 32 no nos queda nada. Si querés te aviso cuando entre!')
     expect(r).not.toMatch(/tenemos/)
   })
   it('un solo tipo con stock → lo dice directo, sin preguntar', () => {
     expect(respuestaSugeridaBusqueda({ talle: 32, tipo: null, modelo: null }, stock({ F11: 3 })))
-      .toBe('Sisi! En el 32 tenemos 3 modelos de fútbol 11. Te paso fotos? 🤗')
+      .toBe('Sisi! En el 32 tenemos 3 modelos de fútbol 11. Te paso fotos?')
   })
   it('varios tipos → pregunta solo entre los que hay', () => {
     const r = respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: null }, stock({ F11: 5, Futsal: 2 }))
@@ -237,15 +237,15 @@ describe('respuestas según el stock real', () => {
   })
   it('pide un tipo que no hay → ofrece los que sí', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: 'F5', modelo: null }, stock({ F11: 5 })))
-      .toBe('De fútbol 5 en el 40 por el momento no nos queda nada 😔 Sí tenemos de fútbol 11, te sirve?')
+      .toBe('De fútbol 5 en el 40 por el momento no nos queda nada. Sí tenemos de fútbol 11, te sirve?')
   })
   it('pide un tipo que hay → cuántos y fotos', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: 'F11', modelo: null }, stock({ F11: 1 })))
-      .toBe('Sisi! En el 40 tenemos 1 modelo de fútbol 11, ya te paso fotos 🤗')
+      .toBe('Sisi! En el 40 tenemos 1 modelo de fútbol 11, ya te paso fotos')
   })
   it('con modelo', () => {
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, stock({ F5: 2 })))
-      .toBe('Sisi! En el 40 tenemos 2 modelos F50 de fútbol 5. Te paso fotos? 🤗')
+      .toBe('Sisi! En el 40 tenemos 2 modelos F50 de fútbol 5. Te paso fotos?')
     expect(respuestaSugeridaBusqueda({ talle: 40, tipo: null, modelo: 'f50' }, stock({})))
       .toMatch(/no nos quedan F50/)
     expect(respuestaSugeridaBusqueda({ talle: null, tipo: null, modelo: 'f50' }, null)).toMatch(/Qué talle/)
@@ -272,7 +272,7 @@ describe('respuestas según el stock real', () => {
 })
 
 describe('estilo humano en todas las respuestas', () => {
-  it('ninguna respuesta fija tiene ¿ ¡, guiones largos ni emojis fuera de los de Cami (y a lo sumo uno)', () => {
+  it('ninguna respuesta fija tiene ¿ ¡, guiones largos ni emojis', () => {
     const tipos = [null, 'F11', 'F5', 'Futsal', 'Hockey'] as const
     const stocks = [null, { porTipo: {}, total: 0 }, { porTipo: { F11: 1 }, total: 1 }, { porTipo: { F11: 2, F5: 3, Futsal: 1 }, total: 6 }]
     const textos: string[] = [textoPreguntarTipo(null), textoPreguntarTipo(40), ...tipos.map(t => textoPreguntarTalle(t))]
@@ -284,8 +284,8 @@ describe('estilo humano en todas las respuestas', () => {
     for (const t of textos) {
       expect(t).not.toMatch(/[¿¡—•]/)
       const emojis = t.match(/\p{Extended_Pictographic}/gu) ?? []
-      expect(emojis.length).toBeLessThanOrEqual(1)
-      for (const e of emojis) expect(['🤗', '🙌', '😔', '🔥', '🤩', '☺']).toContain(e)
+      expect(emojis.length).toBe(0)
+      for (const e of emojis) expect(['', '', '', '🔥', '🤩', '☺']).toContain(e)
       // Y el filtro final no les cambia nada: ya salen con el estilo de Cami.
       expect(humanizar(t)).toBe(t)
     }

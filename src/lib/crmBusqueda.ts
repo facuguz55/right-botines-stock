@@ -474,18 +474,18 @@ function modelos(n: number): string {
 }
 
 // Estilo: como escribe Cami desde el celular (ver sus mensajes en
-// crmNegocio.ts) — sin signos de apertura (¿ ¡), frases cortas, a lo sumo un
-// emoji de los suyos al final. humanizar() (crmTexto.ts) lo garantiza.
+// crmNegocio.ts) — sin signos de apertura (¿ ¡), frases cortas, sin
+// emojis. humanizar() (crmTexto.ts) lo garantiza.
 export function textoPreguntarTipo(talle: number | null): string {
   return talle
-    ? `Hola buenas! Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal? Así me fijo qué tenemos en el ${talle} 🤗`
-    : 'Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal? 🤗'
+    ? `Hola buenas! Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal? Así me fijo qué tenemos en el ${talle}`
+    : 'Para qué cancha los buscás? Fútbol 11, fútbol 5 o futsal?'
 }
 
 export function textoPreguntarTalle(tipo: TipoBotin | null): string {
   return tipo
-    ? `Dale buenisimo! Qué talle usás? Así me fijo qué tenemos de ${TIPO_TEXTO[tipo]} 🤗`
-    : 'Qué talle usás? Así me fijo qué tenemos 🤗'
+    ? `Dale buenisimo! Qué talle usás? Así me fijo qué tenemos de ${TIPO_TEXTO[tipo]}`
+    : 'Qué talle usás? Así me fijo qué tenemos'
 }
 
 // Respuesta sugerida cuando el mensaje aportó talle/tipo/modelo. `stock` es
@@ -496,33 +496,33 @@ export function respuestaSugeridaBusqueda(estado: EstadoBusqueda, stock: StockRe
   const deModelo = modelo ? ` ${etiquetaModelo(modelo)}` : ''
 
   if (!talle) {
-    if (modelo) return `Hola buenas! Qué talle usás? Así me fijo si tenemos los${deModelo} 🤗`
+    if (modelo) return `Hola buenas! Qué talle usás? Así me fijo si tenemos los${deModelo}`
     return tipo ? textoPreguntarTalle(tipo) : null
   }
 
   if (!stock) {
     // Sin poder mirar el stock: preguntar lo que falta, sin prometer nada.
     if (!tipo) return textoPreguntarTipo(talle)
-    return `Dale buenisimo! Me fijo qué tenemos en el ${talle} de ${TIPO_TEXTO[tipo]}${deModelo ? ` (${deModelo.trim()})` : ''} y te paso fotos 🤗`
+    return `Dale buenisimo! Me fijo qué tenemos en el ${talle} de ${TIPO_TEXTO[tipo]}${deModelo ? ` (${deModelo.trim()})` : ''} y te paso fotos`
   }
 
   const disponibles = TIPOS_BOTIN.filter(t => (stock.porTipo[t] ?? 0) > 0)
   const sinStock = modelo
-    ? `Uh, por el momento en el ${talle} no nos quedan${deModelo} 😔 Querés que te muestre otros modelos en tu talle?`
-    : `Uh, por el momento en el ${talle} no nos queda nada 😔 Si querés te aviso cuando entre!`
+    ? `Uh, por el momento en el ${talle} no nos quedan${deModelo}. Querés que te muestre otros modelos en tu talle?`
+    : `Uh, por el momento en el ${talle} no nos queda nada. Si querés te aviso cuando entre!`
 
   if (tipo) {
     const n = stock.porTipo[tipo] ?? 0
-    if (n > 0) return `Sisi! En el ${talle} tenemos ${modelos(n)}${deModelo} de ${TIPO_TEXTO[tipo]}, ya te paso fotos 🤗`
+    if (n > 0) return `Sisi! En el ${talle} tenemos ${modelos(n)}${deModelo} de ${TIPO_TEXTO[tipo]}, ya te paso fotos`
     const otros = disponibles.filter(t => t !== tipo)
-    if (otros.length) return `De ${TIPO_TEXTO[tipo]} en el ${talle} por el momento no nos queda${deModelo ? `n los${deModelo}` : ' nada'} 😔 Sí tenemos de ${listaTipos(otros)}, te sirve?`
+    if (otros.length) return `De ${TIPO_TEXTO[tipo]} en el ${talle} por el momento no nos queda${deModelo ? `n los${deModelo}` : ' nada'}. Sí tenemos de ${listaTipos(otros)}, te sirve?`
     return sinStock
   }
 
   if (stock.total === 0 || disponibles.length === 0) return sinStock
   if (disponibles.length === 1) {
     const t = disponibles[0]
-    return `Sisi! En el ${talle} tenemos ${modelos(stock.porTipo[t] ?? 0)}${deModelo} de ${TIPO_TEXTO[t]}. Te paso fotos? 🤗`
+    return `Sisi! En el ${talle} tenemos ${modelos(stock.porTipo[t] ?? 0)}${deModelo} de ${TIPO_TEXTO[t]}. Te paso fotos?`
   }
   return `Sisi! En el ${talle} tenemos${deModelo ? ` los${deModelo}` : ''} de ${listaTipos(disponibles)}. Para cuál los buscás?`
 }

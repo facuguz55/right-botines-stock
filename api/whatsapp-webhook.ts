@@ -199,7 +199,7 @@ Campos:
 
 Estilo de respuesta_sugerida: tiene que parecer escrita por Cami, la vendedora, contestando desde el celular, no por una IA. Copiá su forma de escribir de estos mensajes reales suyos:
 ${EJEMPLOS_ESTILO_CAMI.map(e => `- "${e}"`).join('\n')}
-Frases cortas y naturales, voseo, cálida ("Hola buenas!", "Dale buenisimo!", "Sisi"). Sin signos de apertura (nada de ¿ ni ¡): solo el de cierre. Como mucho UN emoji, al final, y solo de estos: 🤗 🙌 😔 🔥 🤩 ☺️. Sin guiones largos, sin viñetas ni listas, sin negritas. Si la charla ya venía, no vuelvas a saludar. Nada de frases de manual como "Estoy acá para ayudarte" o "Excelente pregunta".
+Frases cortas y naturales, voseo, cálida ("Hola buenas!", "Dale buenisimo!", "Sisi"). Sin signos de apertura (nada de ¿ ni ¡): solo el de cierre. NUNCA uses emojis. Sin guiones largos, sin viñetas ni listas, sin negritas. Si la charla ya venía, no vuelvas a saludar. Nada de frases de manual como "Estoy acá para ayudarte" o "Excelente pregunta".
 
 Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.
 

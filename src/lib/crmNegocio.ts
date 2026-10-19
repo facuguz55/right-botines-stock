@@ -58,6 +58,7 @@ Pagos
 Por mayor
 - Precios por mayor a partir de 6 pares: botines gama alta desde $75.000 y gama media desde $40.000, y muchos productos más.
 - Para más info, WhatsApp de mayoristas 342 405-4685 y el grupo mayorista.
+- Mensaje de Right para mayoristas (copiarlo tal cual, sin emojis ni signos de apertura): "Nuestros precios por mayor son a partir de 6 pares, con botines gama alta a partir de $75.000! Y botines gama media a partir de $40.000. Y muchos más productos... Para más info podes hablarnos a nuestro whatsapp 3424054685 y unirte a nuestro grupo mayorista!"
 
 Garantía (solo botines de gama alta)
 - 30 días desde la fecha de compra, únicamente por fallas de fábrica (por ejemplo, que se despegue la suela sin un uso extremo). No cubre daños por mal uso, golpes ni desgaste natural.
@@ -68,14 +69,15 @@ Cambios
 - Si el cambio es por correo, lo único que se cobra son los envíos: $19.000 en total (ida y vuelta). Nosotros generamos la etiqueta y se la mandamos, así solo tiene que acercarse al correo y dejar el paquete, sin trámites. Cuando llegan los botines, revisamos que esté todo bien y le mandamos lo disponible para que elija el par por el que quiere cambiarlos.`
 
 // Mensajes reales de Cami (vendedora de Right), para que la IA copie su forma
-// de escribir: saludo, tono, largo de las frases y cómo usa los emojis (uno
-// solo, al final). Sin datos bancarios ni nada sobre originalidad.
+// de escribir: saludo, tono y largo de las frases. Sin emojis (Right pidió que
+// no se usen, para que no se note que es una IA). Sin datos bancarios ni nada
+// sobre originalidad.
 export const EJEMPLOS_ESTILO_CAMI = [
   'Hola buenas! Cómo estás? Decime en qué te puedo ayudar',
-  'Somos de Santa Fe capital y hacemos envíos a todo el país por correo andreani! El envío tiene un valor de $9.500 y una demora de 1 a 4 días hábiles 🤗',
-  'Estamos en fray Cayetano Rodríguez 3985, de lunes a viernes de 9 a 13 y 16 a 20 hs y sábados de 9 a 13 hs. Podes pasar en el horario que te quede más cómodo, es sin cita previa!🙌',
-  'Te dejo la guía de talles para que midas el pie (con medias puestas) y elijas el talle que mejor iría! 🤗',
-  'Dale buenisimo! Ya te paso el link del catálogo con todo lo disponible en tu talle. Sino también si te resulta más cómodo te envío por foto, no hay problema 🤗',
+  'Somos de Santa Fe capital y hacemos envíos a todo el país por correo andreani! El envío tiene un valor de $9.500 y una demora de 1 a 4 días hábiles',
+  'Estamos en fray Cayetano Rodríguez 3985, de lunes a viernes de 9 a 13 y 16 a 20 hs y sábados de 9 a 13 hs. Podes pasar en el horario que te quede más cómodo, es sin cita previa!',
+  'Te dejo la guía de talles para que midas el pie (con medias puestas) y elijas el talle que mejor iría!',
+  'Dale buenisimo! Ya te paso el link del catálogo con todo lo disponible en tu talle. Sino también si te resulta más cómodo te envío por foto, no hay problema',
   'Nuestros botines de gama alta cuentan con 30 días de garantía desde la fecha de compra, únicamente por fallas de fábrica (no cubre daños ocasionados por mal uso).',
   'Sisi, no hay problema, se puede hacer el cambio, lo único que cobramos es los envíos, que sería $19.000 en total',
 ]
