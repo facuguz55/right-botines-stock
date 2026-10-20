@@ -10,6 +10,15 @@ import { getAppLockStatus } from './services/creatorLock'
 
 initPwaUpdate()
 
+// Sin zoom: iOS Safari ignora user-scalable=no, así que el pellizco y el zoom por
+// gestos se frenan a mano. Un solo dedo (scroll, tocar) sigue andando igual.
+for (const evento of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(evento, e => e.preventDefault())
+}
+document.addEventListener('touchmove', e => {
+  if (e.touches.length > 1) e.preventDefault()
+}, { passive: false })
+
 // /crm es una app instalable aparte (ícono y nombre propios, abre directo en
 // los mensajes). El manifest se cambia antes de que el navegador ofrezca
 // instalar, para que "Añadir a pantalla de inicio" use el del CRM.

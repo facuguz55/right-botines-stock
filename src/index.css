@@ -228,3 +228,9 @@ a { color: var(--accent); text-decoration: none; }
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+
+
+/* Sin zoom en toda la app (pedido de Right): el doble toque no agranda y el
+   texto no se reescala solo al girar el celu. El pellizco se bloquea en
+   src/main.tsx (iOS ignora user-scalable=no). */
+html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
