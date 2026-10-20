@@ -28,7 +28,7 @@ export function PushBanner({ nombre }: Props) {
 
   return (
     <div role="status" style={{
-      position: 'fixed', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 60,
+      position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 78px)', left: '50%', transform: 'translateX(-50%)', zIndex: 60,
       maxWidth: 'calc(100vw - 24px)', display: 'flex', alignItems: 'center', gap: 10,
       padding: '8px 12px', borderRadius: 12, background: '#101826', color: '#e8edf5',
       border: '1px solid #243049', fontSize: 13, boxShadow: '0 6px 20px rgba(0,0,0,.35)',

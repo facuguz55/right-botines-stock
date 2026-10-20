@@ -174,9 +174,6 @@ export function Login({ empleados, loadingEmpleados, onLoginEmpleado, onLoginAte
           </div>
         </div>
       )}
-      <p style={{ marginTop: 18, fontSize: 11, opacity: 0.45, textAlign: 'center' }}>
-        {window.location.pathname}{window.matchMedia('(display-mode: standalone)').matches ? ' · app' : ' · navegador'}
-      </p>
     </div>
   )
 }
