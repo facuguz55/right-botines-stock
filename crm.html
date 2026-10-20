@@ -16,7 +16,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600&family=Inter:wght@400;600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><p id="crm-arranque" style="margin:0;padding:24px;font:15px system-ui,sans-serif;color:#9ba2ad">Cargando el CRM…</p></div>
+    <script>
+      // Si algo falla antes de que arranque la app, en vez de dejar la pantalla
+      // vacía se muestra el motivo (sirve para revisar desde el celular).
+      (function () {
+        function mostrar(msg) {
+          var el = document.getElementById('crm-arranque')
+          if (el) el.textContent = 'No se pudo abrir el CRM: ' + msg
+        }
+        window.addEventListener('error', function (e) { mostrar(e.message || 'error de carga') })
+        window.addEventListener('unhandledrejection', function (e) { mostrar(String((e.reason && e.reason.message) || e.reason)) })
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
