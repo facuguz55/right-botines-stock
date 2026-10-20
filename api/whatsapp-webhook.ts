@@ -210,6 +210,106 @@ async function enviarMensajeAutomatico(
   }
 }
 
+// ── Lo que aprende el bot ────────────────────────────────────────────────
+// Las respuestas que los dueños aprobaron en la pantalla "Aprendizaje" del CRM
+// (tabla crm_aprendizajes) se le pasan a la IA como ejemplos de casos parecidos.
+function palabrasClave(t: string): Set<string> {
+  return new Set(t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[a-z0-9]{4,}/g) ?? [])
+}
+
+async function buscarAprendizajes(texto: string): Promise<string> {
+  try {
+    const claves = palabrasClave(texto)
+    if (claves.size === 0) return ''
+    const res = await sbFetch('crm_aprendizajes?estado=eq.aprobado&select=pregunta,respuesta_aprobada&order=revisado_en.desc&limit=80')
+    const filas = await res.json() as { pregunta: string; respuesta_aprobada: string | null }[]
+    const minimo = Math.min(2, claves.size)
+    return filas
+      .filter(f => f.respuesta_aprobada)
+      .map(f => {
+        const p = palabrasClave(f.pregunta)
+        let n = 0
+        claves.forEach(c => { if (p.has(c)) n++ })
+        return { f, n }
+      })
+      .filter(x => x.n >= minimo)
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 5)
+      .map(({ f }) => `- Cliente: ${f.pregunta.slice(0, 200)}\n  Right respondió: ${f.respuesta_aprobada}`)
+      .join('\n')
+  } catch (err) {
+    console.error('aprendizajes: no se pudieron leer', err)
+    return ''
+  }
+}
+
+// ── Ventas que el CRM detecta solo ──────────────────────────────────────
+// Cuando el cliente manda un comprobante o los datos de envío después de haber
+// hablado de un pago, la IA lee la charla y, si la venta ya se concretó, la
+// conversación pasa a "Venta concretada" (cuenta en las estadísticas del CRM).
+const PISTAS_PAGO = /transferenc|comprobante|alias|cbu|mercado ?pago|pagu[eé]|abon[eé]|se[ñn]a\b|dep[oó]sit/i
+const PISTAS_ENVIO = /\bdni\b|domicilio|direcci[oó]n|c[oó]digo postal|\bcp\b|localidad|provincia|\bcalle\b|barrio|\b\d{7,8}\b/i
+
+const VENTA_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    venta_concretada: { type: 'boolean' },
+    confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
+    motivo: { type: 'string' },
+  },
+  required: ['venta_concretada', 'confianza', 'motivo'],
+}
+
+const SYSTEM_VENTA = `Leés la charla de WhatsApp entre un cliente y Right Botines (tienda de botines de fútbol) y decidís si la VENTA YA SE CONCRETÓ.
+Se concretó cuando el cliente pagó (mandó el comprobante de la transferencia, o avisó que pagó con link o tarjeta) y la compra avanzó: el local confirmó el pago ("perfecto, gracias") y/o se pidieron o mandaron los datos de envío (nombre, DNI, domicilio, código postal) o se coordinó el retiro.
+NO es venta si solo preguntó precios, pidió los datos para transferir, dijo que va a transferir o que lo piensa, o mandó una foto que no es un comprobante.
+Respondé en JSON. El motivo es una frase corta en español. Usá confianza "alta" solo si no hay dudas.`
+
+async function detectarVenta(conversacionId: string, tipoNuevo: string, textoNuevo: string | null): Promise<void> {
+  try {
+    if (!ANTHROPIC_API_KEY) return
+    const conv = (await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=estado&limit=1`).then(r => r.json()) as { estado: string | null }[])[0]
+    if (!conv || conv.estado === 'Venta concretada') return
+
+    const msgs = (await sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=30`).then(r => r.json()) as { direccion: 'in' | 'out'; tipo: string; contenido: string | null; transcripcion: string | null }[]).reverse()
+    const lineas = msgs.map(m => {
+      const marca = m.tipo === 'image' ? '[foto o comprobante] ' : m.tipo === 'audio' ? '[audio] ' : ''
+      return `${m.direccion === 'in' ? 'Cliente' : 'Local'}: ${marca}${(m.contenido || m.transcripcion || '').trim()}`.trim()
+    })
+    const todo = lineas.join('\n')
+    // Filtro barato para no llamar a la IA en cada mensaje: se habló de un pago y
+    // el mensaje nuevo es una foto/archivo o trae datos de envío.
+    if (!PISTAS_PAGO.test(todo)) return
+    if (!(tipoNuevo === 'image' || PISTAS_ENVIO.test(textoNuevo ?? ''))) return
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 300,
+        system: SYSTEM_VENTA,
+        output_config: { format: { type: 'json_schema', schema: VENTA_SCHEMA } },
+        messages: [{ role: 'user', content: `Charla (de la más vieja a la más nueva):\n${todo}` }],
+      }),
+    })
+    if (!res.ok) { console.error('venta: Anthropic respondió', res.status); return }
+    const data = await res.json() as { content?: { type: string; text?: string }[] }
+    const raw = data.content?.find(b => b.type === 'text')?.text
+    if (!raw) return
+    const r = JSON.parse(raw) as { venta_concretada: boolean; confianza: string; motivo: string }
+    if (!r.venta_concretada || r.confianza !== 'alta') return
+
+    await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estado: 'Venta concretada', venta_detectada_at: new Date().toISOString(), venta_detectada_motivo: r.motivo.slice(0, 200) }),
+    })
+  } catch (err) {
+    console.error('venta: error al detectar la venta', err)
+  }
+}
+
 const CATEGORIAS_CRM = ['Urgente', 'Pedido de talles', 'Normal', 'Spam', 'Postventa/Reclamos', 'Mayorista'] as const
 const INTENCIONES = ['pedido_talle', 'consulta_precio', 'consulta_envio', 'estado_pedido', 'garantia', 'reclamo', 'saludo', 'spam', 'otro'] as const
 
@@ -261,7 +361,7 @@ Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al 
 
 "Lo que ya sabemos que busca" es solo contexto: si el cliente cambió de tema, respondé al tema NUEVO y no vuelvas a mencionar ese talle, tipo o modelo.`
 
-async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBusqueda, text: string): Promise<ClasificacionIA | null> {
+async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBusqueda, text: string, aprendizajes = ''): Promise<ClasificacionIA | null> {
   if (!ANTHROPIC_API_KEY) {
     console.error('classifyWithAI: falta ANTHROPIC_API_KEY / VITE_ANTHROPIC_API_KEY')
     return null
@@ -285,7 +385,7 @@ async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBu
       output_config: { format: { type: 'json_schema', schema: CLASIFICACION_SCHEMA } },
       messages: [{
         role: 'user',
-        content: `Conversación reciente (de la más vieja a la más nueva):\n${contexto || '(sin mensajes previos)'}\n\nLo que ya sabemos que busca: ${guardada}\n\nÚltimo mensaje del cliente, el que hay que clasificar:\n${text}`,
+        content: `Conversación reciente (de la más vieja a la más nueva):\n${contexto || '(sin mensajes previos)'}\n\nLo que ya sabemos que busca: ${guardada}\n${aprendizajes ? `\nRespuestas que Right aprobó para casos parecidos (usalas como guía de contenido y de estilo para la respuesta sugerida, sin copiarlas si no vienen al caso):\n${aprendizajes}\n` : ''}\nÚltimo mensaje del cliente, el que hay que clasificar:\n${text}`,
       }],
     }),
   })
@@ -442,7 +542,8 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
       ? buscarPedidoDelCliente(telefono, numeroPedido)
       : null
 
-    const ia = await llamarClasificadorIA(contexto, busquedaPrevia, text).catch(err => {
+    const aprendizajes = await buscarAprendizajes(text)
+    const ia = await llamarClasificadorIA(contexto, busquedaPrevia, text, aprendizajes).catch(err => {
       console.error('classifyWithAI: falló la llamada a Anthropic:', err)
       return null
     })
@@ -668,6 +769,11 @@ export default async function handler(req: Request): Promise<Response> {
 
           await Promise.race([
             enviarMensajeAutomatico(conversacionId, msg.from, previo),
+            new Promise<void>(resolve => setTimeout(resolve, 5000)),
+          ]).catch(console.error)
+
+          await Promise.race([
+            detectarVenta(conversacionId, tipo, contenido),
             new Promise<void>(resolve => setTimeout(resolve, 5000)),
           ]).catch(console.error)
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Package, BarChart2, DollarSign, Settings, List, FolderOpen, Activity,
+  Package, BarChart2, Brain, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
   LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Inbox, Clock, CalendarClock, MousePointerClick,
 } from 'lucide-react'
@@ -24,7 +24,7 @@ interface LayoutProps {
 
 // Páginas visibles solo para el dueño
 export const SOLO_DUENO: ActivePage[] = [
-  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics', 'tn_trafico', 'proveedores', 'crm_dashboard',
+  'configuracion', 'rentabilidad', 'empleados', 'seguimientos', 'tn_dashboard', 'tn_analytics', 'tn_trafico', 'proveedores', 'crm_dashboard', 'crm_aprendizaje',
 ]
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
@@ -66,6 +66,7 @@ const ALL_NAV: NavItem[] = [
   { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart     },
   { page: 'crm_inbox',      label: 'WhatsApp',      Icon: Inbox        },
   { page: 'crm_dashboard',  label: 'Stats CRM',     Icon: BarChart2    },
+  { page: 'crm_aprendizaje', label: 'Aprendizaje',   Icon: Brain        },
 ]
 
 export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout, fichajeActual, children }: LayoutProps) {
@@ -163,7 +164,10 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       <p className="nav-universe-label">WhatsApp</p>
       <NavBtn item={nav('crm_inbox')} active={activePage === 'crm_inbox'} onClick={() => onNav('crm_inbox')} />
       {esDueno && (
-        <NavBtn item={nav('crm_dashboard')} active={activePage === 'crm_dashboard'} onClick={() => onNav('crm_dashboard')} />
+        <>
+          <NavBtn item={nav('crm_dashboard')} active={activePage === 'crm_dashboard'} onClick={() => onNav('crm_dashboard')} />
+          <NavBtn item={nav('crm_aprendizaje')} active={activePage === 'crm_aprendizaje'} onClick={() => onNav('crm_aprendizaje')} />
+        </>
       )}
     </>
   )

@@ -135,7 +135,7 @@ export type ActivePage =
   | 'rentabilidad'
   | 'empleados' | 'caja'
   | 'proveedores' | 'devoluciones'
-  | 'crm_inbox' | 'crm_dashboard'
+  | 'crm_inbox' | 'crm_dashboard' | 'crm_aprendizaje'
   | 'mis_horas'
 
 // Para importación TiendaNube

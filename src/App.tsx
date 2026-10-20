@@ -57,6 +57,7 @@ import CrmInbox from './components/CRM/CrmInbox/CrmInbox'
 import { CrmDashboard } from './components/CRM/CrmDashboard/CrmDashboard'
 import { PhotoSender } from './components/CRM/PhotoSender/PhotoSender'
 import { PushBanner } from './components/CRM/PushBanner/PushBanner'
+import { Aprendizaje } from './components/CRM/Aprendizaje/Aprendizaje'
 import { sendImageMessage, sendTextMessage } from './services/crmMessages'
 import { linkClienteLocal } from './services/crmClients'
 import type { CrmVentaInfo, PhotoMatch } from './types/crm'
@@ -400,6 +401,7 @@ export function App() {
         />
       )}
       {activePage === 'crm_dashboard' && role === 'dueno' && <CrmDashboard />}
+      {activePage === 'crm_aprendizaje' && role === 'dueno' && <Aprendizaje />}
 
       <ModelForm
         isOpen={showForm}

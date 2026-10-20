@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspMensaje } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
+import { registrarAprendizaje } from '../../../services/crmAprendizajes'
 import { sendTextMessage, markSuggestionUsed, deleteMensaje } from '../../../services/crmMessages'
 import { markAsRead, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda } from '../../../services/crmConversations'
 import ConversationList from '../ConversationList/ConversationList'
@@ -93,6 +94,8 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     try {
       const real = await sendTextMessage(selectedId, text, empleadoId, selectedConv.wa_contact_id, contextoWaId)
       resolvePendingMensaje(tempId, real)
+      // El bot aprende de cada respuesta: queda para que los dueños la revisen.
+      void registrarAprendizaje({ conversacionId: selectedId, mensajes, sugerenciasPorMensaje, textoEnviado: text })
     } catch (err) {
       console.error('Error enviando mensaje:', err)
       failPendingMensaje(tempId)
@@ -100,7 +103,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     } finally {
       setSending(false)
     }
-  }, [selectedId, selectedConv, empleadoId, addPendingMensaje, resolvePendingMensaje, failPendingMensaje])
+  }, [selectedId, selectedConv, empleadoId, mensajes, sugerenciasPorMensaje, addPendingMensaje, resolvePendingMensaje, failPendingMensaje])
 
   const handleChangeCategoria = useCallback(async (cat: CrmCategoria) => {
     if (!selectedConv) return
