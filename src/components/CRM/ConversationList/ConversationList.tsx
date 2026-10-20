@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { MessageCircle, Plus, X, Loader2 } from 'lucide-react'
-import type { WspConversacion, CrmCategoria } from '../../../types/crm'
+import type { WspConversacion, CrmCategoria, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS } from '../../../types/crm'
 import CategoryChip from '../CategoryChip/CategoryChip'
+import EtiquetaChip from '../Etiquetas/EtiquetaChip'
 import './ConversationList.css'
 
 interface ConversationListProps {
@@ -15,6 +16,10 @@ interface ConversationListProps {
   search: string
   onSearch: (term: string) => void
   onStartConversacion: (numero: string, nombre: string | null) => Promise<void>
+  etiquetas: CrmEtiqueta[]
+  etiquetasPorConv: Record<string, CrmEtiqueta[]>
+  etiquetaFilter: string | undefined
+  onEtiquetaFilter: (id: string | undefined) => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -44,6 +49,10 @@ export default function ConversationList({
   search,
   onSearch,
   onStartConversacion,
+  etiquetas,
+  etiquetasPorConv,
+  etiquetaFilter,
+  onEtiquetaFilter,
 }: ConversationListProps) {
   const [showNueva, setShowNueva] = useState(false)
   const [nuevoNumero, setNuevoNumero] = useState('')
@@ -142,6 +151,22 @@ export default function ConversationList({
         ))}
       </div>
 
+      {etiquetas.length > 0 && (
+        <div className="conv-list-label-filters">
+          {etiquetas.map((e) => (
+            <button
+              key={e.id}
+              className={`conv-list-label-filter${etiquetaFilter === e.id ? ' conv-list-label-filter--active' : ''}`}
+              style={{ color: e.color, borderColor: `${e.color}66`, background: etiquetaFilter === e.id ? `${e.color}22` : 'transparent' }}
+              onClick={() => onEtiquetaFilter(etiquetaFilter === e.id ? undefined : e.id)}
+              title={etiquetaFilter === e.id ? 'Quitar el filtro' : `Ver solo los chats con "${e.nombre}"`}
+            >
+              {e.nombre}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="conv-list-divider" />
 
       <div className="conv-list-items">
@@ -179,6 +204,14 @@ export default function ConversationList({
                     )}
                   </div>
                 </div>
+                {(etiquetasPorConv[conv.id]?.length ?? 0) > 0 && (
+                  <div className="conv-list-labels">
+                    {etiquetasPorConv[conv.id].slice(0, 3).map(e => <EtiquetaChip key={e.id} etiqueta={e} />)}
+                    {etiquetasPorConv[conv.id].length > 3 && (
+                      <span className="conv-list-labels-more">+{etiquetasPorConv[conv.id].length - 3}</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))

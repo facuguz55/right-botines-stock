@@ -2,11 +2,12 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspMensaje } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
+import { useEtiquetas } from '../../../hooks/useEtiquetas'
 import {
   sendTextMessage, sendImageMessage, sendDocumentMessage, uploadSalidaMedia, markSuggestionUsed, deleteMensaje,
   GUIA_TALLES_URL, MAX_IMAGEN_BYTES, MAX_DOCUMENTO_BYTES,
 } from '../../../services/crmMessages'
-import { markAsRead, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda } from '../../../services/crmConversations'
+import { markAsRead, markAsUnread, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda } from '../../../services/crmConversations'
 import ConversationList from '../ConversationList/ConversationList'
 import ChatPanel from '../ChatPanel/ChatPanel'
 import { MpLinkModal } from '../MpLinkModal/MpLinkModal'
@@ -28,6 +29,8 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const [categoriaFilter, setCategoriaFilter] = useState<CrmCategoria | undefined>(undefined)
   const [sending, setSending] = useState(false)
   const [mpLinkOpen, setMpLinkOpen] = useState(false)
+  const [etiquetaFilter, setEtiquetaFilter] = useState<string | undefined>(undefined)
+  const { etiquetas, porConversacion, toggle: toggleEtiqueta, crear: crearEtiqueta, eliminar: eliminarEtiqueta } = useEtiquetas()
 
   const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones } = useConversations(categoriaFilter)
   const {
@@ -43,6 +46,15 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const selectedConv = conversaciones.find((c) => c.id === selectedId) || null
+
+  // Si se borra la etiqueta por la que se estaba filtrando, el filtro se va.
+  useEffect(() => {
+    if (etiquetaFilter && !etiquetas.some(e => e.id === etiquetaFilter)) setEtiquetaFilter(undefined)
+  }, [etiquetas, etiquetaFilter])
+
+  const conversacionesVisibles = etiquetaFilter
+    ? conversaciones.filter(c => porConversacion[c.id]?.some(e => e.id === etiquetaFilter))
+    : conversaciones
 
   // Cantidad de mensajes sin leer: se ve en el título de la pestaña y, en la app
   // instalada, como globito en el ícono.
@@ -284,6 +296,19 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     else setSelectedId(null)
   }, [])
 
+  // Marcar como no leído: el chat queda con el contador en la lista y se sale
+  // de él (si no, seguiría abierto y no se notaría).
+  const handleMarkUnread = useCallback(async () => {
+    if (!selectedId) return
+    try {
+      await markAsUnread(selectedId)
+      handleBack()
+    } catch (err) {
+      console.error('Error marcando como no leído:', err)
+      alert('No se pudo marcar como no leído.')
+    }
+  }, [selectedId, handleBack])
+
   // Con el chat a pantalla completa en mobile, el teclado achica el viewport
   // visible pero no el layout: sin esto el campo de escribir quedaba tapado
   // por el teclado. Se sigue el visualViewport y se lo pasa por CSS.
@@ -311,7 +336,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     <div className="crm-inbox">
       <div className={`crm-inbox-list${isMobile && selectedId ? ' crm-inbox-list--hidden' : ''}`}>
         <ConversationList
-          conversaciones={conversaciones}
+          conversaciones={conversacionesVisibles}
           loading={loadingConvs}
           selectedId={selectedId}
           onSelect={handleSelect}
@@ -320,6 +345,10 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           search={search}
           onSearch={setSearch}
           onStartConversacion={handleStartConversacion}
+          etiquetas={etiquetas}
+          etiquetasPorConv={porConversacion}
+          etiquetaFilter={etiquetaFilter}
+          onEtiquetaFilter={setEtiquetaFilter}
         />
       </div>
       <div className={`crm-inbox-chat${isMobile && !selectedId ? ' crm-inbox-chat--hidden' : ''}${isMobile && selectedId ? ' crm-inbox-chat--open' : ''}`}>
@@ -348,6 +377,12 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           }}
           onSendMpLink={() => setMpLinkOpen(true)}
           onSendFile={handleSendFile}
+          etiquetas={etiquetas}
+          etiquetasDelChat={selectedId ? porConversacion[selectedId] ?? [] : []}
+          onToggleEtiqueta={(etiquetaId) => { if (selectedId) toggleEtiqueta(selectedId, etiquetaId) }}
+          onCrearEtiqueta={(nombre, color) => crearEtiqueta(nombre, color, selectedId ?? undefined)}
+          onEliminarEtiqueta={eliminarEtiqueta}
+          onMarkUnread={handleMarkUnread}
           onSendGuiaTalles={handleSendGuiaTalles}
           onUseSugerencia={handleUseSugerencia}
           onDismissSugerencia={handleDismissSugerencia}

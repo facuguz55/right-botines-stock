@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply, Paperclip, Ruler, FileText } from 'lucide-react'
-import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply, Paperclip, Ruler, FileText, Tag, MailOpen } from 'lucide-react'
+import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import { TIPO_LABEL, busquedaVigente, etiquetaModelo, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
 import { AudioMessage } from './AudioMessage'
+import EtiquetaChip from '../Etiquetas/EtiquetaChip'
+import EtiquetasPicker from '../Etiquetas/EtiquetasPicker'
 import { OrdersPanel } from '../OrdersPanel/OrdersPanel'
 import { humanizar } from '../../../lib/crmTexto'
 import './ChatPanel.css'
@@ -21,6 +23,12 @@ interface ChatPanelProps {
   onSendMpLink: () => void
   onSendFile: (file: File) => Promise<void>
   onSendGuiaTalles: () => Promise<void>
+  etiquetas: CrmEtiqueta[]
+  etiquetasDelChat: CrmEtiqueta[]
+  onToggleEtiqueta: (etiquetaId: string) => void
+  onCrearEtiqueta: (nombre: string, color: string) => Promise<void>
+  onEliminarEtiqueta: (etiquetaId: string) => void
+  onMarkUnread: () => void
   onUseSugerencia: () => void
   onDismissSugerencia: () => void
   onDeleteMensaje: (mensajeId: string) => void
@@ -51,6 +59,12 @@ export default function ChatPanel({
   onSendMpLink,
   onSendFile,
   onSendGuiaTalles,
+  etiquetas,
+  etiquetasDelChat,
+  onToggleEtiqueta,
+  onCrearEtiqueta,
+  onEliminarEtiqueta,
+  onMarkUnread,
   onUseSugerencia,
   onDismissSugerencia,
   onDeleteMensaje,
@@ -69,6 +83,7 @@ export default function ChatPanel({
   // que llegue el mensaje enviado (evita mandarla dos veces con doble click).
   const [quickRepliesUsadas, setQuickRepliesUsadas] = useState<Set<string>>(new Set())
   const [pedidosOpen, setPedidosOpen] = useState(false)
+  const [etiquetasOpen, setEtiquetasOpen] = useState(false)
 
   // Mensajes del cliente que llegan con el chat abierto: la IA tarda unos
   // segundos en leerlos (el webhook espera hasta 8 s), y en ese rato se
@@ -145,6 +160,7 @@ export default function ChatPanel({
   useEffect(() => {
     setRenaming(false)
     setPedidosOpen(false)
+    setEtiquetasOpen(false)
   }, [conversacion?.id])
 
   // "Usar en el mensaje" del panel de pedidos: el texto queda en el campo
@@ -312,6 +328,11 @@ export default function ChatPanel({
             {conversacion.telefono && (
               <div className="chat-panel-header-phone">{conversacion.telefono}</div>
             )}
+            {etiquetasDelChat.length > 0 && (
+              <div className="chat-panel-etiquetas">
+                {etiquetasDelChat.map(e => <EtiquetaChip key={e.id} etiqueta={e} size="md" />)}
+              </div>
+            )}
             {busqueda && (
               <div className="chat-panel-busqueda">
                 <button
@@ -362,6 +383,17 @@ export default function ChatPanel({
             title="Pedidos de la tienda web de este cliente (estado, seguimiento, cuándo llega)"
           >
             <Package size={16} />
+          </button>
+          <button
+            className={`chat-panel-action-btn${etiquetasOpen ? ' chat-panel-action-btn--active' : ''}`}
+            onClick={() => setEtiquetasOpen(o => !o)}
+            data-etiquetas-toggle
+            title="Etiquetas del chat"
+          >
+            <Tag size={16} />
+          </button>
+          <button className="chat-panel-action-btn" onClick={onMarkUnread} title="Marcar como no leído">
+            <MailOpen size={16} />
           </button>
           <button className="chat-panel-action-btn" onClick={handleGuiaTalles} title="Mandar la guía de talles">
             <Ruler size={16} />
@@ -642,6 +674,17 @@ export default function ChatPanel({
           <Send size={18} />
         </button>
       </div>
+
+      {etiquetasOpen && (
+        <EtiquetasPicker
+          etiquetas={etiquetas}
+          seleccionadas={new Set(etiquetasDelChat.map(e => e.id))}
+          onToggle={onToggleEtiqueta}
+          onCrear={onCrearEtiqueta}
+          onEliminar={onEliminarEtiqueta}
+          onClose={() => setEtiquetasOpen(false)}
+        />
+      )}
 
       {pedidosOpen && (
         <OrdersPanel
