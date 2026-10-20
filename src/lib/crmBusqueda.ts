@@ -534,10 +534,10 @@ export function respuestaSugeridaBusqueda(estado: EstadoBusqueda, stock: StockRe
 export function respuestaPorModeloFoto(nombre: string, talle: number | null, tallesConStock: number[]): string {
   const talles = [...new Set(tallesConStock)].sort((a, b) => a - b)
   if (talles.length === 0) {
-    return `Uh, los ${nombre} por el momento no los tenemos Querés que te muestre otros modelos parecidos?`
+    return `Uh, los ${nombre} por el momento no los tenemos. Querés que te muestre otros modelos parecidos?`
   }
   if (!talle) return `Sisi, los ${nombre} los tenemos! Qué talle usás? Así te confirmo`
   if (talles.includes(talle)) return `Sisi! Los ${nombre} los tenemos en el ${talle}, ya te paso fotos`
   const lista = talles.length <= 1 ? String(talles[0]) : `${talles.slice(0, -1).join(', ')} y ${talles[talles.length - 1]}`
-  return `Uh, los ${nombre} en el ${talle} por el momento no nos quedan Los tenemos en ${lista}, te sirve?`
+  return `Uh, los ${nombre} en el ${talle} por el momento no nos quedan. Los tenemos en ${lista}, te sirve?`
 }
