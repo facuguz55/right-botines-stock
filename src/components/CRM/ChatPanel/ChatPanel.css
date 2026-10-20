@@ -75,20 +75,24 @@
 /* ── Header ── */
 .chat-panel-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-surface);
-  gap: 12px;
+  gap: 10px 12px;
   flex-shrink: 0;
 }
 
+/* Base de 240px: si en la fila no entran nombre + selects + botones (compu
+   con pantalla chica), selects y botones bajan a la fila de abajo en vez
+   de aplastar el nombre y el chip "Busca" hasta encimarse. */
 .chat-panel-header-info {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 1;
+  flex: 1 1 240px;
   min-width: 0;
 }
 
@@ -488,6 +492,7 @@
 .chat-panel-busqueda {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
   margin-top: 4px;
   border: 1px solid var(--accent);
   border-radius: 999px;
@@ -510,6 +515,17 @@
 
 .chat-panel-busqueda-main {
   padding: 3px 4px 3px 10px;
+  min-width: 0;
+}
+
+.chat-panel-busqueda-main svg { flex-shrink: 0; }
+
+/* Una sola línea con "…": envuelto en varias líneas, con el borde redondeado
+   se volvía un círculo encimado sobre los selects. */
+.chat-panel-busqueda-texto {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .chat-panel-busqueda-clear {
@@ -521,6 +537,32 @@
 .chat-panel-busqueda-clear:hover {
   opacity: 1;
   text-decoration: underline;
+}
+
+/* El chip va en un lugar distinto según el ancho (ver ChatPanel.tsx). */
+.chat-panel-busqueda-mobile { display: none; }
+
+@media (max-width: 768px) {
+  .chat-panel-busqueda-desktop { display: none; }
+  .chat-panel-busqueda-mobile {
+    display: flex;
+    order: 2;
+    width: 100%;
+    min-width: 0;
+  }
+  .chat-panel-busqueda-mobile .chat-panel-busqueda {
+    display: flex;
+    width: 100%;
+    margin-top: 0;
+    min-width: 0;
+  }
+  .chat-panel-busqueda-mobile .chat-panel-busqueda-main {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 4px 6px 12px;
+    font-size: 13px;
+  }
+  .chat-panel-busqueda-mobile .chat-panel-busqueda-clear { padding: 6px 12px 6px 6px; }
 }
 
 /* ── Snackbar de "deshacer" al borrar un mensaje ── */
@@ -720,8 +762,13 @@
     row-gap: 8px;
   }
 
+  /* Filas en celular: nombre → botones → "Busca: …" → categoría/estado.
+     Nombre y botones compartían fila y, con 7 botones, el nombre quedaba
+     aplastado debajo de ellos. */
   .chat-panel-header-info {
     gap: 8px;
+    width: 100%;
+    order: 0;
   }
 
   .chat-panel-header-name {
@@ -743,6 +790,9 @@
 
   .chat-panel-header-actions {
     gap: 6px;
+    order: 1;
+    width: 100%;
+    justify-content: space-between;
   }
 
   .chat-panel-action-btn {

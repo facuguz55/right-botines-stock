@@ -284,6 +284,29 @@ export default function ChatPanel({
   const busquedaActual = busquedaVigente(conversacion)
   const busqueda = busquedaActual.talle || busquedaActual.tipo || busquedaActual.modelo ? busquedaActual : null
 
+  // Chip "Busca: …". En compu va debajo del nombre; en celular ahí quedaba
+  // apretado contra los botones y se encimaba, así que va en su propia fila
+  // a todo el ancho (ver .chat-panel-busqueda-mobile en el CSS).
+  const chipBusqueda = busqueda && (
+    <div className="chat-panel-busqueda">
+      <button
+        className="chat-panel-busqueda-main"
+        title="Lo que busca el cliente según la charla (lo detecta la IA). Click para mandar las fotos con este filtro."
+        onClick={() => onOpenPhotos(busqueda.tipo, busqueda.talle, busqueda.modelo)}
+      >
+        <Footprints size={12} />
+        <span className="chat-panel-busqueda-texto">Busca: {[busqueda.modelo && etiquetaModelo(busqueda.modelo), busqueda.talle && `talle ${busqueda.talle}`, busqueda.tipo && TIPO_LABEL[busqueda.tipo]].filter(Boolean).join(' · ')}</span>
+      </button>
+      <button
+        className="chat-panel-busqueda-clear"
+        title="Borrar lo que busca (si la IA entendió mal o arranca otra consulta)"
+        onClick={onClearBusqueda}
+      >
+        <X size={11} />
+      </button>
+    </div>
+  )
+
   const visibles = mensajes.filter(m => !m._hidden)
   // Si ya se le contestó algo al cliente después de un mensaje, la respuesta
   // rápida de ese mensaje deja de tener sentido y se oculta.
@@ -299,7 +322,7 @@ export default function ChatPanel({
               <ChevronDown size={20} style={{ transform: 'rotate(90deg)' }} />
             </button>
           )}
-          <div>
+          <div className="chat-panel-header-text">
             {renaming ? (
               <input
                 className="chat-panel-header-rename-input"
@@ -333,27 +356,11 @@ export default function ChatPanel({
                 {etiquetasDelChat.map(e => <EtiquetaChip key={e.id} etiqueta={e} size="md" />)}
               </div>
             )}
-            {busqueda && (
-              <div className="chat-panel-busqueda">
-                <button
-                  className="chat-panel-busqueda-main"
-                  title="Lo que busca el cliente según la charla (lo detecta la IA). Click para mandar las fotos con este filtro."
-                  onClick={() => onOpenPhotos(busqueda.tipo, busqueda.talle, busqueda.modelo)}
-                >
-                  <Footprints size={12} />
-                  Busca: {[busqueda.modelo && etiquetaModelo(busqueda.modelo), busqueda.talle && `talle ${busqueda.talle}`, busqueda.tipo && TIPO_LABEL[busqueda.tipo]].filter(Boolean).join(' · ')}
-                </button>
-                <button
-                  className="chat-panel-busqueda-clear"
-                  title="Borrar lo que busca (si la IA entendió mal o arranca otra consulta)"
-                  onClick={onClearBusqueda}
-                >
-                  <X size={11} />
-                </button>
-              </div>
-            )}
+            {chipBusqueda && <div className="chat-panel-busqueda-desktop">{chipBusqueda}</div>}
           </div>
         </div>
+
+        {chipBusqueda && <div className="chat-panel-busqueda-mobile">{chipBusqueda}</div>}
 
         <div className="chat-panel-header-selects">
           <select
