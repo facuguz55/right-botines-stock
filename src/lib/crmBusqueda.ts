@@ -526,3 +526,18 @@ export function respuestaSugeridaBusqueda(estado: EstadoBusqueda, stock: StockRe
   }
   return `Sisi! En el ${talle} tenemos${deModelo ? ` los${deModelo}` : ''} de ${listaTipos(disponibles)}. Para cuál los buscás?`
 }
+
+// Respuesta sugerida cuando el cliente mandó la FOTO de un botín y la IA lo
+// reconoció en el catálogo. `tallesConStock` son los talles ARG de ESE modelo
+// con unidades en este momento (sale de modelo_talles, no de la IA): con eso
+// se arma qué decir. `talle` es el que el cliente ya había dicho, si lo dijo.
+export function respuestaPorModeloFoto(nombre: string, talle: number | null, tallesConStock: number[]): string {
+  const talles = [...new Set(tallesConStock)].sort((a, b) => a - b)
+  if (talles.length === 0) {
+    return `Uh, los ${nombre} por el momento no los tenemos Querés que te muestre otros modelos parecidos?`
+  }
+  if (!talle) return `Sisi, los ${nombre} los tenemos! Qué talle usás? Así te confirmo`
+  if (talles.includes(talle)) return `Sisi! Los ${nombre} los tenemos en el ${talle}, ya te paso fotos`
+  const lista = talles.length <= 1 ? String(talles[0]) : `${talles.slice(0, -1).join(', ')} y ${talles[talles.length - 1]}`
+  return `Uh, los ${nombre} en el ${talle} por el momento no nos quedan Los tenemos en ${lista}, te sirve?`
+}

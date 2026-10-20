@@ -40,9 +40,11 @@ export default async function handler(req: Request): Promise<Response> {
   try {
     const body = await req.json() as {
       to: string
-      type: 'text' | 'image'
+      type: 'text' | 'image' | 'document'
       text?: string
       imageUrl?: string
+      documentUrl?: string
+      filename?: string
       caption?: string
       // Mensaje al que se responde (cita de WhatsApp): wa_message_id.
       contextId?: string
@@ -64,6 +66,17 @@ export default async function handler(req: Request): Promise<Response> {
         type: 'image',
         image: {
           link: body.imageUrl,
+          caption: body.caption || undefined,
+        },
+      }
+    } else if (body.type === 'document' && body.documentUrl) {
+      waBody = {
+        messaging_product: 'whatsapp',
+        to: body.to,
+        type: 'document',
+        document: {
+          link: body.documentUrl,
+          filename: body.filename || undefined,
           caption: body.caption || undefined,
         },
       }

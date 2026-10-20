@@ -13,6 +13,9 @@ import {
   parseModeloQuery,
   vocabularioCatalogo,
   type EstadoBusqueda,
+  combinarBusqueda,
+  respuestaPorModeloFoto,
+  tipoDeCategoria,
 } from '../src/lib/crmBusqueda'
 import { EJEMPLOS_ESTILO_CAMI, INFO_NEGOCIO } from '../src/lib/crmNegocio'
 import { humanizar } from '../src/lib/crmTexto'
@@ -534,6 +537,116 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
   }
 }
 
+// ── Fotos de clientes ──
+//
+// El cliente manda la foto del botín que quiere (captura de Instagram, de la
+// web, una foto del producto…). La IA la compara con la lista del catálogo y
+// dice cuál es; el stock se mira después en la base (la IA nunca opina sobre
+// stock) y la respuesta queda como sugerencia para que Cami la revise.
+const FOTO_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    es_botin: { type: 'boolean' },
+    indice: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
+    seguridad: { type: 'string', enum: ['alta', 'media', 'baja'] },
+  },
+  required: ['es_botin', 'indice', 'seguridad'],
+}
+
+async function identificarModeloEnFoto(
+  mediaUrl: string, caption: string | null, catalogo: { marca: string; modelo: string }[],
+): Promise<number | null> {
+  if (!ANTHROPIC_API_KEY || catalogo.length === 0) return null
+  const lista = catalogo.map((m, i) => `${i}: ${m.marca} ${m.modelo}`).join('\n')
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 200,
+      system: 'Sos el asistente de Right Botines, una tienda de botines de fútbol. Un cliente te manda por WhatsApp la foto de un botín que quiere. Tu trabajo es decir cuál de los modelos de la lista del catálogo es: mirá la marca, la línea (por ejemplo F50, Predator, Mercurial, Phantom, Copa) y el color. Elegí un índice de la lista solo si el botín de la foto coincide con esa línea y ese color; si es de otra marca, de una línea que no está o no se ve bien, devolvé indice null. Si la imagen no es un botín (comprobante, rótulo de envío, captura de chat, persona, etc.) devolvé es_botin false e indice null. Ante la duda, null: es preferible no sugerir nada a sugerir un modelo equivocado.',
+      output_config: { format: { type: 'json_schema', schema: FOTO_SCHEMA } },
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'url', url: mediaUrl } },
+          { type: 'text', text: `Catálogo:\n${lista}\n\n${caption ? `Texto que mandó el cliente con la foto: ${caption}\n\n` : ''}¿Cuál es el modelo de la foto?` },
+        ],
+      }],
+    }),
+  })
+  if (!res.ok) {
+    console.error('identificarModeloEnFoto: Anthropic respondió', res.status, await res.text().catch(() => ''))
+    return null
+  }
+  const data = await res.json() as { stop_reason?: string; content?: { type: string; text?: string }[] }
+  if (data.stop_reason === 'refusal' || data.stop_reason === 'max_tokens') return null
+  const raw = data.content?.find(b => b.type === 'text')?.text
+  if (!raw) return null
+  try {
+    const r = JSON.parse(raw) as { es_botin: boolean; indice: number | null; seguridad: string }
+    if (!r.es_botin || r.indice == null || r.seguridad === 'baja') return null
+    return Number.isInteger(r.indice) && r.indice >= 0 && r.indice < catalogo.length ? r.indice : null
+  } catch {
+    console.error('identificarModeloEnFoto: JSON inválido:', raw)
+    return null
+  }
+}
+
+// Devuelve true si reconoció el modelo y dejó la sugerencia armada.
+async function analizarFotoCliente(
+  mediaUrl: string, caption: string | null, conversacionId: string, messageId: string,
+): Promise<boolean> {
+  try {
+    const [catRes, estadoRes] = await Promise.all([
+      sbFetch('modelos?select=id,marca,modelo,categoria&order=marca.asc,modelo.asc'),
+      sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=*&limit=1`).catch(() => null),
+    ])
+    const catalogo = await catRes.json() as { id: string; marca: string; modelo: string; categoria: string | null }[]
+    const indice = await identificarModeloEnFoto(mediaUrl, caption, catalogo)
+    if (indice == null) return false
+    const elegido = catalogo[indice]
+
+    const estadoRow = estadoRes ? (await estadoRes.json() as Record<string, unknown>[])[0] ?? {} : {}
+    const previa = busquedaVigente(estadoRow as Parameters<typeof busquedaVigente>[0])
+    const talle = (caption ? detectarBusqueda(caption).talle : null) ?? previa.talle
+
+    const filas = await (await sbFetch(
+      `modelo_talles?modelo_id=eq.${encodeURIComponent(elegido.id)}&cantidad=gt.0&select=talle_arg`,
+    )).json() as { talle_arg: number }[]
+    const nombre = `${elegido.marca} ${elegido.modelo}`.trim()
+    const respuesta = humanizar(respuestaPorModeloFoto(nombre, talle, filas.map(f => Number(f.talle_arg))))
+    const busqueda = combinarBusqueda(previa, { talle, tipo: tipoDeCategoria(elegido.categoria), modelo: nombre })
+
+    await sbWriteConFallback('wsp_ia_sugerencias', 'POST', {
+      mensaje_id: messageId,
+      conversacion_id: conversacionId,
+      categoria_sugerida: 'Pedido de talles',
+      intencion: 'pedido_talle',
+      tipo_detectado: busqueda.tipo,
+      talle_detectado: busqueda.talle,
+      modelo_buscado: nombre,
+      respuesta_sugerida: respuesta,
+    }, ['modelo_buscado'])
+
+    await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ categoria: 'Pedido de talles' }),
+    })
+    await sbWriteConFallback(`wsp_conversaciones?id=eq.${conversacionId}`, 'PATCH', {
+      busqueda_talle: busqueda.talle,
+      busqueda_tipo: busqueda.tipo,
+      busqueda_modelo: nombre,
+      busqueda_updated_at: new Date().toISOString(),
+    }, ['busqueda_modelo']).catch(err => console.error('No se pudo guardar la búsqueda de la foto:', err))
+    return true
+  } catch (err) {
+    console.error('analizarFotoCliente falló:', err)
+    return false
+  }
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') {
     const url = new URL(req.url)
@@ -671,7 +784,16 @@ export default async function handler(req: Request): Promise<Response> {
             new Promise<void>(resolve => setTimeout(resolve, 5000)),
           ]).catch(console.error)
 
-          if (contenido) {
+          if (tipo === 'image' && mediaUrl) {
+            // Foto del botín que quiere: se reconoce el modelo y se mira el
+            // stock. Si no se reconoce (o no es un botín: comprobante, rótulo…),
+            // queda el flujo de siempre sobre el texto que la acompañe.
+            await Promise.race([
+              analizarFotoCliente(mediaUrl, contenido, conversacionId, inserted.id)
+                .then(ok => (!ok && contenido ? classifyWithAI(contenido, conversacionId, inserted.id) : undefined)),
+              new Promise<void>(resolve => setTimeout(resolve, 14000)),
+            ]).catch(console.error)
+          } else if (contenido) {
             // OJO: hay que ESPERARLA antes de responder. En las funciones
             // edge de Vercel, cuando se devuelve la Response el runtime corta
             // cualquier promesa pendiente — lanzada "en segundo plano" la

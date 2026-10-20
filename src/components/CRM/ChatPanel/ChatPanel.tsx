@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply, Paperclip, Ruler, FileText } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import { TIPO_LABEL, busquedaVigente, etiquetaModelo, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
@@ -19,6 +19,8 @@ interface ChatPanelProps {
   onOpenPhotos: (tipo?: string | null, talle?: number | null, modelo?: string | null) => void
   onCreateVenta: () => void
   onSendMpLink: () => void
+  onSendFile: (file: File) => Promise<void>
+  onSendGuiaTalles: () => Promise<void>
   onUseSugerencia: () => void
   onDismissSugerencia: () => void
   onDeleteMensaje: (mensajeId: string) => void
@@ -47,6 +49,8 @@ export default function ChatPanel({
   onOpenPhotos,
   onCreateVenta,
   onSendMpLink,
+  onSendFile,
+  onSendGuiaTalles,
   onUseSugerencia,
   onDismissSugerencia,
   onDeleteMensaje,
@@ -114,6 +118,7 @@ export default function ChatPanel({
   const [nombreDraft, setNombreDraft] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!openMenuId) return
@@ -197,7 +202,21 @@ export default function ChatPanel({
     await onSend(trimmed, cita)
   }
 
+  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = '' // permite elegir el mismo archivo de nuevo
+    for (const file of files) await onSendFile(file)
+  }
+
+  const handleGuiaTalles = () => {
+    if (!window.confirm('¿Mandarle la guía de talles a este cliente?')) return
+    onSendGuiaTalles()
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // En el celular el Enter del teclado baja de renglón (se envía con el
+    // botón); en la compu Enter envía y Ctrl/Shift+Enter baja de renglón.
+    if (e.key === 'Enter' && window.matchMedia('(pointer: coarse)').matches) return
     if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -344,6 +363,9 @@ export default function ChatPanel({
           >
             <Package size={16} />
           </button>
+          <button className="chat-panel-action-btn" onClick={handleGuiaTalles} title="Mandar la guía de talles">
+            <Ruler size={16} />
+          </button>
           <button className="chat-panel-action-btn" onClick={() => onOpenPhotos()} title="Enviar fotos">
             <Camera size={16} />
           </button>
@@ -461,6 +483,12 @@ export default function ChatPanel({
                       loading="lazy"
                     />
                   )}
+                  {msg.tipo === 'document' && msg.media_url && (
+                    <a className="chat-panel-msg-doc" href={msg.media_url} target="_blank" rel="noreferrer">
+                      <FileText size={18} />
+                      <span>{msg.contenido || 'Archivo'}</span>
+                    </a>
+                  )}
                   {msg.tipo === 'audio' && msg.media_url && (
                     <AudioMessage
                       mensajeId={msg.id}
@@ -491,7 +519,7 @@ export default function ChatPanel({
                       </div>
                     )
                   })()}
-                  {msg.contenido && <span>{msg.contenido}</span>}
+                  {msg.contenido && msg.tipo !== 'document' && <span>{msg.contenido}</span>}
                 </div>
                 {esperandoIA && (
                   <span className="chat-panel-msg-ia-loading" title="La IA está leyendo el mensaje…">
@@ -576,10 +604,26 @@ export default function ChatPanel({
       )}
 
       <div className="chat-panel-input">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+          onChange={handleFilePicked}
+        />
+        <button
+          className="chat-panel-attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={sending}
+          title="Adjuntar foto o archivo (rótulos, comprobantes)"
+        >
+          <Paperclip size={18} />
+        </button>
         <textarea
           ref={textareaRef}
           className="chat-panel-textarea"
-          placeholder="Escribir mensaje... (Enter para enviar, Ctrl+Enter para saltar de línea)"
+          placeholder="Escribir mensaje... (Enter envía, Ctrl+Enter baja de renglón)"
           value={text}
           onChange={handleTextareaInput}
           onKeyDown={handleKeyDown}

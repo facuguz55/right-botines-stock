@@ -2,7 +2,10 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspMensaje } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
-import { sendTextMessage, markSuggestionUsed, deleteMensaje } from '../../../services/crmMessages'
+import {
+  sendTextMessage, sendImageMessage, sendDocumentMessage, uploadSalidaMedia, markSuggestionUsed, deleteMensaje,
+  GUIA_TALLES_URL, MAX_IMAGEN_BYTES, MAX_DOCUMENTO_BYTES,
+} from '../../../services/crmMessages'
 import { markAsRead, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda } from '../../../services/crmConversations'
 import ConversationList from '../ConversationList/ConversationList'
 import ChatPanel from '../ChatPanel/ChatPanel'
@@ -101,6 +104,65 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
       setSending(false)
     }
   }, [selectedId, selectedConv, empleadoId, addPendingMensaje, resolvePendingMensaje, failPendingMensaje])
+
+  // Fotos y archivos que Cami elige del dispositivo (rótulos de cambio,
+  // comprobantes de devolución, etc.) y la guía de talles. Mismo esquema que
+  // el texto: aparece al toque como "enviando" y se resuelve con el real.
+  const handleSendMedia = useCallback(async (
+    kind: 'image' | 'document',
+    mediaUrl: string | (() => Promise<string>),
+    label: string,
+    filename: string,
+  ) => {
+    if (!selectedId || !selectedConv) return
+    const tempId = `temp-${Date.now()}`
+    addPendingMensaje({
+      id: tempId,
+      conversacion_id: selectedId,
+      direccion: 'out',
+      tipo: kind,
+      contenido: kind === 'document' ? filename : null,
+      transcripcion: null,
+      media_url: typeof mediaUrl === 'string' ? mediaUrl : null,
+      wa_message_id: null,
+      enviado_por: empleadoId,
+      timestamp: new Date().toISOString(),
+      _pending: true,
+    })
+    setSending(true)
+    try {
+      const url = typeof mediaUrl === 'string' ? mediaUrl : await mediaUrl()
+      const real = kind === 'image'
+        ? await sendImageMessage(selectedId, url, null, empleadoId, selectedConv.wa_contact_id)
+        : await sendDocumentMessage(selectedId, url, filename, null, empleadoId, selectedConv.wa_contact_id)
+      resolvePendingMensaje(tempId, real)
+    } catch (err) {
+      console.error(`Error enviando ${label}:`, err)
+      failPendingMensaje(tempId)
+      alert(err instanceof Error ? err.message : `No se pudo enviar ${label}`)
+    } finally {
+      setSending(false)
+    }
+  }, [selectedId, selectedConv, empleadoId, addPendingMensaje, resolvePendingMensaje, failPendingMensaje])
+
+  const handleSendFile = useCallback(async (file: File) => {
+    const esImagen = /^image\/(jpeg|png)$/.test(file.type)
+    if (esImagen && file.size > MAX_IMAGEN_BYTES) {
+      alert('La foto pesa más de 5 MB y WhatsApp no la acepta. Probá con una más liviana.')
+      return
+    }
+    if (!esImagen && file.size > MAX_DOCUMENTO_BYTES) {
+      alert('El archivo pesa más de 16 MB. Probá con uno más liviano.')
+      return
+    }
+    // WhatsApp solo manda como foto JPG/PNG; el resto (WebP, HEIC, PDF, Word…) va como archivo.
+    await handleSendMedia(esImagen ? 'image' : 'document', () => uploadSalidaMedia(file), 'el archivo', file.name)
+  }, [handleSendMedia])
+
+  const handleSendGuiaTalles = useCallback(
+    () => handleSendMedia('image', GUIA_TALLES_URL, 'la guía de talles', 'guia-de-talles.png'),
+    [handleSendMedia],
+  )
 
   const handleChangeCategoria = useCallback(async (cat: CrmCategoria) => {
     if (!selectedConv) return
@@ -285,6 +347,8 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
             })
           }}
           onSendMpLink={() => setMpLinkOpen(true)}
+          onSendFile={handleSendFile}
+          onSendGuiaTalles={handleSendGuiaTalles}
           onUseSugerencia={handleUseSugerencia}
           onDismissSugerencia={handleDismissSugerencia}
           onDeleteMensaje={handleDeleteMensaje}

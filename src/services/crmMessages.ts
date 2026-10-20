@@ -101,6 +101,67 @@ export async function sendImageMessage(
   return msg as WspMensaje
 }
 
+// WhatsApp acepta imágenes de hasta 5 MB y documentos de hasta 100 MB; acá se
+// pone un tope más bajo para documentos porque se suben desde el celular.
+export const MAX_IMAGEN_BYTES = 5 * 1024 * 1024
+export const MAX_DOCUMENTO_BYTES = 16 * 1024 * 1024
+
+// La guía de talles es un archivo estático de la app (public/): Meta necesita
+// una URL pública, así que va siempre la de producción, aunque se mande desde
+// localhost.
+export const GUIA_TALLES_URL = 'https://right-botines-stock.vercel.app/guia-talles.png'
+
+// Sube un archivo del dispositivo a crm-media/salida y devuelve su URL
+// pública, para que Meta lo pueda bajar y mandarlo.
+export async function uploadSalidaMedia(file: File): Promise<string> {
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin'
+  const path = `salida/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+  const { error } = await supabase.storage.from('crm-media').upload(path, file, {
+    contentType: file.type || undefined,
+    cacheControl: '31536000',
+  })
+  if (error) throw new Error(`No se pudo subir el archivo: ${error.message}`)
+  return supabase.storage.from('crm-media').getPublicUrl(path).data.publicUrl
+}
+
+export async function sendDocumentMessage(
+  conversacionId: string,
+  mediaUrl: string,
+  filename: string,
+  caption: string | null,
+  empleadoId: string | null,
+  waContactId: string,
+): Promise<WspMensaje> {
+  const waMessageId = await sendViaWhatsApp(waContactId, { type: 'document', documentUrl: mediaUrl, filename, caption: caption || undefined })
+
+  const { data: msg, error } = await supabase
+    .from('wsp_mensajes')
+    .insert([{
+      conversacion_id: conversacionId,
+      direccion: 'out',
+      tipo: 'document',
+      // El nombre del archivo queda en el contenido para mostrarlo en el chat.
+      contenido: caption ? `${filename} · ${caption}` : filename,
+      media_url: mediaUrl,
+      enviado_por: empleadoId,
+      wa_message_id: waMessageId,
+    }])
+    .select('*, empleados(nombre)')
+    .single()
+  if (error) throw error
+
+  await supabase
+    .from('wsp_conversaciones')
+    .update({
+      ultimo_mensaje: `📎 ${filename}`.slice(0, 200),
+      ultimo_mensaje_at: new Date().toISOString(),
+      estado: 'Respondido',
+    })
+    .eq('id', conversacionId)
+
+  return msg as WspMensaje
+}
+
 // Borra el mensaje del historial del CRM. Ojo: esto NO lo "desmanda" del
 // WhatsApp real del cliente (Meta no da API para eso pasado un rato muy
 // corto) — solo lo saca de la vista acá.

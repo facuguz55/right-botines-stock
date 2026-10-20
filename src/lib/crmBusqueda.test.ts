@@ -9,6 +9,7 @@ import {
   parseModeloQuery,
   vocabularioCatalogo,
   combinarBusqueda,
+  respuestaPorModeloFoto,
   detectarBusqueda,
   normalizeTipo,
   respuestaSugeridaBusqueda,
@@ -287,6 +288,27 @@ describe('estilo humano en todas las respuestas', () => {
       expect(emojis.length).toBe(0)
       for (const e of emojis) expect(['', '', '', '🔥', '🤩', '☺']).toContain(e)
       // Y el filtro final no les cambia nada: ya salen con el estilo de Cami.
+      expect(humanizar(t)).toBe(t)
+    }
+  })
+})
+
+describe('respuestaPorModeloFoto', () => {
+  it('sin stock en ningún talle', () => {
+    expect(respuestaPorModeloFoto('Nike Mercurial', 40, [])).toContain('no los tenemos')
+  })
+  it('sin talle pregunta el talle', () => {
+    expect(respuestaPorModeloFoto('Nike Mercurial', null, [39, 40])).toContain('Qué talle usás')
+  })
+  it('con stock en el talle pedido', () => {
+    expect(respuestaPorModeloFoto('Nike Mercurial', 40, [39, 40])).toContain('en el 40, ya te paso fotos')
+  })
+  it('sin ese talle pero con otros los lista', () => {
+    expect(respuestaPorModeloFoto('Nike Mercurial', 42, [39, 40, 41])).toContain('en el 42 por el momento no nos quedan')
+    expect(respuestaPorModeloFoto('Nike Mercurial', 42, [39, 40, 41])).toContain('39, 40 y 41')
+  })
+  it('respeta el estilo de Cami', () => {
+    for (const t of [respuestaPorModeloFoto('X', null, []), respuestaPorModeloFoto('X', 40, [40]), respuestaPorModeloFoto('X', 41, [40, 42]), respuestaPorModeloFoto('X', null, [40])]) {
       expect(humanizar(t)).toBe(t)
     }
   })
