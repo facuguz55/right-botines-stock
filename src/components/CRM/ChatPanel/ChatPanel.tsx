@@ -162,6 +162,22 @@ export default function ChatPanel({
   useEffect(() => { setReplyTo(null) }, [conversacion?.id])
   const puedeResponder = (m: WspMensaje) => !!m.wa_message_id && m.wa_message_id.startsWith('wamid.') && !m._pending
   const swipeInicio = useRef<{ x: number; y: number } | null>(null)
+  // Deslizar hacia la derecha para responder: la burbuja acompaña al dedo, aparece
+  // el ícono de responder y, si se suelta pasando el umbral, queda citada.
+  const [swipe, setSwipe] = useState<{ id: string; dx: number } | null>(null)
+  const SWIPE_UMBRAL = 64
+
+  // Con el teclado abierto en el celu se esconde el encabezado grande (selectores de
+  // categoría y estado, acciones) para que el chat tenga lugar.
+  const [tecladoAbierto, setTecladoAbierto] = useState(false)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const medir = () => setTecladoAbierto(window.innerHeight - vv.height > 140)
+    medir()
+    vv.addEventListener('resize', medir)
+    return () => vv.removeEventListener('resize', medir)
+  }, [])
 
   const handleSend = async () => {
     const trimmed = text.trim()
@@ -232,7 +248,7 @@ export default function ChatPanel({
   visibles.forEach((m, i) => { if (m.direccion === 'out') ultimoOutIdx = i })
 
   return (
-    <div className="chat-panel">
+    <div className={`chat-panel${tecladoAbierto ? ' chat-panel--teclado' : ''}`}>
       <div className="chat-panel-header">
         <div className="chat-panel-header-info">
           {onBack && (
@@ -373,16 +389,34 @@ export default function ChatPanel({
               >
                 <div className="chat-panel-msg-row">
                 <div
-                  className="chat-panel-msg-bubble"
+                  className={`chat-panel-msg-bubble${swipe?.id === msg.id ? ' chat-panel-msg-bubble--swiping' : ''}`}
+                  style={swipe?.id === msg.id ? { transform: `translateX(${swipe.dx}px)` } : undefined}
                   onTouchStart={(e) => { swipeInicio.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
-                  onTouchEnd={(e) => {
-                    const ini = swipeInicio.current; swipeInicio.current = null
+                  onTouchMove={(e) => {
+                    const ini = swipeInicio.current
                     if (!ini || !puedeResponder(msg)) return
-                    const dx = e.changedTouches[0].clientX - ini.x
-                    const dy = Math.abs(e.changedTouches[0].clientY - ini.y)
-                    if (dx > 60 && dy < 30) { setReplyTo(msg); textareaRef.current?.focus() }
+                    const dx = e.touches[0].clientX - ini.x
+                    const dy = Math.abs(e.touches[0].clientY - ini.y)
+                    if (dy > 24 && !swipe) { swipeInicio.current = null; return }   // es un scroll, no un gesto
+                    if (dx > 6) setSwipe({ id: msg.id, dx: Math.min(dx * 0.7, 90) })
                   }}
+                  onTouchEnd={() => {
+                    const ini = swipeInicio.current; swipeInicio.current = null
+                    const actual = swipe; setSwipe(null)
+                    if (!ini || !actual || actual.id !== msg.id) return
+                    if (actual.dx >= SWIPE_UMBRAL * 0.7) {
+                      setReplyTo(msg)
+                      textareaRef.current?.focus()
+                      try { navigator.vibrate?.(12) } catch { /* sin vibración */ }
+                    }
+                  }}
+                  onTouchCancel={() => { swipeInicio.current = null; setSwipe(null) }}
                 >
+                  {swipe?.id === msg.id && (
+                    <span className="chat-panel-swipe-icon" style={{ opacity: Math.min(swipe.dx / 50, 1), transform: `scale(${0.6 + Math.min(swipe.dx / 90, 0.5)})` }}>
+                      <Reply size={16} />
+                    </span>
+                  )}
                   <div className="chat-panel-msg-menu">
                     <button
                       className="chat-panel-msg-menu-btn"

@@ -17,6 +17,7 @@ import {
 import { EJEMPLOS_ESTILO_CAMI, INFO_NEGOCIO } from '../src/lib/crmNegocio'
 import { humanizar } from '../src/lib/crmTexto'
 import { variantesWaId } from '../src/lib/crmWaId'
+import { decidirAutomatico } from '../src/lib/crmHorario'
 import { enviarPush } from '../src/lib/webpush'
 import {
   esConsultaEnvioSegura,
@@ -156,6 +157,57 @@ async function getOrCreateConversation(
   })
   const conv = (await convRes.json() as { id: string }[])[0]
   return { id: conv.id, noLeidosActual: 0 }
+}
+
+// Bienvenida y ausencia automáticas (tabla crm_mensajes_auto, empiezan apagadas).
+// Se mandan como respuesta al mensaje que el cliente acaba de mandar, o sea dentro
+// de la ventana de 24 horas, así que no necesitan plantilla. Nunca rompen el flujo
+// del webhook: si algo falla se anota y se sigue.
+async function mensajeAnteriorYAusencia(conversacionId: string): Promise<{ anterior: Date | null; ausencia: Date | null }> {
+  try {
+    const [ant, aus] = await Promise.all([
+      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=timestamp&order=timestamp.desc&limit=1`).then(r => r.json()),
+      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&automatico=eq.ausencia&select=timestamp&order=timestamp.desc&limit=1`).then(r => r.json()),
+    ]) as [{ timestamp: string }[], { timestamp: string }[]]
+    return { anterior: ant[0] ? new Date(ant[0].timestamp) : null, ausencia: aus[0] ? new Date(aus[0].timestamp) : null }
+  } catch (err) {
+    console.error('auto: no se pudo leer el historial', err)
+    return { anterior: null, ausencia: null }
+  }
+}
+
+async function enviarMensajeAutomatico(
+  conversacionId: string, waContactId: string, previo: { anterior: Date | null; ausencia: Date | null },
+): Promise<void> {
+  try {
+    const filas = await sbFetch('crm_mensajes_auto?select=clave,activo,texto').then(r => r.json()) as { clave: string; activo: boolean; texto: string }[]
+    const bienvenida = filas.find(f => f.clave === 'bienvenida')
+    const ausencia = filas.find(f => f.clave === 'ausencia')
+    const cual = decidirAutomatico({
+      ahora: new Date(),
+      mensajeAnteriorAt: previo.anterior,
+      ultimaAusenciaAt: previo.ausencia,
+      bienvenidaActiva: !!bienvenida?.activo,
+      ausenciaActiva: !!ausencia?.activo,
+    })
+    if (!cual) return
+    const texto = humanizar((cual === 'bienvenida' ? bienvenida : ausencia)?.texto ?? '')
+    if (!texto) return
+
+    const res = await fetch(`https://graph.facebook.com/v21.0/${WA_PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.WA_TOKEN ?? ''}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to: waContactId, type: 'text', text: { body: texto } }),
+    })
+    if (!res.ok) { console.error('auto: WhatsApp rechazó el mensaje', res.status, await res.text().catch(() => '')); return }
+    const waId = ((await res.json()) as { messages?: { id: string }[] }).messages?.[0]?.id ?? null
+    await sbFetch('wsp_mensajes', {
+      method: 'POST',
+      body: JSON.stringify({ conversacion_id: conversacionId, direccion: 'out', tipo: 'text', contenido: texto, wa_message_id: waId, automatico: cual }),
+    })
+  } catch (err) {
+    console.error('auto: error en el mensaje automático', err)
+  }
 }
 
 const CATEGORIAS_CRM = ['Urgente', 'Pedido de talles', 'Normal', 'Spam', 'Postventa/Reclamos', 'Mayorista'] as const
@@ -546,6 +598,9 @@ export default async function handler(req: Request): Promise<Response> {
 
           const { id: conversacionId, noLeidosActual } = await getOrCreateConversation(msg.from, name, phone)
 
+          // Se lee ANTES de guardar el mensaje nuevo, para saber cuánto hacía que nadie escribía.
+          const previo = await mensajeAnteriorYAusencia(conversacionId)
+
           let contenido: string | null = null
           let tipo = msg.type || 'text'
           let mediaUrl: string | null = null
@@ -609,6 +664,11 @@ export default async function handler(req: Request): Promise<Response> {
               },
             ),
             new Promise<number>(resolve => setTimeout(() => resolve(0), 4000)),
+          ]).catch(console.error)
+
+          await Promise.race([
+            enviarMensajeAutomatico(conversacionId, msg.from, previo),
+            new Promise<void>(resolve => setTimeout(resolve, 5000)),
           ]).catch(console.error)
 
           if (contenido) {

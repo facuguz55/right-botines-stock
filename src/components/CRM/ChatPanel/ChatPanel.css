@@ -896,3 +896,30 @@
     }
   }
 }
+
+
+/* Deslizar para responder: la burbuja sigue al dedo y vuelve con un rebote suave */
+.chat-panel-msg-bubble { position: relative; touch-action: pan-y; transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+.chat-panel-msg-bubble--swiping { transition: none; }
+.chat-panel-swipe-icon {
+  position: absolute;
+  left: -34px;
+  top: 50%;
+  margin-top: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent, #ff6a2b);
+  color: #fff;
+  pointer-events: none;
+}
+
+/* Con el teclado abierto en el celu: encabezado mínimo (solo nombre y volver) */
+.chat-panel--teclado .chat-panel-header-selects,
+.chat-panel--teclado .chat-panel-header-actions,
+.chat-panel--teclado .chat-panel-header-phone { display: none; }
+.chat-panel--teclado .chat-panel-header { padding-top: 6px; padding-bottom: 6px; min-height: 0; }
+.chat-panel--teclado .chat-panel-header-avatar { width: 28px; height: 28px; font-size: 12px; }
