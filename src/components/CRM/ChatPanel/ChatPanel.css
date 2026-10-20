@@ -983,3 +983,16 @@
     padding: 0;
   }
 }
+
+/* Copiar y pegar: en toda la app la selección está apagada (index.css), pero
+   en el CRM hay que poder copiar direcciones, teléfonos, números de pedido y
+   lo que escribe el cliente. */
+.chat-panel-msg-bubble span,
+.chat-panel-msg-doc,
+.chat-panel-header-phone,
+.chat-panel-suggestion-text,
+.orders-panel-body {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

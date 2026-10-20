@@ -426,6 +426,8 @@ export default function ChatPanel({
                   onTouchMove={(e) => {
                     const ini = swipeInicio.current
                     if (!ini || !puedeResponder(msg)) return
+                    // Hay texto seleccionado (para copiarlo): arrastrar las manijas no es un deslizar para responder.
+                    if (window.getSelection()?.toString()) { swipeInicio.current = null; return }
                     const dx = e.touches[0].clientX - ini.x
                     const dy = Math.abs(e.touches[0].clientY - ini.y)
                     if (dy > 24 && !swipe) { swipeInicio.current = null; return }   // es un scroll, no un gesto
