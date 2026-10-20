@@ -16,6 +16,7 @@ import {
 } from '../src/lib/crmBusqueda'
 import { EJEMPLOS_ESTILO_CAMI, INFO_NEGOCIO } from '../src/lib/crmNegocio'
 import { humanizar } from '../src/lib/crmTexto'
+import { variantesWaId } from '../src/lib/crmWaId'
 import { enviarPush } from '../src/lib/webpush'
 import {
   esConsultaEnvioSegura,
@@ -132,7 +133,9 @@ async function sbFetch(path: string, options: RequestInit = {}) {
 async function getOrCreateConversation(
   waContactId: string, name: string | null, phone: string | null,
 ): Promise<{ id: string; noLeidosActual: number }> {
-  const existing = await sbFetch(`wsp_conversaciones?wa_contact_id=eq.${encodeURIComponent(waContactId)}&select=id,no_leidos&limit=1`)
+  // El mismo celular puede llegar con o sin el 9 (ver crmWaId.ts): se buscan las dos formas.
+  const candidatos = variantesWaId(waContactId).map(encodeURIComponent).join(',')
+  const existing = await sbFetch(`wsp_conversaciones?wa_contact_id=in.(${candidatos})&select=id,no_leidos&limit=1`)
   const rows = await existing.json() as { id: string; no_leidos: number | null }[]
   if (rows[0]) return { id: rows[0].id, noLeidosActual: rows[0].no_leidos ?? 0 }
 
