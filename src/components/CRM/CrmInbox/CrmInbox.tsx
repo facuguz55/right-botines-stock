@@ -3,8 +3,12 @@ import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspMensaje } from '../../..
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { registrarAprendizaje } from '../../../services/crmAprendizajes'
-import { sendTextMessage, markSuggestionUsed, deleteMensaje } from '../../../services/crmMessages'
-import { markAsRead, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda } from '../../../services/crmConversations'
+import { useEtiquetas } from '../../../hooks/useEtiquetas'
+import {
+  sendTextMessage, sendImageMessage, sendDocumentMessage, uploadSalidaMedia, markSuggestionUsed, deleteMensaje,
+  GUIA_TALLES_URL, MAX_IMAGEN_BYTES, MAX_DOCUMENTO_BYTES,
+} from '../../../services/crmMessages'
+import { markAsRead, markAsUnread, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda } from '../../../services/crmConversations'
 import ConversationList from '../ConversationList/ConversationList'
 import ChatPanel from '../ChatPanel/ChatPanel'
 import { MpLinkModal } from '../MpLinkModal/MpLinkModal'
@@ -26,6 +30,8 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const [categoriaFilter, setCategoriaFilter] = useState<CrmCategoria | undefined>(undefined)
   const [sending, setSending] = useState(false)
   const [mpLinkOpen, setMpLinkOpen] = useState(false)
+  const [etiquetaFilter, setEtiquetaFilter] = useState<string | undefined>(undefined)
+  const { etiquetas, porConversacion, toggle: toggleEtiqueta, crear: crearEtiqueta, eliminar: eliminarEtiqueta } = useEtiquetas()
 
   const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones } = useConversations(categoriaFilter)
   const {
@@ -41,6 +47,15 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const selectedConv = conversaciones.find((c) => c.id === selectedId) || null
+
+  // Si se borra la etiqueta por la que se estaba filtrando, el filtro se va.
+  useEffect(() => {
+    if (etiquetaFilter && !etiquetas.some(e => e.id === etiquetaFilter)) setEtiquetaFilter(undefined)
+  }, [etiquetas, etiquetaFilter])
+
+  const conversacionesVisibles = etiquetaFilter
+    ? conversaciones.filter(c => porConversacion[c.id]?.some(e => e.id === etiquetaFilter))
+    : conversaciones
 
   // Cantidad de mensajes sin leer: se ve en el título de la pestaña y, en la app
   // instalada, como globito en el ícono.
@@ -104,6 +119,65 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
       setSending(false)
     }
   }, [selectedId, selectedConv, empleadoId, mensajes, sugerenciasPorMensaje, addPendingMensaje, resolvePendingMensaje, failPendingMensaje])
+
+  // Fotos y archivos que Cami elige del dispositivo (rótulos de cambio,
+  // comprobantes de devolución, etc.) y la guía de talles. Mismo esquema que
+  // el texto: aparece al toque como "enviando" y se resuelve con el real.
+  const handleSendMedia = useCallback(async (
+    kind: 'image' | 'document',
+    mediaUrl: string | (() => Promise<string>),
+    label: string,
+    filename: string,
+  ) => {
+    if (!selectedId || !selectedConv) return
+    const tempId = `temp-${Date.now()}`
+    addPendingMensaje({
+      id: tempId,
+      conversacion_id: selectedId,
+      direccion: 'out',
+      tipo: kind,
+      contenido: kind === 'document' ? filename : null,
+      transcripcion: null,
+      media_url: typeof mediaUrl === 'string' ? mediaUrl : null,
+      wa_message_id: null,
+      enviado_por: empleadoId,
+      timestamp: new Date().toISOString(),
+      _pending: true,
+    })
+    setSending(true)
+    try {
+      const url = typeof mediaUrl === 'string' ? mediaUrl : await mediaUrl()
+      const real = kind === 'image'
+        ? await sendImageMessage(selectedId, url, null, empleadoId, selectedConv.wa_contact_id)
+        : await sendDocumentMessage(selectedId, url, filename, null, empleadoId, selectedConv.wa_contact_id)
+      resolvePendingMensaje(tempId, real)
+    } catch (err) {
+      console.error(`Error enviando ${label}:`, err)
+      failPendingMensaje(tempId)
+      alert(err instanceof Error ? err.message : `No se pudo enviar ${label}`)
+    } finally {
+      setSending(false)
+    }
+  }, [selectedId, selectedConv, empleadoId, addPendingMensaje, resolvePendingMensaje, failPendingMensaje])
+
+  const handleSendFile = useCallback(async (file: File) => {
+    const esImagen = /^image\/(jpeg|png)$/.test(file.type)
+    if (esImagen && file.size > MAX_IMAGEN_BYTES) {
+      alert('La foto pesa más de 5 MB y WhatsApp no la acepta. Probá con una más liviana.')
+      return
+    }
+    if (!esImagen && file.size > MAX_DOCUMENTO_BYTES) {
+      alert('El archivo pesa más de 16 MB. Probá con uno más liviano.')
+      return
+    }
+    // WhatsApp solo manda como foto JPG/PNG; el resto (WebP, HEIC, PDF, Word…) va como archivo.
+    await handleSendMedia(esImagen ? 'image' : 'document', () => uploadSalidaMedia(file), 'el archivo', file.name)
+  }, [handleSendMedia])
+
+  const handleSendGuiaTalles = useCallback(
+    () => handleSendMedia('image', GUIA_TALLES_URL, 'la guía de talles', 'guia-de-talles.png'),
+    [handleSendMedia],
+  )
 
   const handleChangeCategoria = useCallback(async (cat: CrmCategoria) => {
     if (!selectedConv) return
@@ -225,6 +299,19 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     else setSelectedId(null)
   }, [])
 
+  // Marcar como no leído: el chat queda con el contador en la lista y se sale
+  // de él (si no, seguiría abierto y no se notaría).
+  const handleMarkUnread = useCallback(async () => {
+    if (!selectedId) return
+    try {
+      await markAsUnread(selectedId)
+      handleBack()
+    } catch (err) {
+      console.error('Error marcando como no leído:', err)
+      alert('No se pudo marcar como no leído.')
+    }
+  }, [selectedId, handleBack])
+
   // Con el chat a pantalla completa en mobile, el teclado achica el viewport
   // visible pero no el layout: sin esto el campo de escribir quedaba tapado
   // por el teclado. Se sigue el visualViewport y se lo pasa por CSS.
@@ -252,7 +339,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     <div className="crm-inbox">
       <div className={`crm-inbox-list${isMobile && selectedId ? ' crm-inbox-list--hidden' : ''}`}>
         <ConversationList
-          conversaciones={conversaciones}
+          conversaciones={conversacionesVisibles}
           loading={loadingConvs}
           selectedId={selectedId}
           onSelect={handleSelect}
@@ -261,6 +348,10 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           search={search}
           onSearch={setSearch}
           onStartConversacion={handleStartConversacion}
+          etiquetas={etiquetas}
+          etiquetasPorConv={porConversacion}
+          etiquetaFilter={etiquetaFilter}
+          onEtiquetaFilter={setEtiquetaFilter}
         />
       </div>
       <div className={`crm-inbox-chat${isMobile && !selectedId ? ' crm-inbox-chat--hidden' : ''}${isMobile && selectedId ? ' crm-inbox-chat--open' : ''}`}>
@@ -288,6 +379,14 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
             })
           }}
           onSendMpLink={() => setMpLinkOpen(true)}
+          onSendFile={handleSendFile}
+          etiquetas={etiquetas}
+          etiquetasDelChat={selectedId ? porConversacion[selectedId] ?? [] : []}
+          onToggleEtiqueta={(etiquetaId) => { if (selectedId) toggleEtiqueta(selectedId, etiquetaId) }}
+          onCrearEtiqueta={(nombre, color) => crearEtiqueta(nombre, color, selectedId ?? undefined)}
+          onEliminarEtiqueta={eliminarEtiqueta}
+          onMarkUnread={handleMarkUnread}
+          onSendGuiaTalles={handleSendGuiaTalles}
           onUseSugerencia={handleUseSugerencia}
           onDismissSugerencia={handleDismissSugerencia}
           onDeleteMensaje={handleDeleteMensaje}

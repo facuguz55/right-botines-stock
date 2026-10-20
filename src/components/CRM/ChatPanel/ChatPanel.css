@@ -943,3 +943,56 @@
   0%, 35% { box-shadow: 0 0 0 3px var(--accent, #ff6a2b); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
+.chat-panel-attach-btn {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color .15s, background .15s;
+}
+
+.chat-panel-attach-btn:hover:not(:disabled) {
+  color: #22D3EE;
+  background: var(--bg-surface-2);
+}
+
+.chat-panel-attach-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.chat-panel-msg-doc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+@media (max-width: 768px) {
+  .chat-panel-attach-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+}
+
+/* Copiar y pegar: en toda la app la selección está apagada (index.css), pero
+   en el CRM hay que poder copiar direcciones, teléfonos, números de pedido y
+   lo que escribe el cliente. */
+.chat-panel-msg-bubble span,
+.chat-panel-msg-doc,
+.chat-panel-header-phone,
+.chat-panel-suggestion-text,
+.orders-panel-body {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

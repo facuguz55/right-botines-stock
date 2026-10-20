@@ -63,6 +63,16 @@ export async function markAsRead(conversacionId: string): Promise<void> {
   if (error) throw error
 }
 
+// Vuelve a dejar el chat como no leído (para acordarse de volver a mirarlo).
+// Solo toca el contador: el estado (Respondido, Venta concretada…) se mantiene.
+export async function markAsUnread(conversacionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('wsp_conversaciones')
+    .update({ no_leidos: 1 })
+    .eq('id', conversacionId)
+  if (error) throw error
+}
+
 export async function renameConversacion(conversacionId: string, nuevoNombre: string): Promise<void> {
   const { error } = await supabase
     .from('wsp_conversaciones')

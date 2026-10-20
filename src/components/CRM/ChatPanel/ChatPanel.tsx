@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply } from 'lucide-react'
-import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply, Paperclip, Ruler, FileText, Tag, MailOpen } from 'lucide-react'
+import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import { TIPO_LABEL, busquedaVigente, etiquetaModelo, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
 import { AudioMessage } from './AudioMessage'
+import EtiquetaChip from '../Etiquetas/EtiquetaChip'
+import EtiquetasPicker from '../Etiquetas/EtiquetasPicker'
 import { OrdersPanel } from '../OrdersPanel/OrdersPanel'
 import { humanizar } from '../../../lib/crmTexto'
 import './ChatPanel.css'
@@ -19,6 +21,14 @@ interface ChatPanelProps {
   onOpenPhotos: (tipo?: string | null, talle?: number | null, modelo?: string | null) => void
   onCreateVenta: () => void
   onSendMpLink: () => void
+  onSendFile: (file: File) => Promise<void>
+  onSendGuiaTalles: () => Promise<void>
+  etiquetas: CrmEtiqueta[]
+  etiquetasDelChat: CrmEtiqueta[]
+  onToggleEtiqueta: (etiquetaId: string) => void
+  onCrearEtiqueta: (nombre: string, color: string) => Promise<void>
+  onEliminarEtiqueta: (etiquetaId: string) => void
+  onMarkUnread: () => void
   onUseSugerencia: () => void
   onDismissSugerencia: () => void
   onDeleteMensaje: (mensajeId: string) => void
@@ -47,6 +57,14 @@ export default function ChatPanel({
   onOpenPhotos,
   onCreateVenta,
   onSendMpLink,
+  onSendFile,
+  onSendGuiaTalles,
+  etiquetas,
+  etiquetasDelChat,
+  onToggleEtiqueta,
+  onCrearEtiqueta,
+  onEliminarEtiqueta,
+  onMarkUnread,
   onUseSugerencia,
   onDismissSugerencia,
   onDeleteMensaje,
@@ -65,6 +83,7 @@ export default function ChatPanel({
   // que llegue el mensaje enviado (evita mandarla dos veces con doble click).
   const [quickRepliesUsadas, setQuickRepliesUsadas] = useState<Set<string>>(new Set())
   const [pedidosOpen, setPedidosOpen] = useState(false)
+  const [etiquetasOpen, setEtiquetasOpen] = useState(false)
 
   // Mensajes del cliente que llegan con el chat abierto: la IA tarda unos
   // segundos en leerlos (el webhook espera hasta 8 s), y en ese rato se
@@ -114,6 +133,7 @@ export default function ChatPanel({
   const [nombreDraft, setNombreDraft] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!openMenuId) return
@@ -140,6 +160,7 @@ export default function ChatPanel({
   useEffect(() => {
     setRenaming(false)
     setPedidosOpen(false)
+    setEtiquetasOpen(false)
   }, [conversacion?.id])
 
   // "Usar en el mensaje" del panel de pedidos: el texto queda en el campo
@@ -197,7 +218,21 @@ export default function ChatPanel({
     await onSend(trimmed, cita)
   }
 
+  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = '' // permite elegir el mismo archivo de nuevo
+    for (const file of files) await onSendFile(file)
+  }
+
+  const handleGuiaTalles = () => {
+    if (!window.confirm('¿Mandarle la guía de talles a este cliente?')) return
+    onSendGuiaTalles()
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // En el celular el Enter del teclado baja de renglón (se envía con el
+    // botón); en la compu Enter envía y Ctrl/Shift+Enter baja de renglón.
+    if (e.key === 'Enter' && window.matchMedia('(pointer: coarse)').matches) return
     if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -293,6 +328,11 @@ export default function ChatPanel({
             {conversacion.telefono && (
               <div className="chat-panel-header-phone">{conversacion.telefono}</div>
             )}
+            {etiquetasDelChat.length > 0 && (
+              <div className="chat-panel-etiquetas">
+                {etiquetasDelChat.map(e => <EtiquetaChip key={e.id} etiqueta={e} size="md" />)}
+              </div>
+            )}
             {busqueda && (
               <div className="chat-panel-busqueda">
                 <button
@@ -343,6 +383,20 @@ export default function ChatPanel({
             title="Pedidos de la tienda web de este cliente (estado, seguimiento, cuándo llega)"
           >
             <Package size={16} />
+          </button>
+          <button
+            className={`chat-panel-action-btn${etiquetasOpen ? ' chat-panel-action-btn--active' : ''}`}
+            onClick={() => setEtiquetasOpen(o => !o)}
+            data-etiquetas-toggle
+            title="Etiquetas del chat"
+          >
+            <Tag size={16} />
+          </button>
+          <button className="chat-panel-action-btn" onClick={onMarkUnread} title="Marcar como no leído">
+            <MailOpen size={16} />
+          </button>
+          <button className="chat-panel-action-btn" onClick={handleGuiaTalles} title="Mandar la guía de talles">
+            <Ruler size={16} />
           </button>
           <button className="chat-panel-action-btn" onClick={() => onOpenPhotos()} title="Enviar fotos">
             <Camera size={16} />
@@ -404,6 +458,8 @@ export default function ChatPanel({
                   onTouchMove={(e) => {
                     const ini = swipeInicio.current
                     if (!ini || !puedeResponder(msg)) return
+                    // Hay texto seleccionado (para copiarlo): arrastrar las manijas no es un deslizar para responder.
+                    if (window.getSelection()?.toString()) { swipeInicio.current = null; return }
                     const dx = e.touches[0].clientX - ini.x
                     const dy = Math.abs(e.touches[0].clientY - ini.y)
                     if (dy > 24 && !swipe) { swipeInicio.current = null; return }   // es un scroll, no un gesto
@@ -461,6 +517,12 @@ export default function ChatPanel({
                       loading="lazy"
                     />
                   )}
+                  {msg.tipo === 'document' && msg.media_url && (
+                    <a className="chat-panel-msg-doc" href={msg.media_url} target="_blank" rel="noreferrer">
+                      <FileText size={18} />
+                      <span>{msg.contenido || 'Archivo'}</span>
+                    </a>
+                  )}
                   {msg.tipo === 'audio' && msg.media_url && (
                     <AudioMessage
                       mensajeId={msg.id}
@@ -491,7 +553,7 @@ export default function ChatPanel({
                       </div>
                     )
                   })()}
-                  {msg.contenido && <span>{msg.contenido}</span>}
+                  {msg.contenido && msg.tipo !== 'document' && <span>{msg.contenido}</span>}
                 </div>
                 {esperandoIA && (
                   <span className="chat-panel-msg-ia-loading" title="La IA está leyendo el mensaje…">
@@ -576,10 +638,26 @@ export default function ChatPanel({
       )}
 
       <div className="chat-panel-input">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+          onChange={handleFilePicked}
+        />
+        <button
+          className="chat-panel-attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={sending}
+          title="Adjuntar foto o archivo (rótulos, comprobantes)"
+        >
+          <Paperclip size={18} />
+        </button>
         <textarea
           ref={textareaRef}
           className="chat-panel-textarea"
-          placeholder="Escribir mensaje... (Enter para enviar, Ctrl+Enter para saltar de línea)"
+          placeholder="Escribir mensaje... (Enter envía, Ctrl+Enter baja de renglón)"
           value={text}
           onChange={handleTextareaInput}
           onKeyDown={handleKeyDown}
@@ -596,6 +674,17 @@ export default function ChatPanel({
           <Send size={18} />
         </button>
       </div>
+
+      {etiquetasOpen && (
+        <EtiquetasPicker
+          etiquetas={etiquetas}
+          seleccionadas={new Set(etiquetasDelChat.map(e => e.id))}
+          onToggle={onToggleEtiqueta}
+          onCrear={onCrearEtiqueta}
+          onEliminar={onEliminarEtiqueta}
+          onClose={() => setEtiquetasOpen(false)}
+        />
+      )}
 
       {pedidosOpen && (
         <OrdersPanel

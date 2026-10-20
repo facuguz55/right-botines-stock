@@ -150,3 +150,12 @@ export interface PhotoMatch {
   talles_disponibles: { talle_arg: number; cantidad: number }[]
   fotos: { foto_url: string; orden: number }[]
 }
+
+// Etiqueta propia del equipo (migración 053). Un chat puede tener varias.
+export interface CrmEtiqueta {
+  id: string
+  nombre: string
+  color: string
+}
+
+export const ETIQUETA_COLORES = ['#22D3EE', '#F97316', '#EF4444', '#A78BFA', '#22C55E', '#EAB308', '#EC4899', '#8B949E']
