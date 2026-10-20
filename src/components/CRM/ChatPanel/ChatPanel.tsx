@@ -167,6 +167,14 @@ export default function ChatPanel({
   const [swipe, setSwipe] = useState<{ id: string; dx: number } | null>(null)
   const SWIPE_UMBRAL = 64
 
+  // Tocar una cita lleva al mensaje original (la foto, por ejemplo) y lo resalta un momento.
+  const [resaltadoId, setResaltadoId] = useState<string | null>(null)
+  const irAlMensaje = (id: string) => {
+    document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setResaltadoId(id)
+    setTimeout(() => setResaltadoId(actual => (actual === id ? null : actual)), 1600)
+  }
+
   // Con el teclado abierto en el celu se esconde el encabezado grande (selectores de
   // categoría y estado, acciones) para que el chat tenga lugar.
   const [tecladoAbierto, setTecladoAbierto] = useState(false)
@@ -385,7 +393,8 @@ export default function ChatPanel({
               return (
               <div
                 key={msg.id}
-                className={`chat-panel-msg chat-panel-msg--${msg.direccion}${msg._pending ? ' chat-panel-msg--pending' : ''}${msg._failed ? ' chat-panel-msg--failed' : ''}`}
+                id={`msg-${msg.id}`}
+                className={`chat-panel-msg chat-panel-msg--${msg.direccion}${msg._pending ? ' chat-panel-msg--pending' : ''}${msg._failed ? ' chat-panel-msg--failed' : ''}${resaltadoId === msg.id ? ' chat-panel-msg--flash' : ''}`}
               >
                 <div className="chat-panel-msg-row">
                 <div
@@ -467,10 +476,18 @@ export default function ChatPanel({
                   )}
                   {msg.contexto_wa_id && (() => {
                     const citado = mensajes.find(m => m.wa_message_id === msg.contexto_wa_id)
+                    const foto = citado?.tipo === 'image' && citado.media_url ? citado.media_url : null
                     return (
-                      <div className="chat-panel-msg-quote">
-                        <strong>{citado ? (citado.direccion === 'out' ? 'Vos' : 'Cliente') : 'Mensaje citado'}</strong>
-                        <span>{citado ? (citado.contenido || (citado.tipo === 'image' ? 'Foto' : citado.tipo === 'audio' ? 'Audio' : 'Mensaje')) : 'No está en el historial de este chat'}</span>
+                      <div
+                        className={`chat-panel-msg-quote${citado ? ' chat-panel-msg-quote--link' : ''}`}
+                        onClick={() => citado && irAlMensaje(citado.id)}
+                        title={citado ? 'Ir al mensaje' : undefined}
+                      >
+                        <div className="chat-panel-msg-quote-text">
+                          <strong>{citado ? (citado.direccion === 'out' ? 'Vos' : 'Cliente') : 'Mensaje citado'}</strong>
+                          <span>{citado ? (citado.contenido || (citado.tipo === 'image' ? 'Foto' : citado.tipo === 'audio' ? 'Audio' : 'Mensaje')) : 'No está en el historial de este chat'}</span>
+                        </div>
+                        {foto && <img className="chat-panel-msg-quote-thumb" src={foto} alt="Foto citada" loading="lazy" />}
                       </div>
                     )
                   })()}
@@ -553,6 +570,7 @@ export default function ChatPanel({
             <strong>Respondiendo a {replyTo.direccion === 'out' ? 'tu mensaje' : 'el cliente'}</strong>
             <span>{replyTo.contenido || (replyTo.tipo === 'image' ? 'Foto' : replyTo.tipo === 'audio' ? 'Audio' : 'Mensaje')}</span>
           </div>
+          {replyTo.tipo === 'image' && replyTo.media_url && <img className="chat-panel-msg-quote-thumb" src={replyTo.media_url} alt="Foto" />}
           <button className="chat-panel-replying-close" onClick={() => setReplyTo(null)} aria-label="Cancelar respuesta"><X size={14} /></button>
         </div>
       )}

@@ -923,3 +923,23 @@
 .chat-panel--teclado .chat-panel-header-phone { display: none; }
 .chat-panel--teclado .chat-panel-header { padding-top: 6px; padding-bottom: 6px; min-height: 0; }
 .chat-panel--teclado .chat-panel-header-avatar { width: 28px; height: 28px; font-size: 12px; }
+
+
+/* Cita con foto: miniatura a la derecha y toque para ir al mensaje original */
+.chat-panel-msg-quote { flex-direction: row; align-items: center; gap: 10px; }
+.chat-panel-msg-quote-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.chat-panel-msg-quote--link { cursor: pointer; }
+.chat-panel-msg-quote-thumb {
+  width: 54px;
+  height: 54px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.chat-panel-msg--flash .chat-panel-msg-bubble {
+  animation: chat-panel-flash 1.6s ease-out;
+}
+@keyframes chat-panel-flash {
+  0%, 35% { box-shadow: 0 0 0 3px var(--accent, #ff6a2b); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
