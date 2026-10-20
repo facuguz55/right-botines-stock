@@ -68,6 +68,15 @@ export function useAuth() {
       sessionStorage.setItem(ROLE_KEY, 'atencion')
       sessionStorage.removeItem(EMPLEADO_ID_KEY)
       sessionStorage.setItem(EMPLEADO_NOMBRE_KEY, 'Atención al público')
+      // La app instalable solo del CRM (/crm) tiene que seguir abierta con el
+      // celu después de cerrarla (sessionStorage se borra al cerrar), así que
+      // ahí la sesión de atención también se guarda en localStorage. El
+      // logout ya limpia los dos.
+      if (window.location.pathname.startsWith('/crm')) {
+        localStorage.setItem(ROLE_KEY, 'atencion')
+        localStorage.removeItem(EMPLEADO_ID_KEY)
+        localStorage.setItem(EMPLEADO_NOMBRE_KEY, 'Atención al público')
+      }
     } catch { /* noop */ }
     setRole('atencion')
     setEmpleadoId(null)

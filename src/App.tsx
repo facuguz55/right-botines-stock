@@ -88,6 +88,12 @@ function restoreAccent() {
 
 export function App() {
   const { role, empleadoId, empleadoNombre, loginEmpleado, loginAtencion, loginDueno, logout } = useAuth()
+
+  // /crm es la app instalable solo del CRM: entra directo como atención al
+  // público, sin pasar por la pantalla de elegir perfil.
+  useEffect(() => {
+    if (!role && window.location.pathname.startsWith('/crm')) loginAtencion().catch(() => { /* queda la pantalla de login */ })
+  }, [role, loginAtencion])
   const [activePage, setActivePage] = useState<ActivePage>(() => {
     try {
       // mail-auth-callback.ts redirige acá con ?gmail=connected|error después
