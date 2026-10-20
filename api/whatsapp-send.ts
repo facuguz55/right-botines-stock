@@ -44,6 +44,8 @@ export default async function handler(req: Request): Promise<Response> {
       text?: string
       imageUrl?: string
       caption?: string
+      // Mensaje al que se responde (cita de WhatsApp): wa_message_id.
+      contextId?: string
     }
 
     if (!WA_TOKEN || !WA_PHONE_NUMBER_ID) {
@@ -73,6 +75,8 @@ export default async function handler(req: Request): Promise<Response> {
         text: { body: body.text || '' },
       }
     }
+
+    if (body.contextId && body.contextId.startsWith('wamid.')) waBody.context = { message_id: body.contextId }
 
     const res = await fetch(
       `https://graph.facebook.com/v21.0/${WA_PHONE_NUMBER_ID}/messages`,

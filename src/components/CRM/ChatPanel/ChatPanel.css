@@ -847,3 +847,52 @@
   overflow: hidden;
   white-space: pre-wrap;
 }
+
+
+/* Barra "respondiendo a…" arriba del campo de texto */
+.chat-panel-replying {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+.chat-panel-replying-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent, #ff6a2b);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+.chat-panel-replying-text strong { font-size: 11px; color: var(--accent, #ff6a2b); }
+.chat-panel-replying-text span {
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-panel-replying-close {
+  background: none;
+  border: 0;
+  color: var(--text-muted, #9ba2ad);
+  cursor: pointer;
+  padding: 6px;
+}
+
+/* iPhone: el campo de escribir no puede quedar pegado al borde de abajo.
+   La zona segura (env) no siempre llega en la app instalada, así que se
+   pone un mínimo propio solo en dispositivos iOS. */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    .chat-panel-input {
+      padding-bottom: calc(10px + max(env(safe-area-inset-bottom, 0px), 26px));
+    }
+  }
+}

@@ -34,8 +34,9 @@ export async function sendTextMessage(
   contenido: string,
   empleadoId: string | null,
   waContactId: string,
+  contextoWaId?: string | null,
 ): Promise<WspMensaje> {
-  const waMessageId = await sendViaWhatsApp(waContactId, { type: 'text', text: contenido })
+  const waMessageId = await sendViaWhatsApp(waContactId, { type: 'text', text: contenido, contextId: contextoWaId ?? undefined })
 
   const { data: msg, error: msgErr } = await supabase
     .from('wsp_mensajes')
@@ -46,6 +47,7 @@ export async function sendTextMessage(
       contenido,
       enviado_por: empleadoId,
       wa_message_id: waMessageId,
+      contexto_wa_id: contextoWaId ?? null,
     }])
     .select('*, empleados(nombre)')
     .single()

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import { TIPO_LABEL, busquedaVigente, etiquetaModelo, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
@@ -13,7 +13,7 @@ interface ChatPanelProps {
   mensajes: WspMensaje[]
   loading: boolean
   sugerencia: WspIaSugerencia | null
-  onSend: (text: string) => Promise<void>
+  onSend: (text: string, contextoWaId?: string | null) => Promise<void>
   onChangeCategoria: (cat: CrmCategoria) => void
   onChangeEstado: (estado: CrmEstado) => void
   onOpenPhotos: (tipo?: string | null, talle?: number | null, modelo?: string | null) => void
@@ -156,12 +156,21 @@ export default function ChatPanel({
     })
   }
 
+  // Mensaje al que se está respondiendo (deslizar o "Responder"): el cliente lo
+  // ve citado arriba de la respuesta, como en WhatsApp.
+  const [replyTo, setReplyTo] = useState<WspMensaje | null>(null)
+  useEffect(() => { setReplyTo(null) }, [conversacion?.id])
+  const puedeResponder = (m: WspMensaje) => !!m.wa_message_id && m.wa_message_id.startsWith('wamid.') && !m._pending
+  const swipeInicio = useRef<{ x: number; y: number } | null>(null)
+
   const handleSend = async () => {
     const trimmed = text.trim()
     if (!trimmed || sending) return
+    const cita = replyTo?.wa_message_id ?? null
     setText('')
+    setReplyTo(null)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-    await onSend(trimmed)
+    await onSend(trimmed, cita)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -363,7 +372,17 @@ export default function ChatPanel({
                 className={`chat-panel-msg chat-panel-msg--${msg.direccion}${msg._pending ? ' chat-panel-msg--pending' : ''}${msg._failed ? ' chat-panel-msg--failed' : ''}`}
               >
                 <div className="chat-panel-msg-row">
-                <div className="chat-panel-msg-bubble">
+                <div
+                  className="chat-panel-msg-bubble"
+                  onTouchStart={(e) => { swipeInicio.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
+                  onTouchEnd={(e) => {
+                    const ini = swipeInicio.current; swipeInicio.current = null
+                    if (!ini || !puedeResponder(msg)) return
+                    const dx = e.changedTouches[0].clientX - ini.x
+                    const dy = Math.abs(e.changedTouches[0].clientY - ini.y)
+                    if (dx > 60 && dy < 30) { setReplyTo(msg); textareaRef.current?.focus() }
+                  }}
+                >
                   <div className="chat-panel-msg-menu">
                     <button
                       className="chat-panel-msg-menu-btn"
@@ -374,6 +393,14 @@ export default function ChatPanel({
                     </button>
                     {openMenuId === msg.id && (
                       <div className="chat-panel-msg-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+                        {puedeResponder(msg) && (
+                          <button
+                            className="chat-panel-msg-menu-item"
+                            onClick={() => { setOpenMenuId(null); setReplyTo(msg); requestAnimationFrame(() => textareaRef.current?.focus()) }}
+                          >
+                            <Reply size={13} /> Responder
+                          </button>
+                        )}
                         <button
                           className="chat-panel-msg-menu-item chat-panel-msg-menu-item--danger"
                           onClick={() => { setOpenMenuId(null); onDeleteMensaje(msg.id) }}
@@ -483,6 +510,16 @@ export default function ChatPanel({
           <button className="chat-panel-suggestion-btn" onClick={onDismissSugerencia}>
             <X size={12} />
           </button>
+        </div>
+      )}
+
+      {replyTo && (
+        <div className="chat-panel-replying">
+          <div className="chat-panel-replying-text">
+            <strong>Respondiendo a {replyTo.direccion === 'out' ? 'tu mensaje' : 'el cliente'}</strong>
+            <span>{replyTo.contenido || (replyTo.tipo === 'image' ? 'Foto' : replyTo.tipo === 'audio' ? 'Audio' : 'Mensaje')}</span>
+          </div>
+          <button className="chat-panel-replying-close" onClick={() => setReplyTo(null)} aria-label="Cancelar respuesta"><X size={14} /></button>
         </div>
       )}
 

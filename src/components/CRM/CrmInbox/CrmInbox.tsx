@@ -66,7 +66,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     }
   }, [])
 
-  const handleSend = useCallback(async (text: string) => {
+  const handleSend = useCallback(async (text: string, contextoWaId?: string | null) => {
     if (!selectedId || !selectedConv) return
 
     // Aparece en el chat al toque (con un ícono de "enviando") en vez de
@@ -82,6 +82,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
       transcripcion: null,
       media_url: null,
       wa_message_id: null,
+      contexto_wa_id: contextoWaId ?? null,
       enviado_por: empleadoId,
       timestamp: new Date().toISOString(),
       _pending: true,
@@ -90,7 +91,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
 
     setSending(true)
     try {
-      const real = await sendTextMessage(selectedId, text, empleadoId, selectedConv.wa_contact_id)
+      const real = await sendTextMessage(selectedId, text, empleadoId, selectedConv.wa_contact_id, contextoWaId)
       resolvePendingMensaje(tempId, real)
     } catch (err) {
       console.error('Error enviando mensaje:', err)
