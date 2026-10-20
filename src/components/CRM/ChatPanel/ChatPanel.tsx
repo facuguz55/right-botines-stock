@@ -404,6 +404,15 @@ export default function ChatPanel({
                       {msg.transcripcion || '(audio sin transcripción)'}
                     </div>
                   )}
+                  {msg.contexto_wa_id && (() => {
+                    const citado = mensajes.find(m => m.wa_message_id === msg.contexto_wa_id)
+                    return (
+                      <div className="chat-panel-msg-quote">
+                        <strong>{citado ? (citado.direccion === 'out' ? 'Vos' : 'Cliente') : 'Mensaje citado'}</strong>
+                        <span>{citado ? (citado.contenido || (citado.tipo === 'image' ? 'Foto' : citado.tipo === 'audio' ? 'Audio' : 'Mensaje')) : 'No está en el historial de este chat'}</span>
+                      </div>
+                    )
+                  })()}
                   {msg.contenido && <span>{msg.contenido}</span>}
                 </div>
                 {esperandoIA && (

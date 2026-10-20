@@ -67,6 +67,8 @@ export interface WspMensaje {
   transcripcion: string | null
   media_url: string | null
   wa_message_id: string | null
+  // Mensaje al que respondió el cliente deslizando en WhatsApp (su wa_message_id).
+  contexto_wa_id?: string | null
   enviado_por: string | null
   timestamp: string
   empleados?: { nombre: string } | null

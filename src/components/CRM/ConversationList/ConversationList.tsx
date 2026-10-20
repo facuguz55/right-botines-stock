@@ -159,7 +159,7 @@ export default function ConversationList({
           conversaciones.map((conv) => (
             <div
               key={conv.id}
-              className={`conv-list-item${selectedId === conv.id ? ' conv-list-item--selected' : ''}`}
+              className={`conv-list-item${selectedId === conv.id ? ' conv-list-item--selected' : ''}${conv.no_leidos > 0 ? ' conv-list-item--unread' : ''}`}
               onClick={() => onSelect(conv.id)}
             >
               <div className="conv-list-avatar">

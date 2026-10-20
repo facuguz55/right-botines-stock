@@ -41,6 +41,22 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
 
   const selectedConv = conversaciones.find((c) => c.id === selectedId) || null
 
+  // Cantidad de mensajes sin leer: se ve en el título de la pestaña y, en la app
+  // instalada, como globito en el ícono.
+  const totalNoLeidos = conversaciones.reduce((n, c) => n + (c.no_leidos || 0), 0)
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\)\s*/, '')
+    document.title = totalNoLeidos > 0 ? `(${totalNoLeidos}) ${base}` : base
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> }
+    if (totalNoLeidos > 0) nav.setAppBadge?.(totalNoLeidos)?.catch(() => { /* sin soporte */ })
+    else nav.clearAppBadge?.()?.catch(() => { /* sin soporte */ })
+  }, [totalNoLeidos])
+  useEffect(() => () => {
+    document.title = document.title.replace(/^\(\d+\)\s*/, '')
+    const nav = navigator as Navigator & { clearAppBadge?: () => Promise<void> }
+    nav.clearAppBadge?.()?.catch(() => { /* sin soporte */ })
+  }, [])
+
   const handleSelect = useCallback(async (id: string) => {
     setSelectedId(id)
     try {

@@ -436,3 +436,11 @@
     background: var(--bg-surface-2);
   }
 }
+
+
+/* Conversaciones con mensajes sin leer: se distinguen de un vistazo */
+.conv-list-item--unread { background: rgba(255, 106, 43, 0.09); }
+.conv-list-item--unread .conv-list-name,
+.conv-list-item--unread .conv-list-preview { font-weight: 700; color: var(--text, #fff); opacity: 1; }
+.conv-list-item--unread .conv-list-time { color: var(--accent, #ff6a2b); font-weight: 600; }
+.conv-list-item--unread .conv-list-badge { box-shadow: 0 0 0 3px rgba(255, 106, 43, 0.25); }

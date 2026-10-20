@@ -822,3 +822,28 @@
   border-color: #22D3EE;
   color: #22D3EE;
 }
+
+
+/* Cita: el cliente respondió deslizando un mensaje de WhatsApp */
+.chat-panel-msg-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent, #ff6a2b);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 12px;
+  line-height: 1.35;
+  max-width: 100%;
+}
+.chat-panel-msg-quote strong { font-size: 11px; color: var(--accent, #ff6a2b); }
+.chat-panel-msg-quote span {
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+}

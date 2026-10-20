@@ -521,6 +521,8 @@ export default async function handler(req: Request): Promise<Response> {
               id: string
               timestamp: string
               type: string
+              // Cuando el cliente desliza para responder un mensaje, WhatsApp manda el id del citado.
+              context?: { id?: string }
               text?: { body: string }
               image?: { id: string; mime_type: string; caption?: string }
               audio?: { id: string; mime_type: string }
@@ -568,6 +570,7 @@ export default async function handler(req: Request): Promise<Response> {
               contenido,
               media_url: mediaUrl,
               wa_message_id: msg.id,
+              contexto_wa_id: msg.context?.id ?? null,
             }),
           })
           const inserted = (await insertRes.json() as { id: string }[])[0]
