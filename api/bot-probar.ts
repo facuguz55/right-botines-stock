@@ -67,7 +67,7 @@ export default async function handler(req: Request): Promise<Response> {
       busquedaGuardada: { talle: null, tipo: null, modelo: null },
       text: ultimo, aprendizajes,
     })
-    if (!ia || ia.mensajes_sugeridos.length === 0) return json({ error: 'El bot no pudo armar una respuesta. Probá de nuevo.' }, 502)
+    if (!ia || ia.mensajes_sugeridos.length === 0) return json({ error: 'El bot no quiso o no pudo contestar ese mensaje. Probá con otra frase.' }, 502)
 
     return json({
       mensajes: ia.mensajes_sugeridos,

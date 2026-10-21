@@ -15,7 +15,7 @@
 .aprendizaje-origen--distinta { color: #fbbf24; background: rgba(251, 191, 36, 0.12); }
 .aprendizaje-origen--sin_sugerencia { color: #f87171; background: rgba(248, 113, 113, 0.12); }
 .aprendizaje-origen--usada { color: #34d399; background: rgba(52, 211, 153, 0.12); }
-.aprendizaje-bloque { display: grid; gap: 4px; min-width: 0; }
+.aprendizaje-bloque { display: grid; gap: 4px; min-width: 0; align-content: start; }
 .aprendizaje-bloque label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
 .aprendizaje-cliente { margin: 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--bg-surface-2); border-radius: 6px; white-space: pre-wrap; font-size: 13px; }
 .aprendizaje-bot { margin: 0; padding: 8px 10px; background: var(--bg-surface-2); border-radius: 6px; white-space: pre-wrap; font-size: 13px; color: var(--text-muted); }
