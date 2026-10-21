@@ -9,8 +9,10 @@ export function useConversations(categoriaFilter?: CrmCategoria) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  // `silencioso`: refresca sin mostrar el cartel de "cargando" (para el
+  // refresco automático al volver a la app y el botón de actualizar).
+  const load = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true)
     try {
       const data = search
         ? await searchConversaciones(search)
@@ -19,11 +21,29 @@ export function useConversations(categoriaFilter?: CrmCategoria) {
     } catch (err) {
       console.error('Error cargando conversaciones:', err)
     } finally {
-      setLoading(false)
+      if (!silencioso) setLoading(false)
     }
   }, [categoriaFilter, search])
 
   useEffect(() => { load() }, [load])
+
+  // En el celular, con la app en segundo plano (o la pantalla bloqueada) la
+  // conexión en tiempo real se corta y los mensajes de ese rato no llegan:
+  // al volver a la app se recarga la lista, y mientras está abierta se
+  // revisa cada tanto por si el tiempo real se cayó sin avisar.
+  useEffect(() => {
+    const recargar = () => { if (document.visibilityState === 'visible') load(true) }
+    document.addEventListener('visibilitychange', recargar)
+    window.addEventListener('focus', recargar)
+    window.addEventListener('online', recargar)
+    const id = window.setInterval(recargar, 30000)
+    return () => {
+      document.removeEventListener('visibilitychange', recargar)
+      window.removeEventListener('focus', recargar)
+      window.removeEventListener('online', recargar)
+      window.clearInterval(id)
+    }
+  }, [load])
 
   useEffect(() => {
     const channel = supabase
@@ -57,5 +77,5 @@ export function useConversations(categoriaFilter?: CrmCategoria) {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  return { conversaciones, loading, reload: load, search, setSearch }
+  return { conversaciones, loading, reload: () => load(), recargarSilencioso: () => load(true), search, setSearch }
 }

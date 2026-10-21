@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MessageCircle, Plus, X, Loader2 } from 'lucide-react'
+import { MessageCircle, Plus, X, Loader2, RefreshCw } from 'lucide-react'
 import type { WspConversacion, CrmCategoria, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS } from '../../../types/crm'
 import CategoryChip from '../CategoryChip/CategoryChip'
@@ -20,6 +20,8 @@ interface ConversationListProps {
   etiquetasPorConv: Record<string, CrmEtiqueta[]>
   etiquetaFilter: string | undefined
   onEtiquetaFilter: (id: string | undefined) => void
+  onActualizar: () => void
+  actualizando: boolean
 }
 
 function timeAgo(dateStr: string): string {
@@ -53,6 +55,8 @@ export default function ConversationList({
   etiquetasPorConv,
   etiquetaFilter,
   onEtiquetaFilter,
+  onActualizar,
+  actualizando,
 }: ConversationListProps) {
   const [showNueva, setShowNueva] = useState(false)
   const [nuevoNumero, setNuevoNumero] = useState('')
@@ -89,6 +93,14 @@ export default function ConversationList({
           {conversaciones.length > 0 && (
             <span className="conv-list-count">{conversaciones.length}</span>
           )}
+          <button
+            className="conv-list-new-btn"
+            title="Actualizar chats"
+            onClick={onActualizar}
+            disabled={actualizando}
+          >
+            <RefreshCw size={14} className={actualizando ? 'conv-list-spin' : undefined} />
+          </button>
           <button
             className="conv-list-new-btn"
             title="Escribirle a un número nuevo"

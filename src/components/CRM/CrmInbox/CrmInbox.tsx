@@ -33,12 +33,19 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const [etiquetaFilter, setEtiquetaFilter] = useState<string | undefined>(undefined)
   const { etiquetas, porConversacion, toggle: toggleEtiqueta, crear: crearEtiqueta, eliminar: eliminarEtiqueta } = useEtiquetas()
 
-  const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones } = useConversations(categoriaFilter)
+  const { conversaciones, loading: loadingConvs, search, setSearch, reload: reloadConversaciones, recargarSilencioso: refrescarConversaciones } = useConversations(categoriaFilter)
   const {
     mensajes, loading: loadingMsgs, sugerencia, setSugerencia, sugerenciasPorMensaje,
     addPendingMensaje, resolvePendingMensaje, failPendingMensaje, setMensajeTranscripcion,
-    setMensajeOculto,
+    setMensajeOculto, recargarSilencioso: refrescarMensajes,
   } = useMessages(selectedId)
+
+  const [actualizando, setActualizando] = useState(false)
+  const handleActualizar = useCallback(async () => {
+    setActualizando(true)
+    try { await Promise.all([refrescarConversaciones(), refrescarMensajes()]) }
+    finally { setActualizando(false) }
+  }, [refrescarConversaciones, refrescarMensajes])
 
   // Deshacer borrado: el mensaje se oculta al toque, pero el DELETE real
   // recién se manda si nadie lo deshace dentro de este tiempo.
@@ -352,6 +359,8 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           etiquetasPorConv={porConversacion}
           etiquetaFilter={etiquetaFilter}
           onEtiquetaFilter={setEtiquetaFilter}
+          onActualizar={handleActualizar}
+          actualizando={actualizando}
         />
       </div>
       <div className={`crm-inbox-chat${isMobile && !selectedId ? ' crm-inbox-chat--hidden' : ''}${isMobile && selectedId ? ' crm-inbox-chat--open' : ''}`}>

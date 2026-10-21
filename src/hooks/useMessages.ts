@@ -12,16 +12,21 @@ export function useMessages(conversacionId: string | null) {
   // del mensaje puntual donde el cliente preguntó por un talle.
   const [sugerenciasPorMensaje, setSugerenciasPorMensaje] = useState<Record<string, WspIaSugerencia>>({})
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silencioso = false) => {
     if (!conversacionId) { setMensajes([]); return }
-    setLoading(true)
+    if (!silencioso) setLoading(true)
     try {
       const [msgs, sug, sugsPorMsg] = await Promise.all([
         fetchMensajes(conversacionId),
         fetchLatestSugerencia(conversacionId),
         fetchSugerenciasPorMensaje(conversacionId),
       ])
-      setMensajes(msgs)
+      // Si se refresca con un mensaje todavía mandándose (o fallido), no
+      // se lo pisa: se conserva al final de la lista.
+      setMensajes(prev => {
+        const locales = prev.filter(m => (m._pending || m._failed) && !msgs.some(r => r.id === m.id))
+        return locales.length ? [...msgs, ...locales] : msgs
+      })
       setSugerencia(sug as WspIaSugerencia | null)
       const map: Record<string, WspIaSugerencia> = {}
       for (const s of sugsPorMsg as WspIaSugerencia[]) {
@@ -31,11 +36,29 @@ export function useMessages(conversacionId: string | null) {
     } catch (err) {
       console.error('Error cargando mensajes:', err)
     } finally {
-      setLoading(false)
+      if (!silencioso) setLoading(false)
     }
   }, [conversacionId])
 
   useEffect(() => { load() }, [load])
+
+  // Mismo motivo que en la lista de chats: al volver a la app (o cada tanto
+  // con el chat abierto) se relee la conversación por si el tiempo real
+  // se cortó y se perdieron mensajes.
+  useEffect(() => {
+    if (!conversacionId) return
+    const recargar = () => { if (document.visibilityState === 'visible') load(true) }
+    document.addEventListener('visibilitychange', recargar)
+    window.addEventListener('focus', recargar)
+    window.addEventListener('online', recargar)
+    const id = window.setInterval(recargar, 30000)
+    return () => {
+      document.removeEventListener('visibilitychange', recargar)
+      window.removeEventListener('focus', recargar)
+      window.removeEventListener('online', recargar)
+      window.clearInterval(id)
+    }
+  }, [conversacionId, load])
 
   useEffect(() => {
     if (!conversacionId) return
@@ -129,7 +152,7 @@ export function useMessages(conversacionId: string | null) {
   }, [])
 
   return {
-    mensajes, loading, reload: load, sugerencia, setSugerencia, sugerenciasPorMensaje,
+    mensajes, loading, reload: () => load(), recargarSilencioso: () => load(true), sugerencia, setSugerencia, sugerenciasPorMensaje,
     addPendingMensaje, resolvePendingMensaje, failPendingMensaje, setMensajeTranscripcion,
     setMensajeOculto,
   }
