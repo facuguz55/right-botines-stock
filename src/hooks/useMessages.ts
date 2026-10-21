@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { WspMensaje, WspIaSugerencia } from '../types/crm'
 import { fetchMensajes, fetchLatestSugerencia, fetchSugerenciasPorMensaje } from '../services/crmMessages'
+import { useRefrescoAutomatico } from './useRefrescoAutomatico'
 import { playNotificationSound } from '../services/crmNotification'
 
 export function useMessages(conversacionId: string | null) {
@@ -42,26 +43,15 @@ export function useMessages(conversacionId: string | null) {
 
   useEffect(() => { load() }, [load])
 
-  // Mismo motivo que en la lista de chats: al volver a la app (o cada tanto
-  // con el chat abierto) se relee la conversación por si el tiempo real
-  // se cortó y se perdieron mensajes.
-  useEffect(() => {
-    if (!conversacionId) return
-    const recargar = () => { if (document.visibilityState === 'visible') load(true) }
-    document.addEventListener('visibilitychange', recargar)
-    window.addEventListener('focus', recargar)
-    window.addEventListener('online', recargar)
-    const id = window.setInterval(recargar, 30000)
-    return () => {
-      document.removeEventListener('visibilitychange', recargar)
-      window.removeEventListener('focus', recargar)
-      window.removeEventListener('online', recargar)
-      window.clearInterval(id)
-    }
-  }, [conversacionId, load])
+  const loadRef = useRef(load)
+  loadRef.current = load
+
+  // Red de seguridad por si el tiempo real se cae en silencio.
+  useRefrescoAutomatico(() => { load(true) }, 4000, !!conversacionId)
 
   useEffect(() => {
     if (!conversacionId) return
+    let yaConectado = false
 
     const channel = supabase
       .channel(`crm-messages-${conversacionId}`)
@@ -105,7 +95,12 @@ export function useMessages(conversacionId: string | null) {
           setSugerencia(prev => (!prev || newSug.created_at >= prev.created_at) ? newSug : prev)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          if (yaConectado) loadRef.current(true)
+          yaConectado = true
+        }
+      })
 
     return () => { supabase.removeChannel(channel) }
   }, [conversacionId])

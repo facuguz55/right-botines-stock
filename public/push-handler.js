@@ -4,14 +4,17 @@ self.addEventListener('push', event => {
   let data = {}
   try { data = event.data ? event.data.json() : {} } catch (e) { data = {} }
   const title = data.title || 'Mensaje nuevo'
-  event.waitUntil(self.registration.showNotification(title, {
+  // Si la app está abierta, que recargue ya (por si el tiempo real se cayó).
+  const avisarApp = self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then(list => list.forEach(c => c.postMessage({ type: 'crm-refresh' })))
+  event.waitUntil(Promise.all([avisarApp, self.registration.showNotification(title, {
     body: data.body || '',
     icon: '/pwa-192x192.png',
     badge: '/pwa-192x192.png',
     tag: data.tag || 'crm',
     renotify: true,
     data: { url: data.url || '/crm' },
-  }))
+  })]))
 })
 
 self.addEventListener('notificationclick', event => {

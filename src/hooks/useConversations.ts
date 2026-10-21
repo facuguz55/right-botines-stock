@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { WspConversacion, CrmCategoria } from '../types/crm'
 import { fetchConversaciones, searchConversaciones } from '../services/crmConversations'
+import { useRefrescoAutomatico } from './useRefrescoAutomatico'
 import { playNotificationSound } from '../services/crmNotification'
 
 export function useConversations(categoriaFilter?: CrmCategoria) {
@@ -27,25 +28,14 @@ export function useConversations(categoriaFilter?: CrmCategoria) {
 
   useEffect(() => { load() }, [load])
 
-  // En el celular, con la app en segundo plano (o la pantalla bloqueada) la
-  // conexión en tiempo real se corta y los mensajes de ese rato no llegan:
-  // al volver a la app se recarga la lista, y mientras está abierta se
-  // revisa cada tanto por si el tiempo real se cayó sin avisar.
-  useEffect(() => {
-    const recargar = () => { if (document.visibilityState === 'visible') load(true) }
-    document.addEventListener('visibilitychange', recargar)
-    window.addEventListener('focus', recargar)
-    window.addEventListener('online', recargar)
-    const id = window.setInterval(recargar, 30000)
-    return () => {
-      document.removeEventListener('visibilitychange', recargar)
-      window.removeEventListener('focus', recargar)
-      window.removeEventListener('online', recargar)
-      window.clearInterval(id)
-    }
-  }, [load])
+  // Red de seguridad por si el tiempo real se cae en silencio.
+  useRefrescoAutomatico(() => { load(true) }, 8000)
+
+  const loadRef = useRef(load)
+  loadRef.current = load
 
   useEffect(() => {
+    let yaConectado = false
     const channel = supabase
       .channel('crm-conversations')
       .on(
@@ -72,7 +62,14 @@ export function useConversations(categoriaFilter?: CrmCategoria) {
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        // Cada vez que la conexión se (re)establece se ponen al día los
+        // mensajes que cayeron mientras estuvo caída.
+        if (status === 'SUBSCRIBED') {
+          if (yaConectado) loadRef.current(true)
+          yaConectado = true
+        }
+      })
 
     return () => { supabase.removeChannel(channel) }
   }, [])
