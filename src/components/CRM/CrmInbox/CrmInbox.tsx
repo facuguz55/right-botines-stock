@@ -4,6 +4,7 @@ import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { registrarAprendizaje } from '../../../services/crmAprendizajes'
 import { useEtiquetas } from '../../../hooks/useEtiquetas'
+import { useCrmTema } from '../../../hooks/useCrmTema'
 import {
   sendTextMessage, sendImageMessage, sendDocumentMessage, uploadSalidaMedia, markSuggestionUsed, deleteMensaje,
   GUIA_TALLES_URL, MAX_IMAGEN_BYTES, MAX_DOCUMENTO_BYTES,
@@ -30,6 +31,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const [categoriaFilter, setCategoriaFilter] = useState<CrmCategoria | undefined>(undefined)
   const [sending, setSending] = useState(false)
   const [mpLinkOpen, setMpLinkOpen] = useState(false)
+  const { tema, alternar: alternarTema } = useCrmTema()
   const [etiquetaFilter, setEtiquetaFilter] = useState<string | undefined>(undefined)
   const { etiquetas, porConversacion, toggle: toggleEtiqueta, crear: crearEtiqueta, eliminar: eliminarEtiqueta } = useEtiquetas()
 
@@ -359,6 +361,8 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           etiquetasPorConv={porConversacion}
           etiquetaFilter={etiquetaFilter}
           onEtiquetaFilter={setEtiquetaFilter}
+          tema={tema}
+          onToggleTema={alternarTema}
           onActualizar={handleActualizar}
           actualizando={actualizando}
         />

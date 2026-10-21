@@ -83,6 +83,7 @@ export function useModelos() {
     let pendientes = new Map<string, Partial<ModeloTalle>>()
     let timer: ReturnType<typeof setTimeout> | null = null
     let recargaTimer: ReturnType<typeof setTimeout> | null = null
+    let yaSuscripto = false
 
     const aplicar = () => {
       timer = null
@@ -105,6 +106,16 @@ export function useModelos() {
       recargaTimer = setTimeout(() => { load() }, 1000)
     }
 
+    // Recarga que no muestra error: si justo no hay internet, queda lo que
+    // se ve y se reintenta en la próxima.
+    const recargarEnSilencio = async () => {
+      try {
+        const fresh = await fetchModelos()
+        setModelos(fresh)
+        saveModelosCache(fresh)
+      } catch { /* sin conexión: reintenta después */ }
+    }
+
     const channel = supabase
       .channel('stock-talles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'modelo_talles' }, payload => {
@@ -116,17 +127,35 @@ export function useModelos() {
           recargar()
         }
       })
-      .subscribe()
+      .subscribe(status => {
+        // Se reconectó después de un corte: lo que cambió mientras tanto no
+        // llega por acá, así que se trae el stock completo.
+        if (status === 'SUBSCRIBED') {
+          if (yaSuscripto) recargarEnSilencio()
+          yaSuscripto = true
+        }
+      })
 
     // En el celular, con la app en segundo plano (o la pantalla bloqueada) la
     // conexión en tiempo real se corta y los cambios de ese rato se pierden:
     // al volver a la app se recarga el stock completo.
-    const alVolver = () => { if (document.visibilityState === 'visible') load() }
+    // La compu del mostrador, en cambio, nunca pasa a segundo plano: si se le
+    // cortaba internet un rato, las ventas hechas desde otro dispositivo en
+    // ese rato no le llegaban nunca y seguía mostrando como disponibles
+    // talles ya vendidos. Por eso también se recarga al volver internet, al
+    // volver a la ventana y cada 2 minutos como respaldo.
+    const alVolver = () => { if (document.visibilityState === 'visible') recargarEnSilencio() }
     document.addEventListener('visibilitychange', alVolver)
+    window.addEventListener('online', recargarEnSilencio)
+    window.addEventListener('focus', alVolver)
+    const respaldo = setInterval(alVolver, 2 * 60 * 1000)
 
     return () => {
       supabase.removeChannel(channel)
       document.removeEventListener('visibilitychange', alVolver)
+      window.removeEventListener('online', recargarEnSilencio)
+      window.removeEventListener('focus', alVolver)
+      clearInterval(respaldo)
       if (timer) clearTimeout(timer)
       if (recargaTimer) clearTimeout(recargaTimer)
     }

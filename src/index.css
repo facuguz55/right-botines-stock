@@ -234,3 +234,42 @@ a { color: var(--accent); text-decoration: none; }
    texto no se reescala solo al girar el celu. El pellizco se bloquea en
    src/main.tsx (iOS ignora user-scalable=no). */
 html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* ── Tema claro del CRM ──
+   Se activa desde el botón sol/luna de la lista de chats (ver useCrmTema) y
+   solo mientras se está en el CRM. Pensado para el sol: fondo blanco, texto
+   casi negro y grises bastante más oscuros que los del tema oscuro. */
+html[data-crm-tema="claro"] {
+  color-scheme: light;
+  --bg-primary: #EEF1F5;
+  --bg-surface: #FFFFFF;
+  --bg-surface-2: #F1F4F8;
+  --bg-surface-3: #E4E9F0;
+  --border: #C4CDD8;
+  --border-light: #AAB7C6;
+  --text-primary: #0A1220;
+  --text-secondary: #38495C;
+  --text-muted: #566B80;
+  --accent: #D43B00;
+  --accent-hover: #B83300;
+  --accent-dim: rgba(212, 59, 0, 0.12);
+  --shadow-card: 0 1px 3px rgba(15, 30, 50, .15), 0 4px 16px rgba(15, 30, 50, .08);
+  --shadow-elevated: 0 8px 32px rgba(15, 30, 50, .22);
+  --crm-cyan-text: #0A6F86;
+  --crm-violet-text: #6D4BD6;
+}
+html[data-crm-tema="claro"] .chat-panel-msg--out .chat-panel-msg-bubble {
+  background: #C9EEF5;
+  border-color: #8CD3E1;
+}
+html[data-crm-tema="claro"] .chat-panel-msg--in .chat-panel-msg-bubble { border: 1px solid var(--border); }
+html[data-crm-tema="claro"] .conv-list-item--unread { background: rgba(212, 59, 0, 0.10); }
+html[data-crm-tema="claro"] .chat-panel-msg-menu-btn:hover { background: rgba(0, 0, 0, .08); }
+html[data-crm-tema="claro"] .chat-panel-msg-quote,
+html[data-crm-tema="claro"] .chat-panel-replying-text { background: rgba(15, 30, 50, 0.07); }
+html[data-crm-tema="claro"] .cat-chip,
+html[data-crm-tema="claro"] .etiqueta-chip,
+html[data-crm-tema="claro"] .conv-list-label-filter {
+  /* Los colores de las categorías/etiquetas son claros: sobre blanco se oscurecen para leerse. */
+  color: color-mix(in srgb, var(--chip-color) 55%, #000) !important;
+}

@@ -110,7 +110,7 @@
 .orders-panel-link {
   background: none;
   border: none;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -218,7 +218,7 @@
 
 .orders-card-tracking code {
   font-family: ui-monospace, monospace;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
   font-size: 12px;
 }
 
@@ -264,7 +264,7 @@
 .orders-btn--primary {
   background: rgba(34, 211, 238, 0.12);
   border-color: #22D3EE;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 .orders-btn--primary:hover {

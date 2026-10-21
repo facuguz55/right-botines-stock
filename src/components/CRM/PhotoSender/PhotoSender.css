@@ -103,7 +103,7 @@
 .photo-sender-chip--active {
   background: rgba(34, 211, 238, 0.15);
   border-color: #22D3EE;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 .photo-sender-modelo-input {
@@ -141,7 +141,7 @@
   margin: 0.75rem auto 0;
   background: none;
   border: none;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -304,7 +304,7 @@
 
 .photo-sender-price {
   font-size: 0.8125rem;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
   font-weight: 600;
   margin-top: 2px;
 }
@@ -327,7 +327,7 @@
 
 .photo-sender-size--match {
   background: rgba(34, 211, 238, 0.15);
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 /* Preview section */

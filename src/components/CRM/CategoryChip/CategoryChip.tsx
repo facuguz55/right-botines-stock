@@ -13,7 +13,7 @@ export default function CategoryChip({ categoria, size = 'sm', onClick }: Catego
   return (
     <span
       className={`cat-chip cat-chip--${size}${onClick ? ' cat-chip--clickable' : ''}`}
-      style={{ backgroundColor: `${color}22`, color }}
+      style={{ backgroundColor: `${color}22`, color, ['--chip-color' as string]: color }}
       onClick={onClick}
     >
       {categoria}

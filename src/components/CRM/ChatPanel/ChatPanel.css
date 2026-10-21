@@ -33,7 +33,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
   box-shadow: 0 0 0 1px var(--border), 0 20px 50px -18px #22D3EE40, inset 0 1px 0 rgba(255,255,255,.03);
 }
 
@@ -118,7 +118,7 @@
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 .chat-panel-header-text {
@@ -480,7 +480,7 @@
 .chat-panel-msg-quick-btn {
   background: rgba(34, 211, 238, 0.1);
   border-color: #22D3EE;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 .chat-panel-msg-quick-btn:hover {
@@ -607,7 +607,7 @@
 }
 
 .chat-panel-suggestion-icon {
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
   flex-shrink: 0;
 }
 
@@ -642,7 +642,7 @@
 
 .chat-panel-suggestion-btn--use {
   border-color: #22D3EE;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 .chat-panel-suggestion-btn--use:hover {
@@ -860,7 +860,7 @@
 .chat-panel-msg-orders-btn {
   background: rgba(167, 139, 250, 0.12);
   border-color: #A78BFA;
-  color: #A78BFA;
+  color: var(--crm-violet-text, #A78BFA);
 }
 
 .chat-panel-msg-orders-btn:hover {
@@ -870,7 +870,7 @@
 
 .chat-panel-action-btn--active {
   border-color: #22D3EE;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 
@@ -1008,7 +1008,7 @@
 }
 
 .chat-panel-attach-btn:hover:not(:disabled) {
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
   background: var(--bg-surface-2);
 }
 

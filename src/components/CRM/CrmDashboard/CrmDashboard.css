@@ -138,7 +138,7 @@
 }
 
 .crm-dash-kpi-value--accent {
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 /* Chart cards */
@@ -211,7 +211,7 @@
 
 .crm-dash-table-num {
   font-weight: 600;
-  color: #22D3EE;
+  color: var(--crm-cyan-text, #22D3EE);
 }
 
 .crm-dash-table-empty {

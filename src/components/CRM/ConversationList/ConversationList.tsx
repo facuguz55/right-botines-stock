@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { MessageCircle, Plus, X, Loader2, RefreshCw } from 'lucide-react'
+import { MessageCircle, Plus, X, Loader2, RefreshCw, Sun, Moon } from 'lucide-react'
+import type { CrmTema } from '../../../lib/crmTema'
 import type { WspConversacion, CrmCategoria, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS } from '../../../types/crm'
 import CategoryChip from '../CategoryChip/CategoryChip'
@@ -20,6 +21,8 @@ interface ConversationListProps {
   etiquetasPorConv: Record<string, CrmEtiqueta[]>
   etiquetaFilter: string | undefined
   onEtiquetaFilter: (id: string | undefined) => void
+  tema: CrmTema
+  onToggleTema: () => void
   onActualizar: () => void
   actualizando: boolean
 }
@@ -55,6 +58,8 @@ export default function ConversationList({
   etiquetasPorConv,
   etiquetaFilter,
   onEtiquetaFilter,
+  tema,
+  onToggleTema,
   onActualizar,
   actualizando,
 }: ConversationListProps) {
@@ -100,6 +105,13 @@ export default function ConversationList({
             disabled={actualizando}
           >
             <RefreshCw size={14} className={actualizando ? 'conv-list-spin' : undefined} />
+          </button>
+          <button
+            className="conv-list-new-btn"
+            title={tema === 'claro' ? 'Cambiar al tema oscuro' : 'Cambiar al tema claro (para ver mejor con sol)'}
+            onClick={onToggleTema}
+          >
+            {tema === 'claro' ? <Moon size={15} /> : <Sun size={15} />}
           </button>
           <button
             className="conv-list-new-btn"
@@ -169,7 +181,7 @@ export default function ConversationList({
             <button
               key={e.id}
               className={`conv-list-label-filter${etiquetaFilter === e.id ? ' conv-list-label-filter--active' : ''}`}
-              style={{ color: e.color, borderColor: `${e.color}66`, background: etiquetaFilter === e.id ? `${e.color}22` : 'transparent' }}
+              style={{ color: e.color, ['--chip-color' as string]: e.color, borderColor: `${e.color}66`, background: etiquetaFilter === e.id ? `${e.color}22` : 'transparent' }}
               onClick={() => onEtiquetaFilter(etiquetaFilter === e.id ? undefined : e.id)}
               title={etiquetaFilter === e.id ? 'Quitar el filtro' : `Ver solo los chats con "${e.nombre}"`}
             >
