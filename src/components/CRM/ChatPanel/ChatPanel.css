@@ -794,8 +794,13 @@
   .chat-panel-select {
     flex: 1;
     min-width: 0;
-    padding: 8px 10px;
-    font-size: 16px; /* 16px evita el zoom automático de iOS al tocarlo */
+    padding: 8px 4px 8px 8px;
+    font-size: 14px; /* con el botón "No leído" al lado, 16px cortaba "Respondido"; el zoom de iOS ya está frenado en main.tsx */
+  }
+
+  .chat-panel-unread-btn {
+    padding: 8px;
+    gap: 4px;
   }
 
   .chat-panel-header-actions {
@@ -1056,3 +1061,23 @@
   user-select: text;
   -webkit-touch-callout: default;
 }
+
+/* "No leído": deja el chat resaltado en la lista para acordarse de contestarlo
+   (solo en el CRM, el cliente no ve nada). */
+.chat-panel-unread-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chat-panel-unread-btn:hover { background: var(--accent); color: #fff; }
