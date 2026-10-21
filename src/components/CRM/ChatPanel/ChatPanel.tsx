@@ -148,13 +148,38 @@ export default function ChatPanel({
 
   // Al abrir una conversación el scroll tiene que caer directo abajo — antes
   // hacía la animación "smooth" desde arriba atravesando toda la charla, que
-  // en un chat largo (y más en mobile) se veía como un viaje raro. Solo los
-  // mensajes nuevos que llegan con el chat ya abierto se animan.
+  // en un chat largo (y más en mobile) se veía como un viaje raro.
+  //
+  // Después de eso, solo se baja cuando ENTRA un mensaje nuevo (o se manda
+  // uno) y la persona ya estaba al final. Antes se bajaba cada vez que
+  // cambiaba la lista de mensajes, y esa lista se recarga sola cada pocos
+  // segundos: quien subía a leer lo anterior era devuelta al final todo el
+  // tiempo.
   const wasLoadingRef = useRef(true)
+  const cantidadRef = useRef(0)
+  const pegadoAbajoRef = useRef(true)
+  const handleMessagesScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    pegadoAbajoRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+  }
   useEffect(() => {
     const justLoaded = wasLoadingRef.current && !loading
     wasLoadingRef.current = loading
-    scrollToBottom(justLoaded ? 'auto' : 'smooth')
+    if (loading) return
+    const visibles = mensajes.filter(m => !m._hidden)
+    const cantidad = visibles.length
+    if (justLoaded) {
+      pegadoAbajoRef.current = true
+      cantidadRef.current = cantidad
+      scrollToBottom('auto')
+      return
+    }
+    const entroUno = cantidad > cantidadRef.current
+    cantidadRef.current = cantidad
+    // Lo que manda ella misma siempre baja; lo que llega, solo si ya estaba abajo.
+    if (entroUno && (pegadoAbajoRef.current || visibles[cantidad - 1]?.direccion === 'out')) {
+      scrollToBottom('smooth')
+    }
   }, [mensajes, loading, scrollToBottom])
 
   useEffect(() => {
@@ -417,7 +442,7 @@ export default function ChatPanel({
         </div>
       </div>
 
-      <div className="chat-panel-messages">
+      <div className="chat-panel-messages" onScroll={handleMessagesScroll}>
         {loading ? (
           <div className="chat-panel-loading">Cargando mensajes...</div>
         ) : visibles.length === 0 ? (
