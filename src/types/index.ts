@@ -225,6 +225,9 @@ export interface TalleRow {
   talle_us: string
   talle_arg: string
   cantidad: string
+  // Cantidad que tenía el talle al abrir el formulario de edición. Sirve
+  // para no pisar ventas hechas mientras el formulario estaba abierto.
+  cantidad_original?: string
   stock_minimo: string
   toDelete: boolean
 }

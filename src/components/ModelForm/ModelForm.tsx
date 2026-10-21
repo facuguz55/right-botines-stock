@@ -97,6 +97,7 @@ export function ModelForm({ isOpen, onClose, onSave, initial }: ModelFormProps) 
         talle_us: t.talle_us > 0 ? String(t.talle_us) : '',
         talle_arg: String(t.talle_arg),
         cantidad: String(t.cantidad),
+        cantidad_original: String(t.cantidad),
         stock_minimo: String(t.stock_minimo),
         toDelete: false,
       })))

@@ -254,12 +254,22 @@ export async function bulkUpdateStockTalles(
   op: 'sumar' | 'restar' | 'exacto' | 'fijar',
   valor: number
 ): Promise<void> {
+  // Sumar/restar parte del stock real de la base, no del de la pantalla: si
+  // mientras tanto hubo una venta, usar el de pantalla la deshacía.
+  const ids = items.flatMap(({ talles }) => talles.map(t => t.id))
+  const reales = new Map<string, number>()
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await supabase.from('modelo_talles').select('id, cantidad').in('id', ids.slice(i, i + 200))
+    if (error) throw error
+    for (const r of data ?? []) reales.set(r.id, r.cantidad)
+  }
   const updates = items.flatMap(({ talles }) =>
     talles.map(t => {
+      const actual = reales.get(t.id) ?? t.cantidadActual
       let nueva: number
       if (op === 'exacto' || op === 'fijar') nueva = Math.max(0, valor)
-      else if (op === 'sumar') nueva = t.cantidadActual + valor
-      else nueva = Math.max(0, t.cantidadActual - valor)
+      else if (op === 'sumar') nueva = actual + valor
+      else nueva = Math.max(0, actual - valor)
       return { id: t.id, cantidad: nueva }
     })
   )

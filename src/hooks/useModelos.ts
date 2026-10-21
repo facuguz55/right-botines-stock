@@ -227,7 +227,19 @@ export function useModelos() {
       } else if (!row.toDelete) {
         const talle_us = usParaGuardar(row.talle_us)
         const talle_arg = parseFloat(row.talle_arg)
-        const cantidad = parseInt(row.cantidad) || 0
+        // La cantidad del formulario es la de cuando se abrió. Escribirla tal
+        // cual deshacía las ventas hechas mientras tanto (y las mandaba a
+        // TiendaNube): el par vendido "volvía" en la app y en la web. Si no
+        // se tocó, queda la de la base; si se cambió, se aplica la diferencia
+        // sobre el stock real de este momento.
+        let cantidad = parseInt(row.cantidad) || 0
+        if (row.id && row.cantidad_original !== undefined) {
+          const { data: actual } = await supabase.from('modelo_talles').select('cantidad').eq('id', row.id).maybeSingle()
+          if (actual) {
+            const diferencia = cantidad - (parseInt(row.cantidad_original) || 0)
+            cantidad = Math.max(0, actual.cantidad + diferencia)
+          }
+        }
         const saved = await upsertTalle({
           id: row.id,
           modelo_id: id,
