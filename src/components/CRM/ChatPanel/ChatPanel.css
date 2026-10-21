@@ -611,6 +611,16 @@
   flex-shrink: 0;
 }
 
+.chat-panel-suggestion-msgs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.chat-panel-suggestion-msgs .chat-panel-suggestion-text {
+  flex: none;
+}
 .chat-panel-suggestion-text {
   flex: 1;
   font-family: var(--font-body);

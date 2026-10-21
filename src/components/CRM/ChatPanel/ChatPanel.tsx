@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply, Paperclip, Ruler, FileText, Tag, MailOpen } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
@@ -8,6 +8,7 @@ import EtiquetaChip from '../Etiquetas/EtiquetaChip'
 import EtiquetasPicker from '../Etiquetas/EtiquetasPicker'
 import { OrdersPanel } from '../OrdersPanel/OrdersPanel'
 import { humanizar } from '../../../lib/crmTexto'
+import { mensajesDeSugerencia } from '../../../lib/crmAprendizaje'
 import './ChatPanel.css'
 
 interface ChatPanelProps {
@@ -273,15 +274,35 @@ export default function ChatPanel({
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`
   }
 
+  // La sugerencia viene en mensajes cortos (como los manda Cami, uno atrás del
+  // otro). "Usar" pasa al cuadro el próximo para revisarlo y editarlo; "Mandar
+  // todo" manda los que quedan, en orden.
+  const mensajesSug = useMemo(() => mensajesDeSugerencia(sugerencia), [sugerencia])
+  const [sugUsados, setSugUsados] = useState(0)
+  useEffect(() => { setSugUsados(0) }, [sugerencia?.id])
+  const sugRestantes = mensajesSug.slice(sugUsados)
+
   const handleUseSugerencia = () => {
-    if (sugerencia?.respuesta_sugerida) {
-      setText(humanizar(sugerencia.respuesta_sugerida))
+    if (sugRestantes.length > 0) {
+      setText(sugRestantes[0])
+      setSugUsados(n => n + 1)
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto'
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
       }
     }
     onUseSugerencia()
+  }
+
+  const handleMandarTodoSugerencia = async () => {
+    const lista = sugRestantes
+    if (lista.length === 0) return
+    setSugUsados(mensajesSug.length)
+    onUseSugerencia()
+    for (let i = 0; i < lista.length; i++) {
+      await onSend(lista[i])
+      if (i < lista.length - 1) await new Promise(r => setTimeout(r, 700))
+    }
   }
 
   const handleQuickReply = (mensajeId: string, texto: string) => {
@@ -642,10 +663,19 @@ export default function ChatPanel({
         </div>
       )}
 
-      {sugerencia && sugerencia.respuesta_sugerida && (
+      {sugerencia && sugRestantes.length > 0 && (
         <div className="chat-panel-suggestion">
           <Bot size={16} className="chat-panel-suggestion-icon" />
-          <span className="chat-panel-suggestion-text">{humanizar(sugerencia.respuesta_sugerida)}</span>
+          <div className="chat-panel-suggestion-msgs">
+            {sugRestantes.map((m, i) => (
+              <span key={`${sugUsados + i}`} className="chat-panel-suggestion-text">{m}</span>
+            ))}
+          </div>
+          {sugRestantes.length > 1 && (
+            <button className="chat-panel-suggestion-btn chat-panel-suggestion-btn--use" onClick={handleMandarTodoSugerencia}>
+              Mandar todo
+            </button>
+          )}
           <button
             className="chat-panel-suggestion-btn chat-panel-suggestion-btn--use"
             onClick={handleUseSugerencia}

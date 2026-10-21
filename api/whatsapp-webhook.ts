@@ -17,7 +17,7 @@ import {
   respuestaPorModeloFoto,
   tipoDeCategoria,
 } from '../src/lib/crmBusqueda'
-import { EJEMPLOS_ESTILO_CAMI, INFO_NEGOCIO } from '../src/lib/crmNegocio'
+import { llamarClasificadorIA, rankearAprendizajes, type FilaAprendizaje } from '../src/lib/botIa'
 import { humanizar } from '../src/lib/crmTexto'
 import { variantesWaId } from '../src/lib/crmWaId'
 import { decidirAutomatico } from '../src/lib/crmHorario'
@@ -215,31 +215,13 @@ async function enviarMensajeAutomatico(
 
 // ── Lo que aprende el bot ────────────────────────────────────────────────
 // Las respuestas que los dueños aprobaron en la pantalla "Aprendizaje" del CRM
-// (tabla crm_aprendizajes) se le pasan a la IA como ejemplos de casos parecidos.
-function palabrasClave(t: string): Set<string> {
-  return new Set(t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[a-z0-9]{4,}/g) ?? [])
-}
-
+// (tabla crm_aprendizajes) se le pasan a la IA como ejemplos de casos parecidos
+// (ranking en src/lib/botIa.ts, el mismo que usa la prueba del bot).
 async function buscarAprendizajes(texto: string): Promise<string> {
   try {
-    const claves = palabrasClave(texto)
-    if (claves.size === 0) return ''
-    const res = await sbFetch('crm_aprendizajes?estado=eq.aprobado&select=pregunta,respuesta_aprobada&order=revisado_en.desc&limit=80')
-    const filas = await res.json() as { pregunta: string; respuesta_aprobada: string | null }[]
-    const minimo = Math.min(2, claves.size)
-    return filas
-      .filter(f => f.respuesta_aprobada)
-      .map(f => {
-        const p = palabrasClave(f.pregunta)
-        let n = 0
-        claves.forEach(c => { if (p.has(c)) n++ })
-        return { f, n }
-      })
-      .filter(x => x.n >= minimo)
-      .sort((a, b) => b.n - a.n)
-      .slice(0, 5)
-      .map(({ f }) => `- Cliente: ${f.pregunta.slice(0, 200)}\n  Right respondió: ${f.respuesta_aprobada}`)
-      .join('\n')
+    const res = await sbFetch('crm_aprendizajes?estado=eq.aprobado&select=pregunta,respuesta_aprobada,mensajes_aprobados,origen&order=revisado_en.desc&limit=120')
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return rankearAprendizajes(texto, await res.json() as FilaAprendizaje[])
   } catch (err) {
     console.error('aprendizajes: no se pudieron leer', err)
     return ''
@@ -310,108 +292,6 @@ async function detectarVenta(conversacionId: string, tipoNuevo: string, textoNue
     })
   } catch (err) {
     console.error('venta: error al detectar la venta', err)
-  }
-}
-
-const CATEGORIAS_CRM = ['Urgente', 'Pedido de talles', 'Normal', 'Spam', 'Postventa/Reclamos', 'Mayorista'] as const
-const INTENCIONES = ['pedido_talle', 'consulta_precio', 'consulta_envio', 'estado_pedido', 'garantia', 'reclamo', 'saludo', 'spam', 'otro'] as const
-
-interface ClasificacionIA {
-  categoria: string
-  intencion: string
-  talle_arg: number | null
-  tipo: string | null
-  respuesta_sugerida: string
-  cambio_de_tema: boolean
-}
-
-// Structured outputs: la API garantiza que la respuesta respete este schema
-// (antes se le pedía "respondé solo JSON" y se rescataba con una regex, que
-// fallaba cada tanto y se perdía la clasificación entera).
-const CLASIFICACION_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    categoria: { type: 'string', enum: [...CATEGORIAS_CRM] },
-    intencion: { type: 'string', enum: [...INTENCIONES] },
-    talle_arg: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
-    tipo: { anyOf: [{ type: 'string', enum: [...TIPOS_BOTIN] }, { type: 'null' }] },
-    respuesta_sugerida: { type: 'string' },
-    cambio_de_tema: { type: 'boolean' },
-  },
-  required: ['categoria', 'intencion', 'talle_arg', 'tipo', 'respuesta_sugerida', 'cambio_de_tema'],
-}
-
-const SYSTEM_CLASIFICADOR = `Sos el asistente que clasifica los mensajes de WhatsApp que recibe Right Botines, una tienda de botines de fútbol de Santa Fe, Argentina, y le sugiere a la vendedora qué responder. Te paso la conversación reciente y el último mensaje del cliente; clasificás ESE último mensaje usando el resto como contexto.
-
-<informacion_del_negocio>
-${INFO_NEGOCIO}
-</informacion_del_negocio>
-
-Campos:
-- categoria: Urgente, Pedido de talles, Normal, Spam, Postventa/Reclamos o Mayorista.
-- intencion: pedido_talle, consulta_precio, consulta_envio (pregunta ANTES de comprar: si hacen envíos, a dónde, cuánto sale, cuánto tarda), estado_pedido (pregunta por un pedido que YA hizo: si salió, cuándo le llega, el código de seguimiento, qué compró), garantia (un producto que ya compró se rompió o falló), reclamo (otra queja o problema con una compra), saludo, spam u otro.
-- talle_arg: el talle ARGENTINO que el CLIENTE dijo que busca (en este mensaje o antes en la conversación). Si lo dio en talle US o en centímetros del pie, convertilo con la guía de talles de arriba (si está entre dos, el más grande); si no está en la guía, null. Si pidió más de un talle, si no está claro, o si el número no es un talle (precio, edad, hora, cantidad), devolvé null. Nunca uses un talle que solo mencionó el local.
-- tipo: F11 (fútbol 11, cancha de 11, pasto natural, tapones), F5 (fútbol 5, sintético, papi, multitapón; también cancha de 7 u 8), Futsal (futsal, sala, piso, indoor) o Hockey. Solo si el CLIENTE lo dijo o lo dejó claro; si mencionó más de uno o no dijo nada, null.
-- cambio_de_tema: true si con este mensaje el cliente dejó de hablar del producto que venía consultando (el de "lo que ya sabemos que busca") y pasó a otro asunto —compra por mayor, un pedido que ya hizo, un reclamo, otra consulta sin relación— o si empieza a buscar algo nuevo que no tiene que ver con lo anterior (otro talle para otra persona, otro tipo de botín desde cero). false si sigue con lo mismo, aunque sea un "gracias", "¿cuánto salen?", "¿hacen envíos?" o un detalle más (tipo, color, modelo) de lo que ya venía buscando. Si no había nada guardado, false.
-- respuesta_sugerida: una respuesta corta y amable en español argentino informal (voseo), como la escribiría la vendedora. Para dirección, horarios, web, envíos, pagos, garantía y cambios usá la información del negocio de arriba, tal cual está. No inventes nada que no esté ahí: ni precios, ni porcentajes de descuento, ni promociones, ni estados de pedidos, códigos de seguimiento o fechas de entrega. NUNCA digas qué modelos, talles, tipos o marcas tenemos o no tenemos en stock: vos no ves el stock (lo resuelve el sistema aparte). Si preguntan por stock, pedí el talle (y si juega fútbol 11, 5 o futsal) para fijarte. Si hace falta un dato que no tenés, decí que lo revisás o pedí lo que falte.
-
-Estilo de respuesta_sugerida: tiene que parecer escrita por Cami, la vendedora, contestando desde el celular, no por una IA. Copiá su forma de escribir de estos mensajes reales suyos:
-${EJEMPLOS_ESTILO_CAMI.map(e => `- "${e}"`).join('\n')}
-Frases cortas y naturales, voseo, cálida ("Hola buenas!", "Dale buenisimo!", "Sisi"). Sin signos de apertura (nada de ¿ ni ¡): solo el de cierre. NUNCA uses emojis. Sin guiones largos, sin viñetas ni listas, sin negritas. Si la charla ya venía, no vuelvas a saludar. Nada de frases de manual como "Estoy acá para ayudarte" o "Excelente pregunta".
-
-Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.
-
-"Lo que ya sabemos que busca" es solo contexto: si el cliente cambió de tema, respondé al tema NUEVO y no vuelvas a mencionar ese talle, tipo o modelo.`
-
-async function llamarClasificadorIA(contexto: string, busquedaGuardada: EstadoBusqueda, text: string, aprendizajes = ''): Promise<ClasificacionIA | null> {
-  if (!ANTHROPIC_API_KEY) {
-    console.error('classifyWithAI: falta ANTHROPIC_API_KEY / VITE_ANTHROPIC_API_KEY')
-    return null
-  }
-  const guardada = busquedaGuardada.talle || busquedaGuardada.tipo || busquedaGuardada.modelo
-    ? `talle ${busquedaGuardada.talle ?? 'sin definir'}, tipo ${busquedaGuardada.tipo ?? 'sin definir'}`
-      + (busquedaGuardada.modelo ? `, modelo "${busquedaGuardada.modelo}"` : '')
-    : 'nada todavía'
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 1024,
-      system: SYSTEM_CLASIFICADOR,
-      output_config: { format: { type: 'json_schema', schema: CLASIFICACION_SCHEMA } },
-      messages: [{
-        role: 'user',
-        content: `Conversación reciente (de la más vieja a la más nueva):\n${contexto || '(sin mensajes previos)'}\n\nLo que ya sabemos que busca: ${guardada}\n${aprendizajes ? `\nRespuestas que Right aprobó para casos parecidos (usalas como guía de contenido y de estilo para la respuesta sugerida, sin copiarlas si no vienen al caso):\n${aprendizajes}\n` : ''}\nÚltimo mensaje del cliente, el que hay que clasificar:\n${text}`,
-      }],
-    }),
-  })
-
-  if (!res.ok) {
-    console.error('classifyWithAI: Anthropic respondió', res.status, await res.text().catch(() => ''))
-    return null
-  }
-  const data = await res.json() as { stop_reason?: string; content?: { type: string; text?: string }[] }
-  if (data.stop_reason === 'refusal' || data.stop_reason === 'max_tokens') {
-    console.error('classifyWithAI: respuesta incompleta de Anthropic, stop_reason =', data.stop_reason)
-    return null
-  }
-  const raw = data.content?.find(b => b.type === 'text')?.text
-  if (!raw) {
-    console.error('classifyWithAI: sin texto en la respuesta de Anthropic', JSON.stringify(data))
-    return null
-  }
-  try {
-    return JSON.parse(raw) as ClasificacionIA
-  } catch {
-    console.error('classifyWithAI: JSON inválido de Anthropic:', raw)
-    return null
   }
 }
 
@@ -545,8 +425,14 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
       ? buscarPedidoDelCliente(telefono, numeroPedido)
       : null
 
-    const aprendizajes = await buscarAprendizajes(text)
-    const ia = await llamarClasificadorIA(contexto, busquedaPrevia, text, aprendizajes).catch(err => {
+    // Las respuestas aprobadas se buscan con lo último que escribió el cliente
+    // (hasta 3 mensajes seguidos), igual que se guardan en "Aprendizaje".
+    const bloqueCliente: string[] = []
+    for (let i = recientes.length - 1; i >= 0 && recientes[i].direccion === 'in'; i--) bloqueCliente.unshift(recientes[i].texto)
+    const aprendizajes = await buscarAprendizajes(bloqueCliente.slice(-3).join('\n') || text)
+    const ia = await llamarClasificadorIA({
+      apiKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL, contexto, busquedaGuardada: busquedaPrevia, text, aprendizajes,
+    }).catch(err => {
       console.error('classifyWithAI: falló la llamada a Anthropic:', err)
       return null
     })
@@ -586,20 +472,25 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
 
     if (!ia && !aporto && !respuestaPedido) return
 
-    let respuesta = respuestaPedido ?? ia?.respuesta_sugerida?.trim() ?? null
+    // La respuesta es una lista de mensajes cortos que se mandan uno atrás del
+    // otro (como contesta Cami). Lo armado con datos reales (pedido, stock)
+    // va en un solo mensaje.
+    let mensajes: string[] = respuestaPedido ? [respuestaPedido] : ia?.mensajes_sugeridos ?? []
     if (aporto) {
       const stock = await contarStock(busqueda)
-      respuesta = respuestaSugeridaBusqueda(busqueda, stock) ?? respuesta
+      const armada = respuestaSugeridaBusqueda(busqueda, stock)
+      if (armada) mensajes = [armada]
     } else if (ia?.intencion === 'pedido_talle' && !respuestaPedido) {
       // Pregunta por stock sin decir talle/tipo/modelo reconocibles: la
       // respuesta libre de la IA podría afirmar que "hay de todo" sin mirar
       // nada (pasó: "en talle 32 tenemos F11 y F5" sin stock). Se pide el talle.
-      respuesta = 'Hola buenas! Qué talle usás? Así me fijo qué tenemos 🤗'
+      mensajes = ['Hola buenas! Qué talle usás? Así me fijo qué tenemos 🤗']
     }
 
     // Pase lo que pase (IA o texto armado), al cliente no le llega nada con
     // pinta de IA: sin emojis, sin ¿ ¡, sin guiones largos ni viñetas.
-    if (respuesta) respuesta = humanizar(respuesta) || null
+    mensajes = mensajes.map(m => humanizar(m)).filter(Boolean)
+    const respuesta = mensajes.length ? mensajes.join('\n\n') : null
 
     const categoria = ia?.categoria ?? (aporto ? 'Pedido de talles' : null)
 
@@ -616,7 +507,8 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
       talle_detectado: aporto ? busqueda.talle : null,
       modelo_buscado: aporto ? busqueda.modelo ?? null : null,
       respuesta_sugerida: respuesta,
-    }, ['modelo_buscado'])
+      mensajes_sugeridos: mensajes.length ? mensajes : null,
+    }, ['modelo_buscado', 'mensajes_sugeridos'])
 
     if (categoria) {
       await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {

@@ -29,3 +29,26 @@
 .aprendizaje .spin { animation: aprendizaje-giro 1s linear infinite; }
 @keyframes aprendizaje-giro { to { transform: rotate(360deg); } }
 @media (max-width: 720px) { .aprendizaje { padding: 12px; } .aprendizaje-cols { grid-template-columns: 1fr; } .aprendizaje-filtro { margin-left: 0; } }
+
+/* Mensajes cortos como burbujas (así se mandan, uno atrás del otro) */
+.aprendizaje-burbujas { display: grid; gap: 6px; justify-items: start; }
+.aprendizaje-burbuja { margin: 0; padding: 7px 11px; background: var(--bg-surface-2); border-radius: 12px 12px 12px 4px; font-size: 13px; white-space: pre-wrap; max-width: 100%; color: var(--text-primary); }
+.aprendizaje-bloque .aprendizaje-bot { margin: 0; }
+.aprendizaje-editor { display: grid; gap: 6px; }
+.aprendizaje-editor-fila { display: flex; gap: 6px; align-items: flex-start; }
+.aprendizaje-editor-fila textarea { flex: 1; min-width: 0; }
+.aprendizaje-quitar { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; margin-top: 3px; }
+.aprendizaje-agregar { justify-self: start; display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px dashed var(--border); border-radius: 8px; padding: 5px 10px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+.aprendizaje-prueba { display: grid; gap: 6px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.aprendizaje-prueba label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #34d399; }
+.aprendizaje-prueba .aprendizaje-burbuja { background: rgba(52, 211, 153, 0.12); }
+.aprendizaje-prueba-nota { margin: 0; font-size: 12px; color: var(--text-muted); }
+.aprendizaje-prueba-nota em { font-style: normal; margin-left: 4px; color: var(--text-primary); }
+
+/* Caja "Probá el bot" */
+.aprendizaje-probar { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; display: grid; gap: 10px; margin-bottom: 16px; }
+.aprendizaje-probar-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.aprendizaje-probar-top span { color: var(--text-muted); font-size: 12px; flex-basis: 100%; }
+.aprendizaje-probar-fila { display: flex; gap: 8px; }
+.aprendizaje-probar-fila input { flex: 1; min-width: 0; background: var(--bg-surface-2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font: inherit; font-size: 13px; }
+.aprendizaje-acciones { flex-wrap: wrap; }

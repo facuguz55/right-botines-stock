@@ -69,6 +69,8 @@ export interface WspMensaje {
   wa_message_id: string | null
   // Mensaje al que respondió el cliente deslizando en WhatsApp (su wa_message_id).
   contexto_wa_id?: string | null
+  // 'bienvenida' | 'ausencia' si lo mandó el CRM solo (no una persona).
+  automatico?: string | null
   enviado_por: string | null
   timestamp: string
   empleados?: { nombre: string } | null
@@ -90,6 +92,8 @@ export interface WspIaSugerencia {
   talle_detectado: number | null
   modelo_buscado?: string | null
   respuesta_sugerida: string | null
+  // La respuesta partida en mensajes cortos que se mandan uno atrás del otro.
+  mensajes_sugeridos?: string[] | null
   usada: boolean
   created_at: string
 }
