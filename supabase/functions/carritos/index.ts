@@ -77,6 +77,39 @@ ${productos}
 </table></td></tr></table></body></html>`;
 }
 
+// Envío por Gmail (la misma cuenta y el mismo cliente OAuth de Google Cloud que usaba n8n) o, si no está, por Resend.
+const b64url = (b: Uint8Array) => btoa(Array.from(b, (x) => String.fromCharCode(x)).join("")).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const utf8b64 = (t: string) => btoa(Array.from(new TextEncoder().encode(t), (x) => String.fromCharCode(x)).join(""));
+type Envio = { para: string; asunto: string; html: string; nombre: string; desde: string; responder: string };
+async function enviador(): Promise<((m: Envio) => Promise<string | null>) | null> {
+  const [id, secret, refresh] = await Promise.all([secreto("gmail_client_id"), secreto("gmail_client_secret"), secreto("gmail_refresh_token")]);
+  if (id && secret && refresh) {
+    const t = await fetch("https://oauth2.googleapis.com/token", { method: "POST", body: new URLSearchParams({ client_id: id, client_secret: secret, refresh_token: refresh, grant_type: "refresh_token" }) });
+    const tj = await t.json().catch(() => ({}));
+    if (!tj.access_token) throw new Error(`Gmail no dio acceso: ${tj.error_description ?? tj.error ?? t.status}`);
+    const auth = { Authorization: `Bearer ${tj.access_token}` };
+    const perfil = await (await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", { headers: auth })).json();
+    return async (m) => {
+      const mime = [
+        `From: =?UTF-8?B?${utf8b64(m.nombre)}?= <${perfil.emailAddress}>`, `To: ${m.para}`, `Reply-To: ${m.responder}`,
+        `Subject: =?UTF-8?B?${utf8b64(m.asunto)}?=`, "MIME-Version: 1.0", "Content-Type: text/html; charset=UTF-8", "Content-Transfer-Encoding: base64", "",
+        utf8b64(m.html).replace(/.{76}/g, "$&\r\n"),
+      ].join("\r\n");
+      const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify({ raw: b64url(new TextEncoder().encode(mime)) }) });
+      return r.ok ? null : (await r.text()).slice(0, 160);
+    };
+  }
+  const resend = await secreto("resend_api_key");
+  if (!resend) return null;
+  return async (m) => {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST", headers: { Authorization: `Bearer ${resend}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: `${m.nombre} <${m.desde}>`, to: [m.para], reply_to: m.responder, subject: m.asunto, html: m.html }),
+    });
+    return r.ok ? null : (await r.text()).slice(0, 160);
+  };
+}
+
 async function config() {
   const { data } = await db.from("carritos_config").select("clave, valor");
   return Object.fromEntries((data ?? []).map((f) => [f.clave, f.valor])) as Record<string, string>;
@@ -86,9 +119,10 @@ async function enviar() {
   const cfg = await config();
   const modo = cfg.modo ?? "apagado";
   if (modo === "apagado") return { ok: true, modo, enviados: 0 };
-  const [token, resend] = await Promise.all([secreto("tiendanube_token"), secreto("resend_api_key")]);
+  const token = await secreto("tiendanube_token");
   if (!token) throw new Error("Falta el token de Tiendanube en el vault (tiendanube_token)");
-  if (!resend) throw new Error("Falta la clave de Resend en el vault (resend_api_key)");
+  const mandar = await enviador();
+  if (!mandar) throw new Error("Falta cómo mandar: gmail_client_id, gmail_client_secret y gmail_refresh_token (o resend_api_key) en el vault");
 
   const ahora = Date.now();
   const min = Number(cfg.horas_min ?? 1) * HORA, max = Number(cfg.horas_max ?? 72) * HORA;
@@ -118,16 +152,11 @@ async function enviar() {
     const checkout = limpiarCheckout(c.abandoned_checkout_url!);
     const link = `${URL_FN}?e=${encodeURIComponent(email)}&u=${encodeURIComponent(checkout)}`;
     const para = modo === "prueba" ? cfg.prueba_a : email;
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resend}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: cfg.remitente, to: [para], reply_to: cfg.responder_a,
-        subject: modo === "prueba" ? `[PRUEBA para ${email}] Tus botines siguen en el carrito` : "Tus botines siguen en el carrito",
-        html: html(c, email, link),
-      }),
+    const error = await mandar({
+      para, nombre: cfg.remitente_nombre ?? "Right Botines", desde: cfg.remitente_resend ?? "", responder: cfg.responder_a, html: html(c, email, link),
+      asunto: modo === "prueba" ? `[PRUEBA para ${email}] Tus botines siguen en el carrito` : "Tus botines siguen en el carrito",
     });
-    if (!r.ok) { res.errores.push(`${email}: ${(await r.text()).slice(0, 160)}`); continue; }
+    if (error) { res.errores.push(`${email}: ${error}`); continue; }
     res.enviados++;
     // En prueba no se anota: así el cliente recibe el suyo cuando se pase a real.
     if (modo === "real") {
