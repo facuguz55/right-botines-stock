@@ -14,8 +14,9 @@ const URL_FN = `${Deno.env.get("SUPABASE_URL")}/functions/v1/carritos`;
 const HORA = 3600_000;
 
 const secreto = async (nombre: string) => {
+  // Primero el vault; si no está, el secreto de Edge Functions con el mismo nombre en mayúsculas (ej. RESEND_API_KEY).
   const { data } = await db.rpc("carritos_secreto", { p_nombre: nombre });
-  return typeof data === "string" ? data : "";
+  return (typeof data === "string" && data) || Deno.env.get(nombre.toUpperCase()) || "";
 };
 const esc = (t: unknown) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 const plata = (n: unknown) => "$" + Math.round(Number(n) || 0).toLocaleString("es-AR");
