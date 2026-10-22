@@ -129,13 +129,41 @@ export interface WspReclasificacion {
 }
 
 export interface CrmStatsData {
-  mensajesPorDia: { fecha: string; cantidad: number }[]
-  tiempoRespuestaPromedio: number
-  mensajesPorCategoria: { categoria: string; cantidad: number }[]
-  conversionAVenta: { total: number; concretadas: number; porcentaje: number }
+  totales: {
+    mensajes: number
+    recibidos: number
+    enviados: number
+    chatsConActividad: number
+    chatsNuevos: number
+    fotosEnviadas: number
+  }
+  mensajesPorDia: { fecha: string; recibidos: number; enviados: number }[]
+  respuesta: {
+    medianaMin: number
+    promedioMin: number
+    // % de los chats que Right contestó dentro de 5 min / 1 hora
+    dentroDe5: number
+    dentroDe60: number
+    total: number
+    buckets: { label: string; cantidad: number }[]
+  }
+  // Chats sin leer en este momento (no depende del rango de fechas).
+  sinLeer: { cantidad: number; masViejaHoras: number | null }
+  conversion: { chatsNuevos: number; concretadas: number; porcentaje: number }
+  embudo: { etapa: string; cantidad: number }[]
+  porCategoria: { categoria: string; cantidad: number }[]
+  // Mensajes recibidos por día de la semana (lunes a domingo) y hora (0-23), hora de Argentina.
+  heatmap: number[][]
+  mejorMomento: { dia: string; hora: number; cantidad: number } | null
+  tiposMensaje: { tipo: string; cantidad: number }[]
+  intenciones: { intencion: string; cantidad: number }[]
+  talles: { talle: number; chats: number }[]
+  tiposBotin: { tipo: string; chats: number }[]
+  modelosBuscados: { modelo: string; chats: number }[]
   productosMasConsultados: { modelo_id: string; marca: string; modelo: string; consultas: number }[]
+  etiquetas: { nombre: string; color: string; cantidad: number }[]
+  bot: { total: number; igual: number; distinto: number; sinSugerencia: number }
   actividadVendedora: { fecha: string; mensajes_enviados: number; conversaciones_atendidas: number }[]
-  horasPico: { hora: number; cantidad: number }[]
 }
 
 export interface PhotoMatch {

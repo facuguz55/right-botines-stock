@@ -7,10 +7,8 @@ export function useCrmStats() {
   const [stats, setStats] = useState<CrmStatsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [range, setRange] = useState(() => {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
-    const end = toISOLocal(now)
-    return { start, end }
+    const hoy = toISOLocal(new Date())
+    return { start: `${hoy.slice(0, 8)}01`, end: hoy }
   })
 
   const load = useCallback(async () => {

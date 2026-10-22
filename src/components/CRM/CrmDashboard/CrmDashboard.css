@@ -36,6 +36,32 @@
   display: flex;
   gap: 1rem;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.crm-dash-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.crm-dash-presets button {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8125rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.crm-dash-presets button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a0a02;
+  font-weight: 600;
 }
 
 .crm-dash-range label {
@@ -87,7 +113,7 @@
 /* KPI cards */
 .crm-dash-kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
@@ -141,6 +167,13 @@
   color: var(--crm-cyan-text, #22D3EE);
 }
 
+.crm-dash-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin-top: 4px;
+}
+
 /* Chart cards */
 .crm-dash-chart-card {
   background: var(--bg-surface);
@@ -159,6 +192,99 @@
 
 .crm-dash-chart {
   width: 100%;
+}
+
+.crm-dash-nota {
+  margin: -0.4rem 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.crm-dash-vacio {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* Barras horizontales */
+.crm-barras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.crm-barras li {
+  display: grid;
+  grid-template-columns: minmax(90px, 38%) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8125rem;
+}
+
+.crm-barras-label {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-barras-pista {
+  height: 10px;
+  background: var(--bg-surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.crm-barras-pista > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  min-width: 3px;
+}
+
+.crm-barras-num {
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+  min-width: 2.5rem;
+}
+
+.crm-barras-num em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: 6px;
+  font-size: 0.75rem;
+}
+
+/* Mapa de calor: día de la semana x hora */
+.crm-heat-wrap {
+  overflow-x: auto;
+}
+
+.crm-heat {
+  display: grid;
+  grid-template-columns: 2.4rem repeat(24, minmax(14px, 1fr));
+  gap: 3px;
+  min-width: 460px;
+  align-items: center;
+}
+
+.crm-heat-hora,
+.crm-heat-dia {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.crm-heat-hora {
+  text-align: left;
+}
+
+.crm-heat-celda {
+  aspect-ratio: 1;
+  border-radius: 3px;
 }
 
 /* Two-column row */
@@ -229,12 +355,32 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .crm-barras li {
+    grid-template-columns: minmax(80px, 40%) 1fr auto;
+  }
+
   .crm-dash-row-2 {
     grid-template-columns: 1fr;
   }
 
+  .crm-dash .page-header {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
   .crm-dash-range {
-    flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
+  }
+
+  .crm-dash-presets {
+    flex-basis: 100%;
+  }
+
+  .crm-dash-range label {
+    flex: 1 1 140px;
+  }
+
+  .crm-dash-range input[type="date"] {
+    width: 100%;
   }
 }
