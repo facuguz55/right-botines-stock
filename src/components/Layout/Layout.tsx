@@ -66,7 +66,7 @@ const ALL_NAV: NavItem[] = [
   { page: 'rentabilidad',   label: 'Rentabilidad',  Icon: PieChart     },
   { page: 'crm_inbox',      label: 'WhatsApp',      Icon: Inbox        },
   { page: 'crm_dashboard',  label: 'Stats CRM',     Icon: BarChart2    },
-  { page: 'crm_aprendizaje', label: 'Aprendizaje',   Icon: Brain        },
+  { page: 'crm_aprendizaje', label: 'Enseñarle al bot', Icon: Brain        },
 ]
 
 export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout, fichajeActual, children }: LayoutProps) {
