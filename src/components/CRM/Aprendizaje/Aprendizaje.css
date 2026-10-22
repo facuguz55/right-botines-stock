@@ -1,54 +1,72 @@
-.aprendizaje { padding: 20px; max-width: 980px; margin: 0 auto; overflow-y: auto; height: 100%; }
-.aprendizaje-head h2 { margin: 0 0 4px; font-size: 20px; }
-.aprendizaje-head p { margin: 0 0 16px; color: var(--text-muted); font-size: 13px; max-width: 70ch; }
-.aprendizaje-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-.aprendizaje-tabs button { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
-.aprendizaje-tabs button.on { background: var(--accent); border-color: var(--accent); color: #1a0a02; font-weight: 600; }
-.aprendizaje-filtro { margin-left: auto; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
-.aprendizaje-error { color: #f87171; font-size: 13px; }
-.aprendizaje-vacio { color: var(--text-muted); font-size: 14px; display: flex; align-items: center; gap: 8px; }
-.aprendizaje-lista { display: grid; gap: 12px; }
-.aprendizaje-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; display: grid; gap: 12px; }
-.aprendizaje-card-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
-.aprendizaje-card-top time { margin-left: auto; color: var(--text-muted); font-size: 12px; }
-.aprendizaje-origen { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--bg-surface-2); color: var(--text-muted); }
-.aprendizaje-origen--distinta { color: #fbbf24; background: rgba(251, 191, 36, 0.12); }
-.aprendizaje-origen--sin_sugerencia { color: #f87171; background: rgba(248, 113, 113, 0.12); }
-.aprendizaje-origen--usada { color: #34d399; background: rgba(52, 211, 153, 0.12); }
-.aprendizaje-bloque { display: grid; gap: 4px; min-width: 0; align-content: start; }
-.aprendizaje-bloque label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
-.aprendizaje-cliente { margin: 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--bg-surface-2); border-radius: 6px; white-space: pre-wrap; font-size: 13px; }
-.aprendizaje-bot { margin: 0; padding: 8px 10px; background: var(--bg-surface-2); border-radius: 6px; white-space: pre-wrap; font-size: 13px; color: var(--text-muted); }
-.aprendizaje-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.aprendizaje-bloque textarea { width: 100%; background: var(--bg-surface-2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font: inherit; font-size: 13px; resize: vertical; }
-.aprendizaje-acciones { display: flex; gap: 8px; }
-.aprendizaje-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-primary); }
-.aprendizaje-btn--ok { background: #34d399; border-color: #34d399; color: #04210f; }
-.aprendizaje-btn--no { color: #f87171; border-color: rgba(248, 113, 113, 0.4); }
-.aprendizaje-btn:disabled { opacity: .5; cursor: default; }
-.aprendizaje .spin { animation: aprendizaje-giro 1s linear infinite; }
-@keyframes aprendizaje-giro { to { transform: rotate(360deg); } }
-@media (max-width: 720px) { .aprendizaje { padding: 12px; } .aprendizaje-cols { grid-template-columns: 1fr; } .aprendizaje-filtro { margin-left: 0; } }
+.ap { padding: 20px; max-width: 760px; margin: 0 auto; overflow-y: auto; height: 100%; color: var(--text-primary); }
+.ap-head h2 { margin: 0 0 10px; font-size: 22px; }
+.ap-pasos { list-style: none; margin: 0 0 18px; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; }
+.ap-pasos li { display: flex; align-items: center; gap: 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; font-size: 13px; color: var(--text-secondary, var(--text-muted)); }
+.ap-pasos b { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #1a0a02; font-size: 12px; flex: none; }
 
-/* Mensajes cortos como burbujas (así se mandan, uno atrás del otro) */
-.aprendizaje-burbujas { display: grid; gap: 6px; justify-items: start; }
-.aprendizaje-burbuja { margin: 0; padding: 7px 11px; background: var(--bg-surface-2); border-radius: 12px 12px 12px 4px; font-size: 13px; white-space: pre-wrap; max-width: 100%; color: var(--text-primary); }
-.aprendizaje-bloque .aprendizaje-bot { margin: 0; }
-.aprendizaje-editor { display: grid; gap: 6px; }
-.aprendizaje-editor-fila { display: flex; gap: 6px; align-items: flex-start; }
-.aprendizaje-editor-fila textarea { flex: 1; min-width: 0; }
-.aprendizaje-quitar { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; margin-top: 3px; }
-.aprendizaje-agregar { justify-self: start; display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px dashed var(--border); border-radius: 8px; padding: 5px 10px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
-.aprendizaje-prueba { display: grid; gap: 6px; padding-top: 10px; border-top: 1px dashed var(--border); }
-.aprendizaje-prueba label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #34d399; }
-.aprendizaje-prueba .aprendizaje-burbuja { background: rgba(52, 211, 153, 0.12); }
-.aprendizaje-prueba-nota { margin: 0; font-size: 12px; color: var(--text-muted); }
-.aprendizaje-prueba-nota em { font-style: normal; margin-left: 4px; color: var(--text-primary); }
+.ap-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.ap-tabs button { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); border-radius: 999px; padding: 9px 16px; font-size: 14px; cursor: pointer; }
+.ap-tabs button.on { background: var(--accent); border-color: var(--accent); color: #1a0a02; font-weight: 600; }
+.ap-contador { background: #1a0a02; color: #fff; border-radius: 999px; font-size: 11px; font-weight: 700; padding: 1px 7px; }
+.ap-tabs button:not(.on) .ap-contador { background: var(--accent); color: #1a0a02; }
 
-/* Caja "Probá el bot" */
-.aprendizaje-probar { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; display: grid; gap: 10px; margin-bottom: 16px; }
-.aprendizaje-probar-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
-.aprendizaje-probar-top span { color: var(--text-muted); font-size: 12px; flex-basis: 100%; }
-.aprendizaje-probar-fila { display: flex; gap: 8px; }
-.aprendizaje-probar-fila input { flex: 1; min-width: 0; background: var(--bg-surface-2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font: inherit; font-size: 13px; }
-.aprendizaje-acciones { flex-wrap: wrap; }
+.ap-aviso { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 14px; }
+.ap-aviso span { display: inline-flex; align-items: center; gap: 6px; color: #34d399; font-weight: 600; }
+.ap-aviso button { background: none; border: 1px solid rgba(52, 211, 153, 0.5); color: var(--text-primary); border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.ap-aviso .ap-aviso-x { margin-left: auto; padding: 6px; border: none; color: var(--text-muted); }
+
+.ap-filtro { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); margin-bottom: 12px; cursor: pointer; }
+.ap-error { color: #f87171; font-size: 13px; }
+.ap-vacio { color: var(--text-muted); font-size: 14px; display: flex; align-items: center; gap: 8px; line-height: 1.5; }
+.ap .spin { animation: ap-giro 1s linear infinite; }
+@keyframes ap-giro { to { transform: rotate(360deg); } }
+
+.ap-lista { display: grid; gap: 14px; }
+.ap-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; display: grid; gap: 14px; }
+.ap-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 14px; }
+.ap-card-top time { color: var(--text-muted); font-size: 12px; }
+
+.ap-bloque { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.ap-bloque--right { justify-items: end; }
+.ap-etiqueta { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); }
+.ap-etiqueta--right { color: #34d399; }
+
+/* burbujas, como en WhatsApp: cliente a la izquierda, Right a la derecha */
+.ap-burbujas { display: grid; gap: 4px; justify-items: start; min-width: 0; max-width: 100%; }
+.ap-burbuja { margin: 0; padding: 8px 12px; background: var(--bg-surface-2); border-radius: 12px 12px 12px 4px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+.ap-burbujas--cliente .ap-burbuja { background: var(--bg-surface-2); border-left: 3px solid var(--accent); }
+.ap-burbujas--prueba .ap-burbuja { background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.3); }
+.ap-burbujas--bot .ap-burbuja { background: transparent; border: 1px dashed var(--border); color: var(--text-muted); }
+
+.ap-editor { display: grid; gap: 4px; justify-items: end; width: 100%; }
+.ap-editor-fila { display: flex; gap: 6px; align-items: flex-start; width: 100%; justify-content: flex-end; }
+.ap-editor-fila textarea { flex: 1; min-width: 0; max-width: 560px; background: rgba(52, 211, 153, 0.12); color: var(--text-primary); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 12px 12px 4px 12px; padding: 8px 12px; font: inherit; font-size: 14px; line-height: 1.4; resize: vertical; }
+.ap-quitar { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; margin-top: 4px; }
+.ap-agregar { display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px dashed var(--border); border-radius: 8px; padding: 5px 10px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+
+.ap-bot summary { cursor: pointer; font-size: 13px; color: var(--text-muted); }
+.ap-bot[open] summary { margin-bottom: 8px; }
+.ap-pregunta { margin: 4px 0 -4px; font-size: 15px; font-weight: 600; }
+.ap-botones { display: flex; gap: 8px; flex-wrap: wrap; }
+.ap-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; padding: 11px 16px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-primary); }
+.ap-btn--ok { background: #34d399; border-color: #34d399; color: #04210f; }
+.ap-btn--no { color: var(--text-muted); }
+.ap-btn:disabled { opacity: .5; cursor: default; }
+.ap-nota { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.ap-nota em { font-style: normal; margin-left: 4px; color: var(--text-primary); }
+
+/* Probar el bot */
+.ap-probar { display: grid; gap: 12px; }
+.ap-explica { margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+.ap-probar-fila { display: flex; gap: 8px; }
+.ap-probar-fila input { flex: 1; min-width: 0; background: var(--bg-surface-2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; font: inherit; font-size: 14px; }
+.ap-ejemplos { display: flex; gap: 6px; flex-wrap: wrap; }
+.ap-ejemplos button { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.ap-resultado { display: grid; gap: 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; }
+.ap-resultado .ap-etiqueta { color: #34d399; }
+
+@media (max-width: 720px) {
+  .ap { padding: 14px; }
+  .ap-btn { flex: 1 1 100%; justify-content: center; }
+  .ap-probar-fila { flex-direction: column; }
+}
