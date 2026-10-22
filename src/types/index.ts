@@ -78,7 +78,7 @@ export interface Venta {
   monto_recibido_efectivo?: number | null
   vuelto_efectivo?: number | null
   modelos?: { modelo: string; marca: string; categoria: string; gama: string } | null
-  clientes_locales?: { nombre: string; telefono: string | null; email: string | null } | null
+  clientes_locales?: { nombre: string; telefono: string | null; email: string | null; dni?: string | null } | null
   empleados?: { nombre: string } | null
 }
 

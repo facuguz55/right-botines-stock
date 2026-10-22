@@ -4,10 +4,24 @@ import { deleteVenta } from '../../services/ventas'
 import { Modal } from '../Modal/Modal'
 import type { Role, Venta } from '../../types'
 import { toISOLocal, semanaActual } from '../../utils/fecha'
+import { estadoGarantia, textoGarantia, DIAS_GARANTIA } from '../../utils/garantia'
 import './VentasHistory.css'
 
 const MEDIO_ICONS: Record<string, string> = { Efectivo: '💵', Transferencia: '📲', Tarjeta: '💳', Mixto: '🔀' }
 const MEDIOS: Venta['medio_pago'][] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Mixto']
+
+const sinTildes = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const soloDigitos = (t: string) => t.replace(/\D/g, '')
+
+// Busca por nombre, teléfono (sin importar espacios o guiones), mail o DNI.
+function coincideCliente(v: Venta, busqueda: string): boolean {
+  const c = v.clientes_locales
+  if (!c) return false
+  const q = sinTildes(busqueda.trim())
+  if (sinTildes(c.nombre).includes(q) || sinTildes(c.email ?? '').includes(q)) return true
+  const d = soloDigitos(busqueda)
+  return d.length >= 3 && (soloDigitos(c.telefono ?? '').includes(d) || soloDigitos(c.dni ?? '').includes(d))
+}
 
 function getPreset(preset: string): { start: string; end: string } {
   const now = new Date()
@@ -45,6 +59,19 @@ interface VentasHistoryProps {
   role: Role
 }
 
+function GarantiaTag({ venta }: { venta: Venta }) {
+  const g = estadoGarantia(venta.fecha, venta.modelos?.gama)
+  if (!g) return <span className="sin-cliente">-</span>
+  return (
+    <span
+      className={`garantia-tag ${g.vigente ? 'garantia-tag--vigente' : 'garantia-tag--vencida'}`}
+      title={`Garantía de ${DIAS_GARANTIA} días desde la compra: cubre hasta el ${g.venceEl}`}
+    >
+      {textoGarantia(g)}
+    </span>
+  )
+}
+
 export function VentasHistory({ role }: VentasHistoryProps) {
   // Los empleados ven el detalle de cada venta (para verificar que se
   // registró bien) pero no la ganancia ni los totales facturados/recaudados
@@ -55,6 +82,7 @@ export function VentasHistory({ role }: VentasHistoryProps) {
   const [endDate, setEndDate] = useState(initial.end)
   const [activePreset, setActivePreset] = useState('mes')
 
+  const [filterCliente, setFilterCliente] = useState('')
   const [filterModelo, setFilterModelo] = useState('')
   const [filterTalle, setFilterTalle] = useState('')
   const [filterPago, setFilterPago] = useState('')
@@ -63,7 +91,13 @@ export function VentasHistory({ role }: VentasHistoryProps) {
   const [filterGananciaMin, setFilterGananciaMin] = useState('')
   const [filterGananciaMax, setFilterGananciaMax] = useState('')
 
-  const { ventas, loading, error, reload } = useVentas(startDate, endDate)
+  // Para ver cuándo compró un cliente (cambio o garantía) hay que mirar todas las
+  // fechas: al buscar por cliente se ignora el rango elegido.
+  const buscandoCliente = filterCliente.trim().length > 0
+  const { ventas, loading, error, reload } = useVentas(
+    buscandoCliente ? '2020-01-01' : startDate,
+    buscandoCliente ? toISOLocal(new Date()) : endDate,
+  )
 
   const [ventaAEliminar, setVentaAEliminar] = useState<Venta | null>(null)
   const [pinEliminar, setPinEliminar] = useState('')
@@ -101,6 +135,7 @@ export function VentasHistory({ role }: VentasHistoryProps) {
   )
 
   const filtered = useMemo(() => ventas.filter(v => {
+    if (buscandoCliente && !coincideCliente(v, filterCliente)) return false
     if (filterModelo) {
       const texto = `${v.modelos?.marca ?? ''} ${v.modelos?.modelo ?? ''}`.toLowerCase()
       if (!texto.includes(filterModelo.toLowerCase())) return false
@@ -112,12 +147,12 @@ export function VentasHistory({ role }: VentasHistoryProps) {
     if (filterGananciaMin && v.ganancia < parseFloat(filterGananciaMin)) return false
     if (filterGananciaMax && v.ganancia > parseFloat(filterGananciaMax)) return false
     return true
-  }), [ventas, filterModelo, filterTalle, filterPago, filterPrecioMin, filterPrecioMax, filterGananciaMin, filterGananciaMax])
+  }), [ventas, buscandoCliente, filterCliente, filterModelo, filterTalle, filterPago, filterPrecioMin, filterPrecioMax, filterGananciaMin, filterGananciaMax])
 
   const totalVentas = filtered.reduce((s, v) => s + v.precio_venta, 0)
   const totalGanancia = filtered.reduce((s, v) => s + v.ganancia, 0)
 
-  const hasExtraFilters = filterModelo || filterTalle || filterPago || filterPrecioMin || filterPrecioMax || filterGananciaMin || filterGananciaMax
+  const hasExtraFilters = filterCliente || filterModelo || filterTalle || filterPago || filterPrecioMin || filterPrecioMax || filterGananciaMin || filterGananciaMax
 
   function applyPreset(key: string) {
     const { start, end } = getPreset(key)
@@ -127,7 +162,7 @@ export function VentasHistory({ role }: VentasHistoryProps) {
   }
 
   function clearExtraFilters() {
-    setFilterModelo(''); setFilterTalle(''); setFilterPago('')
+    setFilterCliente(''); setFilterModelo(''); setFilterTalle(''); setFilterPago('')
     setFilterPrecioMin(''); setFilterPrecioMax('')
     setFilterGananciaMin(''); setFilterGananciaMax('')
   }
@@ -171,6 +206,13 @@ export function VentasHistory({ role }: VentasHistoryProps) {
       {/* Filtros adicionales */}
       <div className="ventas-extra-filters">
         <input
+          className="vf-input vf-cliente"
+          type="search"
+          placeholder="Buscar cliente (nombre, teléfono, DNI)..."
+          value={filterCliente}
+          onChange={e => setFilterCliente(e.target.value)}
+        />
+        <input
           className="vf-input"
           type="text"
           placeholder="Buscar modelo..."
@@ -207,6 +249,10 @@ export function VentasHistory({ role }: VentasHistoryProps) {
         )}
       </div>
 
+      {buscandoCliente && (
+        <p className="ventas-buscando">Buscando en todas las fechas. Cada compra muestra si la garantía ({DIAS_GARANTIA} días, gama alta) sigue vigente.</p>
+      )}
+
       {/* Summary — recaudado y ganancia son solo del dueño */}
       {!loading && filtered.length > 0 && puedeVerMontos && (
         <div className="ventas-summary">
@@ -226,7 +272,7 @@ export function VentasHistory({ role }: VentasHistoryProps) {
         <div className="ventas-table-wrap">
           <table className="ventas-table">
             <thead>
-              <tr><th>Fecha</th><th>Modelo</th><th>Talle</th><th>Empleado</th><th>Pago</th><th>Precio</th>{puedeVerMontos && <th>Ganancia</th>}{puedeVerMontos && <th></th>}</tr>
+              <tr><th>Fecha</th><th>Cliente</th><th>Modelo</th><th>Talle</th><th>Garantía</th><th>Empleado</th><th>Pago</th><th>Precio</th>{puedeVerMontos && <th>Ganancia</th>}{puedeVerMontos && <th></th>}</tr>
             </thead>
             <tbody>
               {filtered.map(v => (
@@ -235,8 +281,14 @@ export function VentasHistory({ role }: VentasHistoryProps) {
                     {new Date(v.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     <span className="time-cell">{new Date(v.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
                   </td>
+                  <td className="cliente-cell">
+                    {v.clientes_locales
+                      ? <><strong>{v.clientes_locales.nombre}</strong>{v.clientes_locales.telefono && <span className="cliente-tel">{v.clientes_locales.telefono}</span>}</>
+                      : <span className="sin-cliente">Sin cliente</span>}
+                  </td>
                   <td>{v.modelos ? <span><strong>{v.modelos.marca}</strong> {v.modelos.modelo}</span> : <span className="deleted-product">Eliminado</span>}</td>
                   <td>{v.talle_arg} arg</td>
+                  <td><GarantiaTag venta={v} /></td>
                   <td>{v.empleados?.nombre ?? 'Dueño'}</td>
                   <td>
                     <span className="medio-pago-badge">

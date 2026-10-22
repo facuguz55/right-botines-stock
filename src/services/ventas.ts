@@ -2,18 +2,30 @@ import { supabase } from '../lib/supabase'
 import type { Modelo, ModeloTalle, Venta } from '../types'
 import { pushStockToTN } from './tnSync'
 
+const PAGINA = 1000
+
+// Supabase devuelve como mucho 1000 filas por consulta: se pide de a páginas para
+// que "Todo" no se corte cuando haya más ventas que eso.
 export async function fetchVentas(startDate?: string, endDate?: string): Promise<Venta[]> {
-  let query = supabase
-    .from('ventas')
-    .select('*, modelos(modelo, marca, categoria, gama), empleados(nombre)')
-    .order('fecha', { ascending: false })
+  const out: Venta[] = []
+  for (let desde = 0; ; desde += PAGINA) {
+    let query = supabase
+      .from('ventas')
+      .select('*, modelos(modelo, marca, categoria, gama), empleados(nombre), clientes_locales(nombre, telefono, email, dni)')
+      .order('fecha', { ascending: false })
+      .order('id')
+      .range(desde, desde + PAGINA - 1)
 
-  if (startDate) query = query.gte('fecha', startDate)
-  if (endDate) query = query.lte('fecha', endDate + 'T23:59:59')
+    if (startDate) query = query.gte('fecha', startDate)
+    if (endDate) query = query.lte('fecha', endDate + 'T23:59:59')
 
-  const { data, error } = await query
-  if (error) throw error
-  return (data || []) as Venta[]
+    const { data, error } = await query
+    if (error) throw error
+    const filas = (data || []) as Venta[]
+    out.push(...filas)
+    if (filas.length < PAGINA) break
+  }
+  return out
 }
 
 // Elimina una venta y devuelve el stock vendido al talle correspondiente.
