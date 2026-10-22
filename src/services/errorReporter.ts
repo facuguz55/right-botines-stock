@@ -71,8 +71,24 @@ export async function reportFeedback(descripcion: string, donde: string): Promis
   }
 }
 
+// Errores que el navegador reporta sin ningún dato y que no vienen del código de
+// la app: "Script error." sin archivo ni línea lo manda el navegador cuando falla
+// un script de OTRO origen (una extensión, el navegador embebido de otra app, un
+// traductor...) y esconde los detalles. No hay nada que arreglar, y llenaban el
+// reporte de bugs. Lo mismo con el portapapeles bloqueado o diálogos (prompt)
+// que un navegador no soporta: son del entorno, no de la app.
+export function esRuidoDelNavegador(mensaje: string | undefined, filename?: string, lineno?: number): boolean {
+  const m = (mensaje ?? '').trim()
+  if (/^script error\.?$/i.test(m) && !filename && !lineno) return true
+  if (m.includes('Failed to update a ServiceWorker')) return true
+  if (/Failed to execute 'writeText' on 'Clipboard'/.test(m)) return true
+  if (/\b(prompt|alert|confirm)\(\) is not supported/.test(m)) return true
+  return false
+}
+
 export function setupGlobalErrorHandler(): void {
   window.addEventListener('error', (e) => {
+    if (esRuidoDelNavegador(e.message, e.filename, e.lineno)) return
     reportError({
       donde: 'window.onerror',
       mensaje: e.message,
@@ -83,9 +99,9 @@ export function setupGlobalErrorHandler(): void {
 
   window.addEventListener('unhandledrejection', (e) => {
     const reason = e.reason
-    // Ruido del navegador, no un bug de la app: no pudo bajar sw.js para
-    // chequear actualizaciones (corte de red momentáneo). Ver pwaUpdate.ts.
-    if (String(reason?.message ?? reason).includes('Failed to update a ServiceWorker')) return
+    // Ruido del navegador, no un bug de la app (ej. no pudo bajar sw.js para
+    // chequear actualizaciones por un corte de red, ver pwaUpdate.ts).
+    if (esRuidoDelNavegador(String(reason?.message ?? reason))) return
     reportError({
       donde: 'unhandledrejection',
       mensaje: reason?.message ?? String(reason),

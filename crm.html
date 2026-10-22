@@ -25,7 +25,11 @@
           var el = document.getElementById('crm-arranque')
           if (el) el.textContent = 'No se pudo abrir el CRM: ' + msg
         }
-        window.addEventListener('error', function (e) { mostrar(e.message || 'error de carga') })
+        window.addEventListener('error', function (e) {
+          // "Script error." sin archivo ni línea viene de afuera (una extensión, otro navegador embebido): no es de la app.
+          if (e.message === 'Script error.' && !e.filename && !e.lineno) return
+          mostrar(e.message || 'error de carga')
+        })
         window.addEventListener('unhandledrejection', function (e) { mostrar(String((e.reason && e.reason.message) || e.reason)) })
       })()
     </script>

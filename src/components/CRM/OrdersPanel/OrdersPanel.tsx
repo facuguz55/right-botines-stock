@@ -9,6 +9,7 @@ import {
   type PedidoTN,
 } from '../../../lib/crmPedidos'
 import './OrdersPanel.css'
+import { copiarTexto } from '../../../utils/portapapeles'
 
 interface OrdersPanelProps {
   conversacion: WspConversacion
@@ -108,11 +109,10 @@ export function OrdersPanel({ conversacion, onUsarTexto, onClose }: OrdersPanelP
     }
   }
 
-  const copiar = (texto: string) => {
-    navigator.clipboard?.writeText(texto).then(() => {
-      setCopiado(texto)
-      setTimeout(() => setCopiado(null), 1500)
-    }).catch(() => {})
+  const copiar = async (texto: string) => {
+    if (!(await copiarTexto(texto))) return
+    setCopiado(texto)
+    setTimeout(() => setCopiado(null), 1500)
   }
 
   const lista = resultados ?? pedidos

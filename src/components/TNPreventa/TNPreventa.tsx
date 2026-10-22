@@ -6,6 +6,7 @@ import { enviarMailAVarios, type EnviarMailResultado } from '../../services/gmai
 import { getSessionPin, setSessionPin } from '../../lib/pinSession'
 import { Modal } from '../Modal/Modal'
 import './TNPreventa.css'
+import { copiarTexto, mostrarParaCopiar } from '../../utils/portapapeles'
 import { ErrorTienda } from '../DispositivoBanner/ErrorTienda'
 
 // Ver el mismo comentario en ClientesLocales.tsx: WhatsApp necesita el
@@ -67,22 +68,13 @@ export function TNPreventa({ onOpenInCrm }: TNPreventaProps) {
   const copiarEmails = async () => {
     const emails = [...new Set(orders.map(o => o.customer?.email).filter((e): e is string => !!e))]
     const texto = emails.join(', ')
-    try {
-      await navigator.clipboard.writeText(texto)
+    if (await copiarTexto(texto)) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // El Clipboard API puede fallar por permisos del navegador (ej. sin
-      // gesto de usuario reconocido, extensiones, políticas corporativas) —
-      // sin este fallback, el click no hacía nada y no se enteraban. El
-      // prompt() en sí también puede estar bloqueado en algunos entornos
-      // (ej. webviews embebidos) — si eso pasa, al menos mostramos un
-      // alert con los emails en vez de tirar un error sin capturar.
-      try {
-        window.prompt('No se pudo copiar automáticamente. Seleccioná el texto y copialo con Ctrl+C / Cmd+C:', texto)
-      } catch {
-        window.alert(`No se pudo copiar. Emails:\n\n${texto}`)
-      }
+    } else {
+      // El portapapeles puede estar bloqueado (permisos, webviews): al menos se
+      // muestran los emails para copiarlos a mano.
+      mostrarParaCopiar(texto)
     }
   }
 

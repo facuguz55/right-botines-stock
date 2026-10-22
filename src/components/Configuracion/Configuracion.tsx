@@ -12,6 +12,7 @@ import type { useRecargosTarjeta } from '../../hooks/useRecargosTarjeta'
 import { CostosTab } from './CostosTab'
 import { RecargosTarjetaSection } from './RecargosTarjetaSection'
 import './Configuracion.css'
+import { copiarTexto } from '../../utils/portapapeles'
 
 type ConfigTab = 'general' | 'tiendanube' | 'seguridad' | 'costos'
 
@@ -588,7 +589,7 @@ export function Configuracion({ modelos, onReload, tabInicial, recargosTarjeta }
                 value={`${window.location.origin}/api/tn-webhook`}
                 readOnly
                 style={{ cursor: 'pointer' }}
-                onClick={e => { (e.target as HTMLInputElement).select(); navigator.clipboard.writeText(`${window.location.origin}/api/tn-webhook`) }}
+                onClick={e => { (e.target as HTMLInputElement).select(); void copiarTexto(`${window.location.origin}/api/tn-webhook`) }}
                 title="Clic para copiar"
               />
             </div>

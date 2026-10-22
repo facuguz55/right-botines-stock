@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Copy, Check } from 'lucide-react'
 import type { TraficoCanales as Datos } from '../../services/trafico'
+import { copiarTexto, mostrarParaCopiar } from '../../utils/portapapeles'
 
 // Con menos visitas que esto, las tasas de un canal son ruido.
 const MIN_SESIONES_PARA_COMPARAR = 10
@@ -37,18 +38,8 @@ function slug(s: string): string {
 }
 
 async function copiar(texto: string, alCopiar: () => void) {
-  try {
-    await navigator.clipboard.writeText(texto)
-    alCopiar()
-  } catch {
-    // Mismo fallback que Preventas: el Clipboard API puede estar bloqueado
-    // (permisos, webviews). El texto igual queda visible para copiarlo a mano.
-    try {
-      window.prompt('No se pudo copiar automáticamente. Seleccioná el texto y copialo con Ctrl+C / Cmd+C:', texto)
-    } catch {
-      window.alert(texto)
-    }
-  }
+  if (await copiarTexto(texto)) alCopiar()
+  else mostrarParaCopiar(texto)
 }
 
 interface Props {
