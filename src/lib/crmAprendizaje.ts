@@ -9,6 +9,11 @@ export type OrigenAprendizaje = 'usada' | 'distinta' | 'sin_sugerencia'
 // respuesta a esa pregunta.
 export const VENTANA_RESPUESTA_MS = 20 * 60_000
 
+// Palabras de 4 letras o más, sin tildes: sirven para buscar casos parecidos.
+export function palabrasClave(t: string): Set<string> {
+  return new Set(t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[a-z0-9]{4,}/g) ?? [])
+}
+
 export function unirMensajes(mensajes: string[]): string {
   return mensajes.join('\n\n')
 }

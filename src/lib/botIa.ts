@@ -4,6 +4,7 @@
 // así las dos usan EXACTAMENTE lo mismo.
 import { TIPOS_BOTIN, type EstadoBusqueda } from './crmBusqueda'
 import { EJEMPLOS_ESTILO_CAMI, INFO_NEGOCIO } from './crmNegocio'
+import { palabrasClave } from './crmAprendizaje'
 import { humanizar } from './crmTexto'
 
 export const CATEGORIAS_CRM = ['Urgente', 'Pedido de talles', 'Normal', 'Spam', 'Postventa/Reclamos', 'Mayorista'] as const
@@ -96,7 +97,7 @@ export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<Cla
     : 'nada todavía'
 
   const bloqueAprendizajes = o.aprendizajes
-    ? `\nRight (los dueños) aprobó estas respuestas para casos como los de esta charla. Si el caso es el mismo o muy parecido, contestá igual que ella: mismo contenido, mismo tono y la misma cantidad de mensajes cortos seguidos. Solo cambiá lo que dependa de este cliente (talle, modelo, nombre). Si el caso no se parece, ignoralas:\n${o.aprendizajes}\n`
+    ? `\nRight (los dueños) aprobó estas respuestas para casos como los de esta charla. Si el caso es el mismo o muy parecido, contestá igual que ella: mismo contenido, mismo tono y la misma cantidad de mensajes cortos seguidos. Solo cambiá lo que dependa de este cliente (talle, modelo, nombre) y NUNCA copies datos de otro cliente (nombres, números de pedido, códigos de seguimiento, montos de otra venta). Si el caso no se parece, ignoralas:\n${o.aprendizajes}\n`
     : ''
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -160,10 +161,6 @@ export interface FilaAprendizaje {
   respuesta_aprobada: string | null
   mensajes_aprobados?: unknown
   origen?: string | null
-}
-
-export function palabrasClave(t: string): Set<string> {
-  return new Set(t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z0-9]{4,}/g) ?? [])
 }
 
 function mensajesAprobados(f: FilaAprendizaje): string[] {

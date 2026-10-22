@@ -35,6 +35,8 @@
 .ap-burbujas { display: grid; gap: 4px; justify-items: start; min-width: 0; max-width: 100%; }
 .ap-burbuja { margin: 0; padding: 8px 12px; background: var(--bg-surface-2); border-radius: 12px 12px 12px 4px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
 .ap-burbujas--cliente .ap-burbuja { background: var(--bg-surface-2); border-left: 3px solid var(--accent); }
+.ap-burbujas--right { justify-items: end; }
+.ap-burbujas--right .ap-burbuja { background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.3); border-radius: 12px 12px 4px 12px; }
 .ap-burbujas--prueba .ap-burbuja { background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.3); }
 .ap-burbujas--bot .ap-burbuja { background: transparent; border: 1px dashed var(--border); color: var(--text-muted); }
 

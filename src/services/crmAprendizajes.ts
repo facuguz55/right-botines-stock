@@ -1,16 +1,16 @@
 import { supabase } from '../lib/supabase'
 import {
-  calcularOrigen, mensajesDe, mensajesDeSugerencia, ubicarAncla, unirMensajes,
+  calcularOrigen, mensajesDe, mensajesDeSugerencia, palabrasClave, ubicarAncla, unirMensajes,
   type OrigenAprendizaje,
 } from '../lib/crmAprendizaje'
 import type { WspIaSugerencia, WspMensaje } from '../types/crm'
 
-// Lo que aprende el bot: cada vez que una persona contesta un chat, se guarda la
-// pregunta del cliente, lo que había sugerido el bot y lo que se mandó de verdad
-// (todos los mensajes de esa respuesta, en orden). Si Right mandó lo mismo que
-// sugirió el bot, ya queda aprobado solo; si mandó algo distinto, los dueños lo
-// revisan en "Aprendizaje" y aprueban (o corrigen). Las aprobadas se usan como
-// guía en las próximas sugerencias (webhook).
+// Lo que aprende el bot: TODO lo que Right contesta desde el CRM es correcto (es
+// el estilo que buscan), así que el bot aprende solo, sin aprobar nada. Cada vez
+// que se contesta un chat se guarda la pregunta del cliente, lo que había
+// sugerido el bot y lo que se mandó de verdad (todos los mensajes de esa
+// respuesta, en orden). Eso se usa como guía en las próximas sugerencias
+// (webhook). En "Enseñarle al bot" se ve, se corrige o se olvida.
 
 export type { OrigenAprendizaje }
 export type EstadoAprendizaje = 'pendiente' | 'aprobado' | 'descartado'
@@ -60,19 +60,22 @@ async function registrar(args: ArgsRegistro): Promise<void> {
   const pregunta = ancla.bloque.map(textoDe).filter(Boolean).slice(-3).join('\n')
   if (!pregunta) return
 
+  // Un cliente que solo mandó una foto o un audio no deja nada para buscar casos parecidos.
+  if (palabrasClave(pregunta).size === 0) return
+
   const { data: previo } = await supabase
     .from('crm_aprendizajes')
-    .select('id, estado, origen, mensajes_bot, respuesta_bot, mensajes_humano, respuesta_humano')
+    .select('id, estado, mensajes_bot, respuesta_bot, mensajes_humano, respuesta_humano, mensajes_aprobados, respuesta_aprobada')
     .eq('mensaje_cliente_id', ultimo.id)
     .maybeSingle()
 
-  // Ya lo revisó una persona: no se toca.
-  if (previo && (previo.estado === 'descartado' || (previo.estado === 'aprobado' && previo.origen !== 'usada'))) return
+  // Si lo hicieron olvidar, o lo corrigieron a mano, no se pisa.
+  if (previo?.estado === 'descartado') return
+  const humanoPrevio = previo ? mensajesDe(previo.mensajes_humano, previo.respuesta_humano) : []
+  if (previo && unirMensajes(mensajesDe(previo.mensajes_aprobados, previo.respuesta_aprobada)) !== unirMensajes(humanoPrevio)) return
 
   const bot = previo ? mensajesDe(previo.mensajes_bot, previo.respuesta_bot) : mensajesDeSugerencia(args.sugerenciasPorMensaje[ultimo.id])
-  const humano = [...(previo ? mensajesDe(previo.mensajes_humano, previo.respuesta_humano) : []), enviado]
-  const origen = calcularOrigen(bot, humano)
-  const aprobadaSola = origen === 'usada'
+  const humano = [...humanoPrevio, enviado]
 
   const fila = {
     pregunta,
@@ -80,11 +83,12 @@ async function registrar(args: ArgsRegistro): Promise<void> {
     respuesta_bot: bot.length ? unirMensajes(bot) : null,
     mensajes_humano: humano,
     respuesta_humano: unirMensajes(humano),
-    origen,
-    estado: aprobadaSola ? 'aprobado' : 'pendiente',
-    respuesta_aprobada: aprobadaSola ? unirMensajes(humano) : null,
-    mensajes_aprobados: aprobadaSola ? humano : null,
-    revisado_en: aprobadaSola ? new Date().toISOString() : null,
+    origen: calcularOrigen(bot, humano),
+    // Aprendido al instante: todo lo que Right contesta sirve.
+    estado: 'aprobado',
+    respuesta_aprobada: unirMensajes(humano),
+    mensajes_aprobados: humano,
+    revisado_en: new Date().toISOString(),
   }
 
   if (previo) {
@@ -121,13 +125,7 @@ export async function fetchAprendizajes(estado: EstadoAprendizaje): Promise<CrmA
   return (data ?? []) as CrmAprendizaje[]
 }
 
-export async function contarPendientes(): Promise<number> {
-  const { count, error } = await supabase
-    .from('crm_aprendizajes').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente')
-  if (error) throw error
-  return count ?? 0
-}
-
+// Corregir lo que aprendió el bot (queda lo corregido, no lo que mandó Right).
 export async function aprobarAprendizaje(id: string, mensajes: string[]): Promise<void> {
   const limpios = mensajes.map(m => m.trim()).filter(Boolean)
   const { error } = await supabase.from('crm_aprendizajes')
@@ -141,6 +139,7 @@ export async function aprobarAprendizaje(id: string, mensajes: string[]): Promis
   if (error) throw error
 }
 
+// Que el bot lo olvide (para algún caso raro que no sirva).
 export async function descartarAprendizaje(id: string): Promise<void> {
   const { error } = await supabase.from('crm_aprendizajes')
     .update({ estado: 'descartado', revisado_en: new Date().toISOString() })
