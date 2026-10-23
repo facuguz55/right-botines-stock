@@ -55,6 +55,10 @@ export interface WspConversacion {
   busqueda_tipo?: string | null
   busqueda_modelo?: string | null
   busqueda_updated_at?: string | null
+  // Menú del chat (migración 058)
+  archivada?: boolean
+  silenciada_hasta?: string | null
+  bloqueada?: boolean
   crm_clientes?: CrmCliente | null
 }
 

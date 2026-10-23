@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspConversacion, WspMensaje } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
@@ -9,8 +9,13 @@ import {
   sendTextMessage, sendImageMessage, sendDocumentMessage, uploadSalidaMedia, markSuggestionUsed, deleteMensaje,
   GUIA_TALLES_URL, MAX_IMAGEN_BYTES, MAX_DOCUMENTO_BYTES,
 } from '../../../services/crmMessages'
-import { markAsRead, markAsUnread, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda } from '../../../services/crmConversations'
-import ConversationList from '../ConversationList/ConversationList'
+import {
+  markAsRead, markAsUnread, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda,
+  setArchivada, setBloqueada, setSilenciada, vaciarChat, eliminarChat,
+} from '../../../services/crmConversations'
+import { estaSilenciada } from '../../../lib/crmSilencio'
+import ConversationList, { type VistaChats } from '../ConversationList/ConversationList'
+import type { AccionesChat } from '../ConversationList/ChatMenu'
 import ChatPanel from '../ChatPanel/ChatPanel'
 import { MpLinkModal } from '../MpLinkModal/MpLinkModal'
 import './CrmInbox.css'
@@ -62,13 +67,24 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     if (etiquetaFilter && !etiquetas.some(e => e.id === etiquetaFilter)) setEtiquetaFilter(undefined)
   }, [etiquetas, etiquetaFilter])
 
+  // Qué chats se ven: los de siempre, los archivados o los bloqueados. Al buscar se
+  // mira en todos menos los bloqueados (como en WhatsApp, la búsqueda llega a los archivados).
+  const [vista, setVista] = useState<VistaChats>('activos')
+  const cantArchivados = conversaciones.filter(c => c.archivada && !c.bloqueada).length
+  const cantBloqueados = conversaciones.filter(c => c.bloqueada).length
+  const porVista = conversaciones.filter(c => {
+    if (vista === 'bloqueados') return c.bloqueada
+    if (c.bloqueada) return false
+    return search.trim() ? true : vista === 'archivados' ? c.archivada : !c.archivada
+  })
   const conversacionesVisibles = etiquetaFilter
-    ? conversaciones.filter(c => porConversacion[c.id]?.some(e => e.id === etiquetaFilter))
-    : conversaciones
+    ? porVista.filter(c => porConversacion[c.id]?.some(e => e.id === etiquetaFilter))
+    : porVista
 
   // Cantidad de mensajes sin leer: se ve en el título de la pestaña y, en la app
   // instalada, como globito en el ícono.
-  const totalNoLeidos = conversaciones.reduce((n, c) => n + (c.no_leidos || 0), 0)
+  // No cuenta lo archivado, bloqueado ni silenciado.
+  const totalNoLeidos = conversaciones.reduce((n, c) => (c.archivada || c.bloqueada || estaSilenciada(c) ? n : n + (c.no_leidos || 0)), 0)
   useEffect(() => {
     const base = document.title.replace(/^\(\d+\)\s*/, '')
     document.title = totalNoLeidos > 0 ? `(${totalNoLeidos}) ${base}` : base
@@ -321,23 +337,33 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     }
   }, [selectedId, handleBack])
 
-  // Menú de un chat de la lista (mantener apretado / clic derecho): pasa a no leído
-  // o a leído sin abrirlo. Si justo es el chat que está abierto, se sale de él (si
-  // no, seguiría abierto y no se notaría que quedó sin leer).
-  const handleToggleLeido = useCallback(async (conv: WspConversacion) => {
-    const marcarNoLeido = (conv.no_leidos || 0) === 0
-    try {
-      if (marcarNoLeido) {
-        await markAsUnread(conv.id)
-        if (selectedId === conv.id) handleBack()
-      } else {
-        await markAsRead(conv.id)
-      }
-    } catch (err) {
-      console.error('Error cambiando leído / no leído:', err)
-      alert(marcarNoLeido ? 'No se pudo marcar como no leído.' : 'No se pudo marcar como leído.')
+  // Menú de un chat de la lista (mantener apretado / clic derecho). Si la acción deja
+  // afuera al chat que está abierto (no leído, archivar, bloquear, eliminar), se sale
+  // de él: si no, seguiría abierto y no se notaría.
+  const acciones: AccionesChat = useMemo(() => {
+    const salirSiEsteEstaAbierto = (c: WspConversacion) => { if (selectedId === c.id) handleBack() }
+    return {
+      onToggleLeido: async (c) => {
+        const marcarNoLeido = (c.no_leidos || 0) === 0
+        try {
+          if (marcarNoLeido) { await markAsUnread(c.id); salirSiEsteEstaAbierto(c) }
+          else await markAsRead(c.id)
+        } catch (err) {
+          console.error('Error cambiando leído / no leído:', err)
+          alert(marcarNoLeido ? 'No se pudo marcar como no leído.' : 'No se pudo marcar como leído.')
+        }
+      },
+      onRenombrar: (c, nombre) => renameConversacion(c.id, nombre),
+      onSilenciar: (c, hasta) => setSilenciada(c.id, hasta),
+      onArchivar: async (c, archivar) => { await setArchivada(c.id, archivar); salirSiEsteEstaAbierto(c) },
+      onBloquear: async (c, bloquear) => { await setBloqueada(c.id, bloquear); salirSiEsteEstaAbierto(c) },
+      onVaciar: async (c) => { await vaciarChat(c.id); if (selectedId === c.id) await refrescarMensajes() },
+      onEliminar: async (c) => { await eliminarChat(c.id); salirSiEsteEstaAbierto(c); await refrescarConversaciones() },
+      onToggleEtiqueta: (convId, etiquetaId) => { void toggleEtiqueta(convId, etiquetaId) },
+      onCrearEtiqueta: (nombre, color, convId) => crearEtiqueta(nombre, color, convId),
+      onEliminarEtiqueta: (id) => { void eliminarEtiqueta(id) },
     }
-  }, [selectedId, handleBack])
+  }, [selectedId, handleBack, refrescarMensajes, refrescarConversaciones, toggleEtiqueta, crearEtiqueta, eliminarEtiqueta])
 
   // Con el chat a pantalla completa en mobile, el teclado achica el viewport
   // visible pero no el layout: sin esto el campo de escribir quedaba tapado
@@ -382,7 +408,11 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           tema={tema}
           onToggleTema={alternarTema}
           onActualizar={handleActualizar}
-          onToggleLeido={handleToggleLeido}
+          acciones={acciones}
+          vista={vista}
+          onVista={setVista}
+          cantArchivados={cantArchivados}
+          cantBloqueados={cantBloqueados}
           actualizando={actualizando}
         />
       </div>

@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { MessageCircle, Plus, X, Loader2, RefreshCw, Sun, Moon, Mail, MailOpen } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { MessageCircle, Plus, X, Loader2, RefreshCw, Sun, Moon, BellOff } from 'lucide-react'
 import type { CrmTema } from '../../../lib/crmTema'
 import type { WspConversacion, CrmCategoria, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS } from '../../../types/crm'
 import CategoryChip from '../CategoryChip/CategoryChip'
 import EtiquetaChip from '../Etiquetas/EtiquetaChip'
+import ChatMenu, { type AccionesChat } from './ChatMenu'
+import { estaSilenciada } from '../../../lib/crmSilencio'
+import { vibrar } from '../../../lib/haptico'
 import './ConversationList.css'
 
 interface ConversationListProps {
@@ -25,9 +28,16 @@ interface ConversationListProps {
   onToggleTema: () => void
   onActualizar: () => void
   actualizando: boolean
-  // Marca el chat como no leído (si estaba leído) o como leído (si tenía mensajes sin leer).
-  onToggleLeido: (conv: WspConversacion) => void
+  // Menú de cada chat (mantener apretado / clic derecho).
+  acciones: AccionesChat
+  // Qué chats se ven: los de siempre, los archivados o los bloqueados.
+  vista: VistaChats
+  onVista: (v: VistaChats) => void
+  cantArchivados: number
+  cantBloqueados: number
 }
+
+export type VistaChats = 'activos' | 'archivados' | 'bloqueados'
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -64,26 +74,26 @@ export default function ConversationList({
   onToggleTema,
   onActualizar,
   actualizando,
-  onToggleLeido,
+  acciones,
+  vista,
+  onVista,
+  cantArchivados,
+  cantBloqueados,
 }: ConversationListProps) {
   // Menú de un chat (mantener apretado en el celular, clic derecho en la compu).
   const [menu, setMenu] = useState<{ conv: WspConversacion; x: number; y: number } | null>(null)
-  const pulsacion = useRef<{ timer: number; x: number; y: number } | null>(null)
+  // El chat que se está apretando (se "hunde" un poquito mientras se espera el menú).
+  const [apretandoId, setApretandoId] = useState<string | null>(null)
+  const pulsacion = useRef<{ timer: number; aviso: number; x: number; y: number } | null>(null)
   const ignorarClick = useRef(false)
 
-  const abrirMenu = useCallback((conv: WspConversacion, x: number, y: number) => {
-    // Que el menú no se salga de la pantalla.
-    const ancho = 230, alto = 56
-    setMenu({
-      conv,
-      x: Math.max(8, Math.min(x, window.innerWidth - ancho - 8)),
-      y: Math.max(8, Math.min(y, window.innerHeight - alto - 8)),
-    })
-  }, [])
-
   const cancelarPulsacion = () => {
-    if (pulsacion.current) window.clearTimeout(pulsacion.current.timer)
+    if (pulsacion.current) {
+      window.clearTimeout(pulsacion.current.timer)
+      window.clearTimeout(pulsacion.current.aviso)
+    }
     pulsacion.current = null
+    setApretandoId(null)
   }
 
   const empezarPulsacion = (e: React.PointerEvent, conv: WspConversacion) => {
@@ -95,11 +105,13 @@ export default function ConversationList({
     const { clientX: x, clientY: y } = e
     pulsacion.current = {
       x, y,
+      aviso: window.setTimeout(() => setApretandoId(conv.id), 140),
       timer: window.setTimeout(() => {
         pulsacion.current = null
+        setApretandoId(null)
         ignorarClick.current = true
-        navigator.vibrate?.(15)
-        abrirMenu(conv, x, y)
+        vibrar()
+        setMenu({ conv, x, y })
       }, 450),
     }
   }
@@ -109,23 +121,10 @@ export default function ConversationList({
     if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelarPulsacion()
   }
 
-  useEffect(() => {
-    if (!menu) return
-    const cerrar = () => setMenu(null)
-    const alTecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null) }
-    document.addEventListener('pointerdown', cerrar)
-    document.addEventListener('keydown', alTecla)
-    window.addEventListener('resize', cerrar)
-    window.addEventListener('blur', cerrar)
-    return () => {
-      document.removeEventListener('pointerdown', cerrar)
-      document.removeEventListener('keydown', alTecla)
-      window.removeEventListener('resize', cerrar)
-      window.removeEventListener('blur', cerrar)
-    }
-  }, [menu])
-
   useEffect(() => cancelarPulsacion, [])
+
+  // Si el chat del menú desaparece (se eliminó, o se archivó estando en otra vista), se cierra.
+  const menuConv = menu ? conversaciones.find(c => c.id === menu.conv.id) ?? menu.conv : null
 
   const [showNueva, setShowNueva] = useState(false)
   const [nuevoNumero, setNuevoNumero] = useState('')
@@ -237,6 +236,22 @@ export default function ConversationList({
             {cat}
           </button>
         ))}
+        {(cantArchivados > 0 || vista === 'archivados') && (
+          <button
+            className={`conv-list-filter-btn${vista === 'archivados' ? ' conv-list-filter-btn--active' : ''}`}
+            onClick={() => onVista(vista === 'archivados' ? 'activos' : 'archivados')}
+          >
+            Archivados · {cantArchivados}
+          </button>
+        )}
+        {(cantBloqueados > 0 || vista === 'bloqueados') && (
+          <button
+            className={`conv-list-filter-btn${vista === 'bloqueados' ? ' conv-list-filter-btn--active' : ''}`}
+            onClick={() => onVista(vista === 'bloqueados' ? 'activos' : 'bloqueados')}
+          >
+            Bloqueados · {cantBloqueados}
+          </button>
+        )}
       </div>
 
       {etiquetas.length > 0 && (
@@ -265,20 +280,20 @@ export default function ConversationList({
             <div className="conv-list-empty-icon">
               <MessageCircle size={24} />
             </div>
-            <p className="conv-list-empty-text">Sin conversaciones</p>
-            <p className="conv-list-empty-hint">Cuando un cliente escriba por WhatsApp, su conversación va a aparecer acá</p>
+            <p className="conv-list-empty-text">{vista === 'activos' ? 'Sin conversaciones' : vista === 'archivados' ? 'No hay chats archivados' : 'No hay chats bloqueados'}</p>
+            <p className="conv-list-empty-hint">{vista === 'activos' ? 'Cuando un cliente escriba por WhatsApp, su conversación va a aparecer acá' : 'Mantené apretado un chat para archivarlo o bloquearlo'}</p>
           </div>
         ) : (
           conversaciones.map((conv) => (
             <div
               key={conv.id}
-              className={`conv-list-item${selectedId === conv.id ? ' conv-list-item--selected' : ''}${conv.no_leidos > 0 ? ' conv-list-item--unread' : ''}`}
+              className={`conv-list-item${selectedId === conv.id ? ' conv-list-item--selected' : ''}${conv.no_leidos > 0 ? ' conv-list-item--unread' : ''}${apretandoId === conv.id ? ' conv-list-item--apretando' : ''}${menu?.conv.id === conv.id ? ' conv-list-item--menu' : ''}`}
               onClick={() => {
                 // Después de mantener apretado, el "soltar" no tiene que abrir el chat.
                 if (ignorarClick.current) { ignorarClick.current = false; return }
                 onSelect(conv.id)
               }}
-              onContextMenu={e => { e.preventDefault(); cancelarPulsacion(); abrirMenu(conv, e.clientX, e.clientY) }}
+              onContextMenu={e => { e.preventDefault(); cancelarPulsacion(); setMenu({ conv, x: e.clientX, y: e.clientY }) }}
               onPointerDown={e => empezarPulsacion(e, conv)}
               onPointerMove={moverPulsacion}
               onPointerUp={cancelarPulsacion}
@@ -291,6 +306,7 @@ export default function ConversationList({
               <div className="conv-list-info">
                 <div className="conv-list-top">
                   <span className="conv-list-name">{conv.nombre_personalizado || conv.nombre || conv.telefono || 'Sin nombre'}</span>
+                  {estaSilenciada(conv) && <BellOff size={12} className="conv-list-mute" aria-label="Silenciado" />}
                   <span className="conv-list-time">{timeAgo(conv.ultimo_mensaje_at)}</span>
                 </div>
                 <div className="conv-list-bottom">
@@ -316,17 +332,16 @@ export default function ConversationList({
         )}
       </div>
 
-      {menu && (
-        <div className="conv-menu" style={{ left: menu.x, top: menu.y }} role="menu" onPointerDown={e => e.stopPropagation()}>
-          <button
-            role="menuitem"
-            onClick={() => { onToggleLeido(menu.conv); setMenu(null) }}
-          >
-            {menu.conv.no_leidos > 0
-              ? <><MailOpen size={16} /> Marcar como leído</>
-              : <><Mail size={16} /> Marcar como no leído</>}
-          </button>
-        </div>
+      {menu && menuConv && (
+        <ChatMenu
+          conv={menuConv}
+          x={menu.x}
+          y={menu.y}
+          etiquetas={etiquetas}
+          etiquetasDelChat={etiquetasPorConv[menuConv.id] ?? []}
+          acciones={acciones}
+          onClose={() => setMenu(null)}
+        />
       )}
     </div>
   )

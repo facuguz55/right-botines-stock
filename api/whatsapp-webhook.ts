@@ -136,12 +136,20 @@ async function sbFetch(path: string, options: RequestInit = {}) {
 // en vez de pisarlo con 1 fijo (ver el PATCH más abajo).
 async function getOrCreateConversation(
   waContactId: string, name: string | null, phone: string | null,
-): Promise<{ id: string; noLeidosActual: number }> {
+): Promise<{ id: string; noLeidosActual: number; silenciada: boolean; bloqueada: boolean }> {
   // El mismo celular puede llegar con o sin el 9 (ver crmWaId.ts): se buscan las dos formas.
   const candidatos = variantesWaId(waContactId).map(encodeURIComponent).join(',')
-  const existing = await sbFetch(`wsp_conversaciones?wa_contact_id=in.(${candidatos})&select=id,no_leidos&limit=1`)
-  const rows = await existing.json() as { id: string; no_leidos: number | null }[]
-  if (rows[0]) return { id: rows[0].id, noLeidosActual: rows[0].no_leidos ?? 0 }
+  const existing = await sbFetch(`wsp_conversaciones?wa_contact_id=in.(${candidatos})&select=id,no_leidos,silenciada_hasta,bloqueada&limit=1`)
+  const rows = await existing.json() as { id: string; no_leidos: number | null; silenciada_hasta: string | null; bloqueada: boolean | null }[]
+  if (rows[0]) {
+    return {
+      id: rows[0].id,
+      noLeidosActual: rows[0].no_leidos ?? 0,
+      // Menú del chat (migración 058): silenciada = sin aviso al celular; bloqueada = se guarda y nada más.
+      silenciada: !!rows[0].silenciada_hasta && new Date(rows[0].silenciada_hasta).getTime() > Date.now(),
+      bloqueada: rows[0].bloqueada === true,
+    }
+  }
 
   const clienteRes = await sbFetch('crm_clientes', {
     method: 'POST',
@@ -159,7 +167,7 @@ async function getOrCreateConversation(
     }),
   })
   const conv = (await convRes.json() as { id: string }[])[0]
-  return { id: conv.id, noLeidosActual: 0 }
+  return { id: conv.id, noLeidosActual: 0, silenciada: false, bloqueada: false }
 }
 
 // Bienvenida y ausencia automáticas (tabla crm_mensajes_auto, empiezan apagadas).
@@ -702,7 +710,7 @@ export default async function handler(req: Request): Promise<Response> {
           const name = contactInfo?.profile?.name || null
           const phone = msg.from
 
-          const { id: conversacionId, noLeidosActual } = await getOrCreateConversation(msg.from, name, phone)
+          const { id: conversacionId, noLeidosActual, silenciada, bloqueada } = await getOrCreateConversation(msg.from, name, phone)
 
           // Se lee ANTES de guardar el mensaje nuevo, para saber cuánto hacía que nadie escribía.
           const previo = await mensajeAnteriorYAusencia(conversacionId)
@@ -716,10 +724,11 @@ export default async function handler(req: Request): Promise<Response> {
           } else if (msg.type === 'image' && msg.image) {
             contenido = msg.image.caption || null
             tipo = 'image'
-            mediaUrl = await descargarYSubirMedia(msg.image.id, msg.image.mime_type)
+            // De un contacto bloqueado no se baja la foto.
+            if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.image.id, msg.image.mime_type)
           } else if (msg.type === 'audio' && msg.audio) {
             tipo = 'audio'
-            mediaUrl = await descargarYSubirMedia(msg.audio.id, msg.audio.mime_type)
+            if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.audio.id, msg.audio.mime_type)
           }
 
           const insertRes = await sbFetch('wsp_mensajes', {
@@ -736,6 +745,19 @@ export default async function handler(req: Request): Promise<Response> {
           })
           const inserted = (await insertRes.json() as { id: string }[])[0]
 
+          // Contacto bloqueado desde el menú del chat: queda guardado en el historial,
+          // pero no cuenta como sin leer, no avisa, no sugiere ni contesta.
+          if (bloqueada) {
+            await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                ultimo_mensaje: contenido?.slice(0, 200) || `[${tipo}]`,
+                ultimo_mensaje_at: new Date(parseInt(msg.timestamp) * 1000).toISOString(),
+              }),
+            })
+            continue
+          }
+
           await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
             method: 'PATCH',
             body: JSON.stringify({
@@ -747,13 +769,15 @@ export default async function handler(req: Request): Promise<Response> {
               // ahora sí acumula.
               no_leidos: noLeidosActual + 1,
               nombre: name || phone,
+              // Si estaba archivado, vuelve a la lista: que nadie se pierda un cliente que escribe.
+              archivada: false,
             }),
           })
 
           // Aviso al celular de quien atiende, aunque la app esté cerrada. Se
           // espera (con tope) por el mismo motivo que la IA de más abajo: en las
           // funciones edge lo que queda pendiente al devolver la Response se corta.
-          await Promise.race([
+          if (!silenciada) await Promise.race([
             enviarPush(
               {
                 supabaseUrl: SB_URL,

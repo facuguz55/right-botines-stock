@@ -159,3 +159,32 @@ export async function searchConversaciones(term: string): Promise<WspConversacio
   if (error) throw error
   return (data || []) as WspConversacion[]
 }
+
+// ── Menú de cada chat (mantener apretado / clic derecho) ─────────────────────
+
+async function patchConversacion(id: string, cambios: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase.from('wsp_conversaciones').update(cambios).eq('id', id)
+  if (error) throw error
+}
+
+export const setArchivada = (id: string, archivada: boolean) => patchConversacion(id, { archivada })
+export const setBloqueada = (id: string, bloqueada: boolean) => patchConversacion(id, { bloqueada })
+// hasta = null: deja de silenciar.
+export const setSilenciada = (id: string, hasta: string | null) => patchConversacion(id, { silenciada_hasta: hasta })
+
+// Borra todos los mensajes del chat pero deja el chat en la lista, vacío.
+export async function vaciarChat(id: string): Promise<void> {
+  const { error } = await supabase.from('wsp_mensajes').delete().eq('conversacion_id', id)
+  if (error) throw error
+  await supabase.from('wsp_ia_sugerencias').delete().eq('conversacion_id', id)
+  await patchConversacion(id, {
+    ultimo_mensaje: null, no_leidos: 0,
+    busqueda_talle: null, busqueda_tipo: null, busqueda_modelo: null, busqueda_updated_at: null,
+  })
+}
+
+// Borra el chat y todos sus mensajes. Lo que el bot aprendió de él se conserva.
+export async function eliminarChat(id: string): Promise<void> {
+  const { error } = await supabase.from('wsp_conversaciones').delete().eq('id', id)
+  if (error) throw error
+}
