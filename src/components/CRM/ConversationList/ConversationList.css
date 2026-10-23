@@ -269,7 +269,7 @@
 .conv-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 1000;
   background: rgba(0, 0, 0, 0.28);
   display: flex;
   align-items: center;
@@ -283,9 +283,10 @@
 
 .conv-menu {
   position: fixed;
-  z-index: 62;
+  z-index: 1001;
   width: 250px;
-  max-height: calc(100vh - 16px);
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
   overflow-y: auto;
   background: var(--bg-surface);
   border: 1px solid var(--border-light, var(--border));
@@ -327,7 +328,7 @@
 /* Cuadros de cada acción (nombre, silenciar, confirmar) */
 .conv-dialog {
   width: min(360px, 100%);
-  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
   background: var(--bg-surface);
   border: 1px solid var(--border-light, var(--border));

@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Archive, ArchiveRestore, Ban, Bell, BellOff, Eraser, Loader2, Mail, MailOpen, Pencil, Tag, Trash2,
 } from 'lucide-react'
@@ -57,9 +58,13 @@ export default function ChatMenu({ conv, x, y, etiquetas, etiquetasDelChat, acci
   useLayoutEffect(() => {
     const el = menuRef.current
     if (!el || paso !== 'menu') return
-    const { width, height } = el.getBoundingClientRect()
-    const left = Math.max(8, Math.min(x, window.innerWidth - width - 8))
-    const top = Math.max(8, Math.min(y, window.innerHeight - height - 8))
+    // offsetWidth/Height: no cuentan la animación (que arranca achicada).
+    const ancho = window.visualViewport?.width ?? window.innerWidth
+    const alto = window.visualViewport?.height ?? window.innerHeight
+    const width = el.offsetWidth
+    const height = el.offsetHeight
+    const left = Math.max(8, Math.min(x, ancho - width - 8))
+    const top = Math.max(8, Math.min(y, alto - height - 8))
     setPos({ left, top, origen: `${Math.round(x - left)}px ${Math.round(y - top)}px` })
   }, [x, y, paso])
 
@@ -79,7 +84,7 @@ export default function ChatMenu({ conv, x, y, etiquetas, etiquetasDelChat, acci
     <button role="menuitem" className={peligro ? 'conv-menu-peligro' : ''} onClick={alTocar}>{icono}{texto}</button>
   )
 
-  return (
+  return createPortal(
     // El fondo tapa la lista: tocar afuera cierra el menú y ese toque NO llega a ningún chat.
     <div
       className="conv-backdrop"
@@ -193,6 +198,7 @@ export default function ChatMenu({ conv, x, y, etiquetas, etiquetasDelChat, acci
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
