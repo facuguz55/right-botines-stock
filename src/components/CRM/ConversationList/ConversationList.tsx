@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { MessageCircle, Plus, X, Loader2, RefreshCw, Sun, Moon } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { MessageCircle, Plus, X, Loader2, RefreshCw, Sun, Moon, Mail, MailOpen } from 'lucide-react'
 import type { CrmTema } from '../../../lib/crmTema'
 import type { WspConversacion, CrmCategoria, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS } from '../../../types/crm'
@@ -25,6 +25,8 @@ interface ConversationListProps {
   onToggleTema: () => void
   onActualizar: () => void
   actualizando: boolean
+  // Marca el chat como no leído (si estaba leído) o como leído (si tenía mensajes sin leer).
+  onToggleLeido: (conv: WspConversacion) => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -62,7 +64,69 @@ export default function ConversationList({
   onToggleTema,
   onActualizar,
   actualizando,
+  onToggleLeido,
 }: ConversationListProps) {
+  // Menú de un chat (mantener apretado en el celular, clic derecho en la compu).
+  const [menu, setMenu] = useState<{ conv: WspConversacion; x: number; y: number } | null>(null)
+  const pulsacion = useRef<{ timer: number; x: number; y: number } | null>(null)
+  const ignorarClick = useRef(false)
+
+  const abrirMenu = useCallback((conv: WspConversacion, x: number, y: number) => {
+    // Que el menú no se salga de la pantalla.
+    const ancho = 230, alto = 56
+    setMenu({
+      conv,
+      x: Math.max(8, Math.min(x, window.innerWidth - ancho - 8)),
+      y: Math.max(8, Math.min(y, window.innerHeight - alto - 8)),
+    })
+  }, [])
+
+  const cancelarPulsacion = () => {
+    if (pulsacion.current) window.clearTimeout(pulsacion.current.timer)
+    pulsacion.current = null
+  }
+
+  const empezarPulsacion = (e: React.PointerEvent, conv: WspConversacion) => {
+    if (e.pointerType === 'mouse') return // en la compu es clic derecho
+    cancelarPulsacion()
+    // Un toque nuevo siempre abre el chat: si el anterior fue una pulsación larga y el
+    // navegador no mandó el click al soltar, no queda "pendiente" de ignorar.
+    ignorarClick.current = false
+    const { clientX: x, clientY: y } = e
+    pulsacion.current = {
+      x, y,
+      timer: window.setTimeout(() => {
+        pulsacion.current = null
+        ignorarClick.current = true
+        navigator.vibrate?.(15)
+        abrirMenu(conv, x, y)
+      }, 450),
+    }
+  }
+
+  const moverPulsacion = (e: React.PointerEvent) => {
+    const p = pulsacion.current
+    if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelarPulsacion()
+  }
+
+  useEffect(() => {
+    if (!menu) return
+    const cerrar = () => setMenu(null)
+    const alTecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null) }
+    document.addEventListener('pointerdown', cerrar)
+    document.addEventListener('keydown', alTecla)
+    window.addEventListener('resize', cerrar)
+    window.addEventListener('blur', cerrar)
+    return () => {
+      document.removeEventListener('pointerdown', cerrar)
+      document.removeEventListener('keydown', alTecla)
+      window.removeEventListener('resize', cerrar)
+      window.removeEventListener('blur', cerrar)
+    }
+  }, [menu])
+
+  useEffect(() => cancelarPulsacion, [])
+
   const [showNueva, setShowNueva] = useState(false)
   const [nuevoNumero, setNuevoNumero] = useState('')
   const [nuevoNombre, setNuevoNombre] = useState('')
@@ -209,7 +273,17 @@ export default function ConversationList({
             <div
               key={conv.id}
               className={`conv-list-item${selectedId === conv.id ? ' conv-list-item--selected' : ''}${conv.no_leidos > 0 ? ' conv-list-item--unread' : ''}`}
-              onClick={() => onSelect(conv.id)}
+              onClick={() => {
+                // Después de mantener apretado, el "soltar" no tiene que abrir el chat.
+                if (ignorarClick.current) { ignorarClick.current = false; return }
+                onSelect(conv.id)
+              }}
+              onContextMenu={e => { e.preventDefault(); cancelarPulsacion(); abrirMenu(conv, e.clientX, e.clientY) }}
+              onPointerDown={e => empezarPulsacion(e, conv)}
+              onPointerMove={moverPulsacion}
+              onPointerUp={cancelarPulsacion}
+              onPointerCancel={cancelarPulsacion}
+              onPointerLeave={cancelarPulsacion}
             >
               <div className="conv-list-avatar">
                 {getInitial(conv.nombre_personalizado || conv.nombre)}
@@ -241,6 +315,19 @@ export default function ConversationList({
           ))
         )}
       </div>
+
+      {menu && (
+        <div className="conv-menu" style={{ left: menu.x, top: menu.y }} role="menu" onPointerDown={e => e.stopPropagation()}>
+          <button
+            role="menuitem"
+            onClick={() => { onToggleLeido(menu.conv); setMenu(null) }}
+          >
+            {menu.conv.no_leidos > 0
+              ? <><MailOpen size={16} /> Marcar como leído</>
+              : <><Mail size={16} /> Marcar como no leído</>}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

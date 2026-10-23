@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspMensaje } from '../../../types/crm'
+import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspConversacion, WspMensaje } from '../../../types/crm'
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { registrarAprendizaje } from '../../../services/crmAprendizajes'
@@ -321,6 +321,24 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     }
   }, [selectedId, handleBack])
 
+  // Menú de un chat de la lista (mantener apretado / clic derecho): pasa a no leído
+  // o a leído sin abrirlo. Si justo es el chat que está abierto, se sale de él (si
+  // no, seguiría abierto y no se notaría que quedó sin leer).
+  const handleToggleLeido = useCallback(async (conv: WspConversacion) => {
+    const marcarNoLeido = (conv.no_leidos || 0) === 0
+    try {
+      if (marcarNoLeido) {
+        await markAsUnread(conv.id)
+        if (selectedId === conv.id) handleBack()
+      } else {
+        await markAsRead(conv.id)
+      }
+    } catch (err) {
+      console.error('Error cambiando leído / no leído:', err)
+      alert(marcarNoLeido ? 'No se pudo marcar como no leído.' : 'No se pudo marcar como leído.')
+    }
+  }, [selectedId, handleBack])
+
   // Con el chat a pantalla completa en mobile, el teclado achica el viewport
   // visible pero no el layout: sin esto el campo de escribir quedaba tapado
   // por el teclado. Se sigue el visualViewport y se lo pasa por CSS.
@@ -364,6 +382,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
           tema={tema}
           onToggleTema={alternarTema}
           onActualizar={handleActualizar}
+          onToggleLeido={handleToggleLeido}
           actualizando={actualizando}
         />
       </div>
