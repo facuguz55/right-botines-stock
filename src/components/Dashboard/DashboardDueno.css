@@ -1,0 +1,76 @@
+/* Dashboard del dueño — mismo tema que el resto de la app (variables de index.css). */
+.dd { gap: 1.25rem; }
+.dd-intro { margin: 0.25rem 0 0; color: var(--text-secondary); font-size: 0.9rem; }
+
+.dd-aviso { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 0.9rem 1.1rem; border-radius: var(--radius-md); background: var(--warning-dim); border: 1px solid rgba(245, 166, 35, 0.35); color: var(--text-primary); font-size: 0.88rem; }
+.dd-aviso svg { color: var(--warning); }
+.dd-aviso span { color: var(--text-secondary); }
+
+.dd-kpis { display: grid; grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.dd-kpi { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; padding: 1.1rem 1.25rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.dd-kpi-hero { background: linear-gradient(135deg, rgba(255, 69, 0, 0.16), var(--bg-surface) 70%); border-color: rgba(255, 69, 0, 0.4); }
+.dd-kpi-label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); text-transform: capitalize; }
+.dd-kpi-value { font-family: var(--font-display); font-size: 2.1rem; font-weight: 700; line-height: 1.05; color: var(--text-primary); overflow-wrap: anywhere; }
+.dd-kpi-value-sm { font-size: 1.6rem; }
+.dd-kpi-value.pos, .dd .pos { color: #00d46a; }
+.dd-kpi-value.neg, .dd .neg { color: var(--danger); }
+.dd-kpi-sub { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
+.dd-kpi-sub b { color: var(--text-primary); }
+
+.dd-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+.dd-grid-ancha { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.dd-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; min-width: 0; }
+.dd-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; }
+.dd-card-title { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.dd-card-title svg { color: var(--accent); flex: none; }
+.dd-card-sub { margin: 0.3rem 0 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45; }
+.dd-link { display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid var(--border-light); color: var(--text-primary); border-radius: 999px; padding: 4px 10px; font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.dd-link:hover { border-color: var(--accent); color: var(--accent); }
+
+.dd-lista { display: flex; flex-direction: column; }
+.dd-fila { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0; border-top: 1px solid var(--border); min-width: 0; }
+.dd-fila:first-child { border-top: 0; }
+.dd-foto { width: 46px; height: 34px; object-fit: cover; border-radius: 6px; flex: none; background: var(--bg-surface-2); }
+.dd-foto-vacia { display: grid; place-items: center; font-size: 1rem; }
+.dd-rank { width: 20px; height: 20px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--border-light); }
+.dd-fila-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.dd-nombre { margin: 0; font-size: 0.88rem; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-nombre > span:first-child { color: var(--text-secondary); font-weight: 500; }
+.dd-detalle { margin: 0; font-size: 0.76rem; color: var(--text-secondary); }
+.dd-fila-der { display: flex; flex-direction: column; align-items: flex-end; text-align: right; flex: none; }
+.dd-fila-der b { font-size: 0.95rem; color: var(--text-primary); }
+.dd-fila-der span { font-size: 0.72rem; color: var(--text-secondary); }
+.dd-sin-costo { color: var(--warning) !important; font-weight: 600; }
+.dd-canal { font-size: 0.68rem; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--border-light); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+
+.dd-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.dd-chip { font-size: 0.74rem; padding: 2px 8px; border-radius: 999px; background: var(--bg-surface-2); border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
+.dd-chip b { color: var(--text-primary); }
+.dd-chip.urgente { border-color: rgba(245, 166, 35, 0.5); color: var(--warning); }
+.dd-chip.agotado { border-color: rgba(229, 62, 62, 0.5); background: var(--danger-dim); color: var(--danger); }
+.dd-sub-bloque { border-top: 1px dashed var(--border-light); padding-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.dd-sub-titulo { margin: 0; font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
+
+.dd-curva { display: flex; flex-direction: column; gap: 0.45rem; }
+.dd-curva-fila { display: grid; grid-template-columns: 34px minmax(0, 1fr) 84px; gap: 0.6rem; align-items: center; }
+.dd-curva-talle { font-weight: 700; font-size: 0.85rem; color: var(--text-primary); text-align: right; }
+.dd-curva-barra { height: 14px; border-radius: 4px; background: var(--bg-surface-2); overflow: hidden; }
+.dd-curva-barra span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.dd-curva-n { font-size: 0.74rem; color: var(--text-secondary); }
+
+.dd-mini-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+.dd-mini-kpis div { display: flex; flex-direction: column; padding: 0.7rem 0.85rem; border-radius: var(--radius-md); background: var(--bg-surface-2); }
+.dd-mini-kpis b { font-family: var(--font-display); font-size: 1.5rem; color: var(--text-primary); }
+.dd-mini-kpis span { font-size: 0.74rem; color: var(--text-secondary); }
+
+@media (max-width: 1100px) {
+  .dd-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dd-grid, .dd-grid-ancha { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .dd-kpis { grid-template-columns: minmax(0, 1fr); }
+  .dd-aviso { grid-template-columns: auto minmax(0, 1fr); }
+  .dd-aviso .dd-link { grid-column: 2; justify-self: start; }
+  .dd-kpi-value { font-size: 1.75rem; }
+  .dd-curva-fila { grid-template-columns: 30px minmax(0, 1fr) 70px; }
+}

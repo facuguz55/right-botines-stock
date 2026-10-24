@@ -348,7 +348,7 @@ export function App() {
           onOpenInCrm={handleOpenInCrm}
         />
       )}
-      {activePage === 'dashboard' && <Dashboard role={role} />}
+      {activePage === 'dashboard' && <Dashboard role={role} onNavigate={setActivePage} />}
       {activePage === 'ventas' && <VentasHistory role={role} />}
       {activePage === 'seguimientos' && <Seguimientos />}
       {activePage === 'stock_avanzado' && (

@@ -2,14 +2,23 @@ import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useDashboard } from '../../hooks/useDashboard'
-import type { Role } from '../../types'
+import type { ActivePage, Role } from '../../types'
+import { DashboardDueno } from './DashboardDueno'
 import './Dashboard.css'
 
 interface DashboardProps {
   role: Role
+  onNavigate?: (p: ActivePage) => void
 }
 
-export function Dashboard({ role }: DashboardProps) {
+// El dueño ve el dashboard de decisiones (qué comprar, qué liquidar, plata real del mes);
+// el resto del equipo sigue viendo el resumen simple.
+export function Dashboard({ role, onNavigate }: DashboardProps) {
+  if (role === 'dueno') return <DashboardDueno onNavigate={onNavigate} />
+  return <DashboardEquipo role={role} />
+}
+
+function DashboardEquipo({ role }: { role: Role }) {
   const { data, loading, error } = useDashboard()
   const esDueno = role === 'dueno'
   const [alertasOpen, setAlertasOpen] = useState(false)
