@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { AlertTriangle, ArrowRight, PackagePlus, TrendingUp, Tag, Users, Eye, Coins, Ruler } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useDashboardDueno, type DashboardDueno as Datos, type FotoModelo } from '../../hooks/useDashboardDueno'
@@ -31,6 +32,20 @@ function Seccion({ icono, titulo, bajada, accion, children, className }: { icono
       </header>
       {children}
     </section>
+  )
+}
+
+// Lista que muestra las primeras filas y deja abrir el resto, para que las tarjetas queden parejas.
+function ListaCorta<T>({ items, max = 6, fila }: { items: T[]; max?: number; fila: (x: T, i: number) => React.ReactNode }) {
+  const [todo, setTodo] = useState(false)
+  const visibles = todo ? items : items.slice(0, max)
+  return (
+    <>
+      <div className="dd-lista">{visibles.map(fila)}</div>
+      {items.length > max && (
+        <button type="button" className="dd-mas" onClick={() => setTodo(!todo)}>{todo ? 'Ver menos' : `Ver ${items.length - max} más`}</button>
+      )}
+    </>
   )
 }
 
@@ -105,8 +120,7 @@ export function VistaDueno({ data, onNavigate }: { data: Datos; onNavigate?: (p:
       <div className="dd-grid dd-grid-ancha">
         <Seccion icono={<PackagePlus size={17} />} titulo="Qué comprar" bajada="Talles que se venden y se están por acabar, ordenados por urgencia. «Pedí» cubre un mes de ventas al ritmo de los últimos 60 días." accion={ir('stock')}>
           {data.reponer.length === 0 ? <p className="dash-no-data">No hay talles que se estén por acabar. 👌</p> : (
-            <div className="dd-lista">
-              {data.reponer.map((r) => (
+            <ListaCorta items={data.reponer} max={9} fila={(r) => (
                 <div key={r.id} className="dd-fila">
                   <Miniatura m={r} />
                   <div className="dd-fila-info">
@@ -121,19 +135,11 @@ export function VistaDueno({ data, onNavigate }: { data: Datos; onNavigate?: (p:
                   </div>
                   <div className="dd-fila-der"><b>Pedí {r.comprarTotal}</b><span>{r.comprarTotal === 1 ? 'par' : 'pares'}</span></div>
                 </div>
-              ))}
-            </div>
-          )}
-          {data.demandaSinStock.length > 0 && (
-            <div className="dd-sub-bloque">
-              <p className="dd-sub-titulo">Lo buscaron en la web y no había talle</p>
-              <div className="dd-chips">
-                {data.demandaSinStock.map((d, i) => <span key={i} className="dd-chip">{d.nombre} <b>{d.talle}</b> · {d.busquedas} {d.busquedas === 1 ? 'persona' : 'personas'}</span>)}
-              </div>
-            </div>
+              )} />
           )}
         </Seccion>
 
+        <div className="dd-col">
         <Seccion icono={<Ruler size={17} />} titulo="Qué talles se venden" bajada="Pares por talle en los últimos 60 días (local + web). Usalo para armar la curva del próximo pedido.">
           {data.curvaTalles.length === 0 ? <p className="dash-no-data">Sin ventas con talle todavía.</p> : (
             <div className="dd-curva">
@@ -147,14 +153,24 @@ export function VistaDueno({ data, onNavigate }: { data: Datos; onNavigate?: (p:
             </div>
           )}
         </Seccion>
+        {data.demandaSinStock.length > 0 && (
+          <Seccion icono={<Eye size={17} />} titulo="Lo buscaron y no había talle" bajada="Talles que pidieron en la web en el último mes y estaban agotados.">
+            <ListaCorta items={data.demandaSinStock} max={5} fila={(d, i) => (
+              <div key={i} className="dd-fila">
+                <div className="dd-fila-info"><p className="dd-nombre">{d.nombre}</p><p className="dd-detalle">Talle {d.talle}</p></div>
+                <div className="dd-fila-der"><b>{d.busquedas}</b><span>{d.busquedas === 1 ? 'persona' : 'personas'}</span></div>
+              </div>
+            )} />
+          </Seccion>
+        )}
+        </div>
       </div>
 
-      {/* ── Qué deja plata / qué liquidar ── */}
-      <div className="dd-grid">
+      {/* ── Qué deja plata / qué liquidar / qué empujar ── */}
+      <div className={`dd-grid ${data.empujar.length > 0 ? 'dd-grid-3' : ''}`}>
         <Seccion icono={<TrendingUp size={17} />} titulo="Qué te deja más plata" bajada="Últimos 30 días, ordenado por ganancia (no por pares vendidos).">
           {data.ranking.length === 0 ? <p className="dash-no-data">Sin ventas en los últimos 30 días.</p> : (
-            <div className="dd-lista">
-              {data.ranking.map((m, i) => (
+            <ListaCorta items={data.ranking} fila={(m, i) => (
                 <div key={m.id} className="dd-fila">
                   <span className="dd-rank">{i + 1}</span>
                   <Miniatura m={m} />
@@ -166,15 +182,13 @@ export function VistaDueno({ data, onNavigate }: { data: Datos; onNavigate?: (p:
                     {m.ganancia == null ? <span className="dd-sin-costo">sin costo cargado</span> : <><b className="pos">{plata(m.ganancia)}</b><span>margen {pct(m.margen)}</span></>}
                   </div>
                 </div>
-              ))}
-            </div>
+              )} />
           )}
         </Seccion>
 
         <Seccion icono={<Coins size={17} />} titulo="Qué liquidar" bajada={`Modelos sin ventas en 60 días. ${data.capitalParado > 0 ? `Hay ${plata(data.capitalParado)} parados (al costo).` : ''} Conviene promocionarlos o bajarles el precio.`}>
           {data.parados.length === 0 ? <p className="dash-no-data">No hay stock parado. 👌</p> : (
-            <div className="dd-lista">
-              {data.parados.map((p) => (
+            <ListaCorta items={data.parados} fila={(p) => (
                 <div key={p.id} className="dd-fila">
                   <Miniatura m={p} />
                   <div className="dd-fila-info">
@@ -183,18 +197,13 @@ export function VistaDueno({ data, onNavigate }: { data: Datos; onNavigate?: (p:
                   </div>
                   <div className="dd-fila-der">{p.capital == null ? <span className="dd-sin-costo">sin costo cargado</span> : <><b className="neg">{plata(p.capital)}</b><span>parados</span></>}</div>
                 </div>
-              ))}
-            </div>
+              )} />
           )}
         </Seccion>
-      </div>
 
-      {/* ── Qué empujar ── */}
-      <div className="dd-grid">
+        {data.empujar.length > 0 && (
         <Seccion icono={<Tag size={17} />} titulo="Qué empujar en redes y anuncios" bajada="Tenés stock, dejan buen margen y se venden poco: son los mejores candidatos para publicar o pautar.">
-          {data.empujar.length === 0 ? <p className="dash-no-data">Nada para destacar por ahora.</p> : (
-            <div className="dd-lista">
-              {data.empujar.map((m) => (
+            <ListaCorta items={data.empujar} fila={(m) => (
                 <div key={m.id} className="dd-fila">
                   <Miniatura m={m} />
                   <div className="dd-fila-info">
@@ -203,32 +212,15 @@ export function VistaDueno({ data, onNavigate }: { data: Datos; onNavigate?: (p:
                   </div>
                   <div className="dd-fila-der"><b className="pos">{pct(m.margen)}</b><span>de margen</span></div>
                 </div>
-              ))}
-            </div>
-          )}
+              )} />
         </Seccion>
-
-        <Seccion icono={<Eye size={17} />} titulo="Lo miran pero no lo compran" bajada="Productos de la web con muchas visitas y casi ninguna venta (últimos 30 días). Revisá precio, fotos, talles o la descripción." accion={ir('tn_trafico')}>
-          {data.loMiranNoLoCompran.length === 0 ? <p className="dash-no-data">Sin datos de visitas todavía.</p> : (
-            <div className="dd-lista">
-              {data.loMiranNoLoCompran.map((p, i) => (
-                <div key={i} className="dd-fila">
-                  <div className="dd-fila-info">
-                    <p className="dd-nombre">{p.nombre}</p>
-                    <p className="dd-detalle">{p.carritos} lo agregaron al carrito · {p.ordenes} {p.ordenes === 1 ? 'compra' : 'compras'}</p>
-                  </div>
-                  <div className="dd-fila-der"><b>{p.vistas.toLocaleString('es-AR')}</b><span>visitas</span></div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Seccion>
+        )}
       </div>
 
-      {/* ── Ventas y clientes ── */}
+      {/* ── Ventas semanales / lo miran y no lo compran ── */}
       <div className="dd-grid dd-grid-ancha">
         <Seccion icono={<TrendingUp size={17} />} titulo="Pares por semana" bajada="Local y web, últimas 10 semanas.">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={data.semanas} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey="semana" tick={{ fill: '#888', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -241,15 +233,31 @@ export function VistaDueno({ data, onNavigate }: { data: Datos; onNavigate?: (p:
           </ResponsiveContainer>
         </Seccion>
 
-        <Seccion icono={<Users size={17} />} titulo="Clientes" bajada="Últimos 6 meses." accion={ir('clientes_locales')}>
+        <Seccion icono={<Eye size={17} />} titulo="Lo miran pero no lo compran" bajada="Productos de la web con muchas visitas y casi ninguna venta (últimos 30 días). Revisá precio, fotos, talles o la descripción." accion={ir('tn_trafico')}>
+          {data.loMiranNoLoCompran.length === 0 ? <p className="dash-no-data">Sin datos de visitas todavía.</p> : (
+            <ListaCorta items={data.loMiranNoLoCompran} max={4} fila={(p, i) => (
+                <div key={i} className="dd-fila">
+                  <div className="dd-fila-info">
+                    <p className="dd-nombre">{p.nombre}</p>
+                    <p className="dd-detalle">{p.carritos} lo agregaron al carrito · {p.ordenes} {p.ordenes === 1 ? 'compra' : 'compras'}</p>
+                  </div>
+                  <div className="dd-fila-der"><b>{p.vistas.toLocaleString('es-AR')}</b><span>visitas</span></div>
+                </div>
+              )} />
+          )}
+        </Seccion>
+      </div>
+
+      {/* ── Clientes ── */}
+        <Seccion icono={<Users size={17} />} titulo="Clientes" bajada="Últimos 6 meses." accion={ir('clientes_locales')} className="dd-clientes">
           <div className="dd-mini-kpis">
             <div><b>{data.clientes.conCompra.toLocaleString('es-AR')}</b><span>compraron</span></div>
             <div><b>{pct(data.clientes.conCompra ? (data.clientes.repiten / data.clientes.conCompra) * 100 : null)}</b><span>volvieron a comprar</span></div>
           </div>
+          <div className="dd-clientes-lista">
           <p className="dd-sub-titulo">Buenos clientes para volver a escribirles</p>
           {data.clientes.volver.length === 0 ? <p className="dash-no-data">Todavía no hay.</p> : (
-            <div className="dd-lista">
-              {data.clientes.volver.map((c, i) => (
+            <ListaCorta items={data.clientes.volver} max={6} fila={(c, i) => (
                 <div key={i} className="dd-fila">
                   <div className="dd-fila-info">
                     <p className="dd-nombre">{c.nombre} <span className="dd-canal">{c.canal}</span></p>
@@ -257,11 +265,10 @@ export function VistaDueno({ data, onNavigate }: { data: Datos; onNavigate?: (p:
                   </div>
                   <div className="dd-fila-der"><b>{plata(c.gastado)}</b><span>{c.compras} {c.compras === 1 ? 'compra' : 'compras'}</span></div>
                 </div>
-              ))}
-            </div>
+              )} />
           )}
+          </div>
         </Seccion>
-      </div>
     </div>
   )
 }

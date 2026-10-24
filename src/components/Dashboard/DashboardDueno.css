@@ -74,3 +74,26 @@
   .dd-kpi-value { font-size: 1.75rem; }
   .dd-curva-fila { grid-template-columns: 30px minmax(0, 1fr) 70px; }
 }
+
+/* Orden en filas parejas: las tarjetas de una misma fila miden lo mismo. */
+.dd-grid { align-items: stretch; }
+.dd-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dd-col { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.dd-col > .dd-card:last-child { flex: 1; }
+.dd-mas { align-self: flex-start; margin-top: auto; background: none; border: 0; padding: 0.2rem 0; color: var(--accent); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.dd-mas:hover { text-decoration: underline; }
+.dd-clientes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); column-gap: 1.5rem; row-gap: 0.85rem; align-items: start; }
+.dd-clientes > .dd-card-head { grid-column: 1 / -1; }
+.dd-clientes .dd-mini-kpis { grid-template-columns: minmax(0, 1fr); }
+.dd-clientes-lista { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.dd-clientes-lista .dd-lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.5rem; }
+.dd-clientes-lista .dd-fila:nth-child(2) { border-top: 0; }
+@media (max-width: 1100px) {
+  .dd-grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .dd-clientes { grid-template-columns: minmax(0, 1fr); }
+  .dd-clientes .dd-mini-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .dd-clientes-lista .dd-lista { grid-template-columns: minmax(0, 1fr); }
+  .dd-clientes-lista .dd-fila:nth-child(2) { border-top: 1px solid var(--border); }
+}
