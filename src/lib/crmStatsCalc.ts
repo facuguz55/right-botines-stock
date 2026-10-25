@@ -200,8 +200,19 @@ export function calcularStats(d: DatosStats): CrmStatsData {
   const conRespuesta = new Set(enviados.filter(m => !m.automatico).map(m => m.conversacion_id))
   const activosLista = [...chatsActivos]
   const conFotos = activosLista.filter(id => fotosPorChat.has(id))
-  const concretadasActivas = activosLista.filter(id => convPorId.get(id)?.estado === 'Venta concretada')
-  const concretadasNuevas = nuevos.filter(c => c.estado === 'Venta concretada').length
+  // La venta se cuenta por venta_detectada_at (la marca el detector o quien la
+  // marca a mano): el estado cambia con cada mensaje y no sirve para contar.
+  // Chats viejos sin esa fecha: vale el estado, como antes.
+  const ventaEnRango = (c: ConvRaw | undefined) => {
+    if (!c) return false
+    if (c.venta_detectada_at) {
+      const f = toISOLocal(new Date(c.venta_detectada_at))
+      return f >= d.inicio && f <= d.fin
+    }
+    return c.estado === 'Venta concretada'
+  }
+  const concretadasActivas = activosLista.filter(id => ventaEnRango(convPorId.get(id)))
+  const concretadasNuevas = d.conversaciones.filter(c => ventaEnRango(c) && c.categoria !== 'Spam' && (c.venta_detectada_at || nuevos.includes(c))).length
   const embudo = [
     { etapa: 'Chats con actividad', cantidad: activosLista.length },
     { etapa: 'Right les contestó', cantidad: activosLista.filter(id => conRespuesta.has(id)).length },
@@ -317,7 +328,7 @@ export function calcularStats(d: DatosStats): CrmStatsData {
     conversion: {
       chatsNuevos: nuevos.length,
       concretadas: concretadasNuevas,
-      porcentaje: pct(concretadasNuevas, nuevos.length),
+      porcentaje: pct(concretadasNuevas, activosLista.length),
     },
     embudo,
     porCategoria,

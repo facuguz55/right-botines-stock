@@ -11,6 +11,26 @@ export async function fetchMensajes(conversacionId: string): Promise<WspMensaje[
   return (data || []) as WspMensaje[]
 }
 
+// Después de contestar: el chat pasa a "Respondido" salvo que ya sea una venta, y
+// se le pide al detector que lo vuelva a mirar (por ejemplo "recibido, gracias"
+// después de un comprobante). Sin esperar: si falla, el mensaje igual salió.
+async function trasContestar(conversacionId: string, ultimoMensaje: string): Promise<void> {
+  await supabase
+    .from('wsp_conversaciones')
+    .update({ ultimo_mensaje: ultimoMensaje, ultimo_mensaje_at: new Date().toISOString() })
+    .eq('id', conversacionId)
+  await supabase
+    .from('wsp_conversaciones')
+    .update({ estado: 'Respondido' })
+    .eq('id', conversacionId)
+    .neq('estado', 'Venta concretada')
+  fetch('/api/crm-detectar-venta', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversacionId }),
+  }).catch(() => {})
+}
+
 // Manda el mensaje de verdad por WhatsApp (Meta Cloud API) antes de
 // guardarlo — antes esta función solo insertaba la fila en wsp_mensajes,
 // así que el mensaje aparecía en el CRM pero nunca salía por WhatsApp.
@@ -53,14 +73,7 @@ export async function sendTextMessage(
     .single()
   if (msgErr) throw msgErr
 
-  await supabase
-    .from('wsp_conversaciones')
-    .update({
-      ultimo_mensaje: contenido.slice(0, 200),
-      ultimo_mensaje_at: new Date().toISOString(),
-      estado: 'Respondido',
-    })
-    .eq('id', conversacionId)
+  await trasContestar(conversacionId, contenido.slice(0, 200))
 
   return msg as WspMensaje
 }
@@ -89,14 +102,7 @@ export async function sendImageMessage(
     .single()
   if (error) throw error
 
-  await supabase
-    .from('wsp_conversaciones')
-    .update({
-      ultimo_mensaje: caption || '📷 Foto',
-      ultimo_mensaje_at: new Date().toISOString(),
-      estado: 'Respondido',
-    })
-    .eq('id', conversacionId)
+  await trasContestar(conversacionId, caption || '📷 Foto')
 
   return msg as WspMensaje
 }
@@ -150,14 +156,7 @@ export async function sendDocumentMessage(
     .single()
   if (error) throw error
 
-  await supabase
-    .from('wsp_conversaciones')
-    .update({
-      ultimo_mensaje: `📎 ${filename}`.slice(0, 200),
-      ultimo_mensaje_at: new Date().toISOString(),
-      estado: 'Respondido',
-    })
-    .eq('id', conversacionId)
+  await trasContestar(conversacionId, `📎 ${filename}`.slice(0, 200))
 
   return msg as WspMensaje
 }

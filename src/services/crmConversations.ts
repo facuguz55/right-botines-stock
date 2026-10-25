@@ -47,10 +47,22 @@ export async function updateCategoria(
   if (logErr) throw logErr
 }
 
+// Marcar "Venta concretada" a mano también deja la fecha de la venta (es lo que
+// cuentan las estadísticas). Sacarla a mano la borra: fue un error.
 export async function updateEstado(conversacionId: string, estado: CrmEstado): Promise<void> {
+  const { data: actual } = await supabase
+    .from('wsp_conversaciones').select('estado, venta_detectada_at').eq('id', conversacionId).maybeSingle()
+  const cambios: Record<string, unknown> = { estado }
+  if (estado === 'Venta concretada' && !actual?.venta_detectada_at) {
+    cambios.venta_detectada_at = new Date().toISOString()
+    cambios.venta_detectada_motivo = 'Marcada a mano'
+  } else if (estado !== 'Venta concretada' && actual?.estado === 'Venta concretada') {
+    cambios.venta_detectada_at = null
+    cambios.venta_detectada_motivo = null
+  }
   const { error } = await supabase
     .from('wsp_conversaciones')
-    .update({ estado })
+    .update(cambios)
     .eq('id', conversacionId)
   if (error) throw error
 }

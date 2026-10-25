@@ -30,6 +30,7 @@ import {
   sufijoTelefono,
   type PedidoTN,
 } from '../src/lib/crmPedidos'
+import { detectarVenta } from '../src/lib/crmVenta'
 
 export const config = { runtime: 'edge' }
 
@@ -237,71 +238,10 @@ async function buscarAprendizajes(texto: string): Promise<string> {
 }
 
 // ── Ventas que el CRM detecta solo ──────────────────────────────────────
-// Cuando el cliente manda un comprobante o los datos de envío después de haber
-// hablado de un pago, la IA lee la charla y, si la venta ya se concretó, la
-// conversación pasa a "Venta concretada" (cuenta en las estadísticas del CRM).
-const PISTAS_PAGO = /transferenc|comprobante|alias|cbu|mercado ?pago|pagu[eé]|abon[eé]|se[ñn]a\b|dep[oó]sit/i
-const PISTAS_ENVIO = /\bdni\b|domicilio|direcci[oó]n|c[oó]digo postal|\bcp\b|localidad|provincia|\bcalle\b|barrio|\b\d{7,8}\b/i
-
-const VENTA_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    venta_concretada: { type: 'boolean' },
-    confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
-    motivo: { type: 'string' },
-  },
-  required: ['venta_concretada', 'confianza', 'motivo'],
-}
-
-const SYSTEM_VENTA = `Leés la charla de WhatsApp entre un cliente y Right Botines (tienda de botines de fútbol) y decidís si la VENTA YA SE CONCRETÓ.
-Se concretó cuando el cliente pagó (mandó el comprobante de la transferencia, o avisó que pagó con link o tarjeta) y la compra avanzó: el local confirmó el pago ("perfecto, gracias") y/o se pidieron o mandaron los datos de envío (nombre, DNI, domicilio, código postal) o se coordinó el retiro.
-NO es venta si solo preguntó precios, pidió los datos para transferir, dijo que va a transferir o que lo piensa, o mandó una foto que no es un comprobante.
-Respondé en JSON. El motivo es una frase corta en español. Usá confianza "alta" solo si no hay dudas.`
-
-async function detectarVenta(conversacionId: string, tipoNuevo: string, textoNuevo: string | null): Promise<void> {
-  try {
-    if (!ANTHROPIC_API_KEY) return
-    const conv = (await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=estado&limit=1`).then(r => r.json()) as { estado: string | null }[])[0]
-    if (!conv || conv.estado === 'Venta concretada') return
-
-    const msgs = (await sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=30`).then(r => r.json()) as { direccion: 'in' | 'out'; tipo: string; contenido: string | null; transcripcion: string | null }[]).reverse()
-    const lineas = msgs.map(m => {
-      const marca = m.tipo === 'image' ? '[foto o comprobante] ' : m.tipo === 'audio' ? '[audio] ' : ''
-      return `${m.direccion === 'in' ? 'Cliente' : 'Local'}: ${marca}${(m.contenido || m.transcripcion || '').trim()}`.trim()
-    })
-    const todo = lineas.join('\n')
-    // Filtro barato para no llamar a la IA en cada mensaje: se habló de un pago y
-    // el mensaje nuevo es una foto/archivo o trae datos de envío.
-    if (!PISTAS_PAGO.test(todo)) return
-    if (!(tipoNuevo === 'image' || PISTAS_ENVIO.test(textoNuevo ?? ''))) return
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 300,
-        system: SYSTEM_VENTA,
-        output_config: { format: { type: 'json_schema', schema: VENTA_SCHEMA } },
-        messages: [{ role: 'user', content: `Charla (de la más vieja a la más nueva):\n${todo}` }],
-      }),
-    })
-    if (!res.ok) { console.error('venta: Anthropic respondió', res.status); return }
-    const data = await res.json() as { content?: { type: string; text?: string }[] }
-    const raw = data.content?.find(b => b.type === 'text')?.text
-    if (!raw) return
-    const r = JSON.parse(raw) as { venta_concretada: boolean; confianza: string; motivo: string }
-    if (!r.venta_concretada || r.confianza !== 'alta') return
-
-    await sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ estado: 'Venta concretada', venta_detectada_at: new Date().toISOString(), venta_detectada_motivo: r.motivo.slice(0, 200) }),
-    })
-  } catch (err) {
-    console.error('venta: error al detectar la venta', err)
-  }
-}
+// La lógica vive en src/lib/crmVenta.ts (la usa también api/crm-detectar-venta.ts
+// cuando contesta el local). Mira la charla y las fotos/archivos del cliente: si
+// hay comprobante o pago confirmado, marca venta_detectada_at, que es lo que cuentan
+// las estadísticas del CRM.
 
 // Stock real para el talle buscado (y el modelo, si lo nombró), contado POR
 // TIPO — sin filtrar por el tipo pedido, para poder decir "de Fútbol 5 no,
@@ -691,6 +631,7 @@ export default async function handler(req: Request): Promise<Response> {
               context?: { id?: string }
               text?: { body: string }
               image?: { id: string; mime_type: string; caption?: string }
+              document?: { id: string; mime_type: string; caption?: string; filename?: string }
               audio?: { id: string; mime_type: string }
             }[]
             contacts?: { profile?: { name?: string }; wa_id: string }[]
@@ -726,6 +667,11 @@ export default async function handler(req: Request): Promise<Response> {
             tipo = 'image'
             // De un contacto bloqueado no se baja la foto.
             if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.image.id, msg.image.mime_type)
+          } else if (msg.type === 'document' && msg.document) {
+            // Comprobantes en PDF, sobre todo.
+            contenido = msg.document.caption || msg.document.filename || null
+            tipo = 'document'
+            if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.document.id, msg.document.mime_type)
           } else if (msg.type === 'audio' && msg.audio) {
             tipo = 'audio'
             if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.audio.id, msg.audio.mime_type)
@@ -802,8 +748,8 @@ export default async function handler(req: Request): Promise<Response> {
           ]).catch(console.error)
 
           await Promise.race([
-            detectarVenta(conversacionId, tipo, contenido),
-            new Promise<void>(resolve => setTimeout(resolve, 5000)),
+            detectarVenta({ sbFetch, anthropicKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL }, conversacionId, 'cliente'),
+            new Promise<boolean>(resolve => setTimeout(() => resolve(false), 9000)),
           ]).catch(console.error)
 
           if (tipo === 'image' && mediaUrl) {

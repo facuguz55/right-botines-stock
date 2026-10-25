@@ -384,3 +384,6 @@
     width: 100%;
   }
 }
+
+.crm-dash-acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.crm-dash-aviso { flex-basis: 100%; text-align: right; font-size: 0.8rem; color: var(--text-secondary); }

@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { Download, Loader2, MessageSquare, Clock, TrendingUp, Users, Zap, MailWarning } from 'lucide-react'
+import { Download, Loader2, ScanSearch, MessageSquare, Clock, TrendingUp, Users, Zap, MailWarning } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useCrmStats } from '../../../hooks/useCrmStats'
 import { CATEGORIA_COLORS } from '../../../types/crm'
@@ -35,7 +35,28 @@ function formatoHoras(h: number): string {
 }
 
 export function CrmDashboard() {
-  const { stats, loading, range, setRange } = useCrmStats()
+  const { stats, loading, range, setRange, reload } = useCrmStats()
+  const [buscando, setBuscando] = useState(false)
+  const [aviso, setAviso] = useState<string | null>(null)
+
+  // Vuelve a mirar los chats de la última semana que no tienen venta marcada
+  // (comprobantes que se pasaron, ventas de antes de que existiera el detector).
+  async function buscarVentas() {
+    setBuscando(true); setAviso(null)
+    try {
+      const res = await fetch('/api/crm-detectar-venta', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revisarDias: 7 }),
+      })
+      const r = await res.json() as { marcadas?: number; revisadas?: number; error?: string }
+      if (!res.ok) throw new Error(r.error || `Error ${res.status}`)
+      setAviso(r.marcadas ? `Encontré ${r.marcadas} ${r.marcadas === 1 ? 'venta nueva' : 'ventas nuevas'}.` : 'No encontré ventas sin marcar.')
+      if (r.marcadas) reload()
+    } catch (err) {
+      setAviso(`No se pudo revisar: ${err instanceof Error ? err.message : err}`)
+    } finally {
+      setBuscando(false)
+    }
+  }
 
   const presets = useMemo(() => {
     const hoy = toISOLocal(new Date())
@@ -82,9 +103,15 @@ export function CrmDashboard() {
           <h1 className="page-title">Estadísticas</h1>
           <p className="page-subtitle">WhatsApp: cuánto escriben, qué piden y cómo se atiende</p>
         </div>
-        <button className="crm-dash-export" onClick={exportExcel} disabled={!stats || loading}>
-          <Download size={16} /> Exportar Excel
-        </button>
+        <div className="crm-dash-acciones">
+          <button className="crm-dash-export" onClick={buscarVentas} disabled={buscando} title="Revisa los chats de la última semana buscando comprobantes y pagos confirmados">
+            {buscando ? <Loader2 size={16} className="crm-dash-spin" /> : <ScanSearch size={16} />} {buscando ? 'Buscando…' : 'Buscar ventas'}
+          </button>
+          <button className="crm-dash-export" onClick={exportExcel} disabled={!stats || loading}>
+            <Download size={16} /> Exportar Excel
+          </button>
+          {aviso && <span className="crm-dash-aviso">{aviso}</span>}
+        </div>
       </div>
 
       <div className="crm-dash-range">
@@ -141,7 +168,7 @@ function Contenido({ stats }: { stats: CrmStatsData }) {
         <KpiCard icon={<MailWarning size={18} />} label="Sin leer ahora" value={stats.sinLeer.cantidad.toLocaleString('es-AR')}
           sub={stats.sinLeer.masViejaHoras != null ? `El más viejo espera hace ${formatoHoras(stats.sinLeer.masViejaHoras)}` : 'Todo al día'} />
         <KpiCard icon={<TrendingUp size={18} />} label="Ventas concretadas" value={stats.conversion.concretadas.toLocaleString('es-AR')}
-          sub={`${stats.conversion.porcentaje}% de los chats nuevos`} accent />
+          sub={`${stats.conversion.porcentaje}% de los chats con actividad`} accent />
       </div>
 
       <Tarjeta titulo="Mensajes por día">
