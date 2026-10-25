@@ -65,6 +65,14 @@ export async function updateEstado(conversacionId: string, estado: CrmEstado): P
     .update(cambios)
     .eq('id', conversacionId)
   if (error) throw error
+  // Historial de ventas (crm_ventas): se suma la marcada a mano o se borra la última si fue un error.
+  if (cambios.venta_detectada_at) {
+    await supabase.from('crm_ventas').insert([{ conversacion_id: conversacionId, detectada_at: cambios.venta_detectada_at, motivo: 'Marcada a mano', origen: 'manual' }])
+  } else if (cambios.venta_detectada_at === null) {
+    const { data: ultima } = await supabase.from('crm_ventas').select('id')
+      .eq('conversacion_id', conversacionId).order('detectada_at', { ascending: false }).limit(1).maybeSingle()
+    if (ultima) await supabase.from('crm_ventas').delete().eq('id', ultima.id)
+  }
 }
 
 export async function markAsRead(conversacionId: string): Promise<void> {

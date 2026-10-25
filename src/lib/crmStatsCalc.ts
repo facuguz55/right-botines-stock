@@ -33,6 +33,7 @@ export interface FotoRaw {
   modelos: { marca: string; modelo: string } | null
 }
 export interface AprRaw { origen: string }
+export interface VentaRaw { conversacion_id: string; detectada_at: string; monto: number | null; atendio: string }
 export interface EtiquetaRaw { id: string; nombre: string; color: string }
 export interface AsignacionRaw { conversacion_id: string; etiqueta_id: string }
 
@@ -46,6 +47,8 @@ export interface DatosStats {
   aprendizajes: AprRaw[]
   etiquetas: EtiquetaRaw[]
   asignaciones: AsignacionRaw[]
+  // Tabla crm_ventas (una fila por venta). Si no viene, se cuenta por chat como antes.
+  ventas?: VentaRaw[]
   ahora?: number
 }
 
@@ -211,8 +214,16 @@ export function calcularStats(d: DatosStats): CrmStatsData {
     }
     return c.estado === 'Venta concretada'
   }
-  const concretadasActivas = activosLista.filter(id => ventaEnRango(convPorId.get(id)))
-  const concretadasNuevas = d.conversaciones.filter(c => ventaEnRango(c) && c.categoria !== 'Spam' && (c.venta_detectada_at || nuevos.includes(c))).length
+  const ventasRango = d.ventas?.filter(v => {
+    const f = toISOLocal(new Date(v.detectada_at))
+    return f >= d.inicio && f <= d.fin
+  })
+  const chatsConVenta = ventasRango ? new Set(ventasRango.map(v => v.conversacion_id)) : null
+  const concretadasActivas = activosLista.filter(id => chatsConVenta ? chatsConVenta.has(id) : ventaEnRango(convPorId.get(id)))
+  const concretadasNuevas = ventasRango
+    ? ventasRango.length
+    : d.conversaciones.filter(c => ventaEnRango(c) && c.categoria !== 'Spam' && (c.venta_detectada_at || nuevos.includes(c))).length
+  const conMonto = (ventasRango ?? []).filter(v => v.monto != null && v.monto > 0)
   const embudo = [
     { etapa: 'Chats con actividad', cantidad: activosLista.length },
     { etapa: 'Right les contestó', cantidad: activosLista.filter(id => conRespuesta.has(id)).length },
@@ -329,6 +340,9 @@ export function calcularStats(d: DatosStats): CrmStatsData {
       chatsNuevos: nuevos.length,
       concretadas: concretadasNuevas,
       porcentaje: pct(concretadasNuevas, activosLista.length),
+      monto: Math.round(conMonto.reduce((s, v) => s + Number(v.monto), 0)),
+      conMonto: conMonto.length,
+      porBot: (ventasRango ?? []).filter(v => v.atendio === 'bot').length,
     },
     embudo,
     porCategoria,

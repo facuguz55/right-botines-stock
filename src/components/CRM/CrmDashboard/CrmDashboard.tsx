@@ -80,6 +80,7 @@ export function CrmDashboard() {
       'Respuesta típica (min)': stats.respuesta.medianaMin, 'Respuesta promedio (min)': stats.respuesta.promedioMin,
       'Contestados en 1 h (%)': stats.respuesta.dentroDe60, 'Sin leer ahora': stats.sinLeer.cantidad,
       'Ventas concretadas': stats.conversion.concretadas, 'Conversion (%)': stats.conversion.porcentaje,
+      'Monto con comprobante': stats.conversion.monto, 'Ventas cerradas por el bot': stats.conversion.porBot,
     }])
     hoja('Mensajes por dia', stats.mensajesPorDia)
     hoja('Embudo', stats.embudo)
@@ -168,7 +169,11 @@ function Contenido({ stats }: { stats: CrmStatsData }) {
         <KpiCard icon={<MailWarning size={18} />} label="Sin leer ahora" value={stats.sinLeer.cantidad.toLocaleString('es-AR')}
           sub={stats.sinLeer.masViejaHoras != null ? `El más viejo espera hace ${formatoHoras(stats.sinLeer.masViejaHoras)}` : 'Todo al día'} />
         <KpiCard icon={<TrendingUp size={18} />} label="Ventas concretadas" value={stats.conversion.concretadas.toLocaleString('es-AR')}
-          sub={`${stats.conversion.porcentaje}% de los chats con actividad`} accent />
+          sub={[
+            `${stats.conversion.porcentaje}% de los chats con actividad`,
+            stats.conversion.conMonto ? `$${stats.conversion.monto.toLocaleString('es-AR')} en ${stats.conversion.conMonto} con comprobante` : null,
+            stats.conversion.porBot ? `${stats.conversion.porBot} las cerró el bot` : null,
+          ].filter(Boolean).join(' · ')} accent />
       </div>
 
       <Tarjeta titulo="Mensajes por día">

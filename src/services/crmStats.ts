@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { CrmStatsData } from '../types/crm'
-import { calcularStats, type AprRaw, type AsignacionRaw, type ConvRaw, type EtiquetaRaw, type FotoRaw, type MsgRaw, type SugRaw } from '../lib/crmStatsCalc'
+import { calcularStats, type AprRaw, type AsignacionRaw, type VentaRaw, type ConvRaw, type EtiquetaRaw, type FotoRaw, type MsgRaw, type SugRaw } from '../lib/crmStatsCalc'
 
 const PAGINA = 1000
 
@@ -25,7 +25,7 @@ export async function fetchCrmStats(inicio: string, fin: string): Promise<CrmSta
   const desdeISO = `${inicio}T00:00:00-03:00`
   const hastaISO = `${fin}T23:59:59.999-03:00`
 
-  const [mensajes, conversaciones, sugerencias, fotos, aprendizajes, etiquetas, asignaciones] = await Promise.all([
+  const [mensajes, conversaciones, sugerencias, fotos, aprendizajes, etiquetas, asignaciones, ventas] = await Promise.all([
     traerTodo<MsgRaw>((a, b) => supabase.from('wsp_mensajes')
       .select('id, direccion, tipo, timestamp, conversacion_id, automatico')
       .gte('timestamp', desdeISO).lte('timestamp', hastaISO)
@@ -48,7 +48,11 @@ export async function fetchCrmStats(inicio: string, fin: string): Promise<CrmSta
     traerTodo<EtiquetaRaw>((a, b) => supabase.from('wsp_etiquetas').select('id, nombre, color').order('id').range(a, b)).catch(() => [] as EtiquetaRaw[]),
     traerTodo<AsignacionRaw>((a, b) => supabase.from('wsp_conversacion_etiquetas')
       .select('conversacion_id, etiqueta_id').order('conversacion_id').order('etiqueta_id').range(a, b)).catch(() => [] as AsignacionRaw[]),
+    traerTodo<VentaRaw>((a, b) => supabase.from('crm_ventas')
+      .select('id, conversacion_id, detectada_at, monto, atendio')
+      .gte('detectada_at', desdeISO).lte('detectada_at', hastaISO)
+      .order('detectada_at').order('id').range(a, b)).catch(() => undefined),
   ])
 
-  return calcularStats({ inicio, fin, mensajes, conversaciones, sugerencias, fotos, aprendizajes, etiquetas, asignaciones })
+  return calcularStats({ inicio, fin, mensajes, conversaciones, sugerencias, fotos, aprendizajes, etiquetas, asignaciones, ventas })
 }

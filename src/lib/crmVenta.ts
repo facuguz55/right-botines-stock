@@ -19,6 +19,7 @@ export interface MensajeVenta {
   transcripcion: string | null
   media_url: string | null
   timestamp: string
+  automatico?: string | null
 }
 
 export type Disparador = 'cliente' | 'local' | 'revision'
@@ -125,7 +126,7 @@ export async function detectarVenta(deps: DepsVenta, conversacionId: string, dis
     if (!conv) return false
     const anterior = conv.venta_detectada_at ? Date.parse(conv.venta_detectada_at) : null
 
-    let msgs = (await deps.sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion,media_url,timestamp&order=timestamp.desc&limit=30`).then(r => r.json()) as MensajeVenta[]).reverse()
+    let msgs = (await deps.sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion,media_url,timestamp,automatico&order=timestamp.desc&limit=30`).then(r => r.json()) as MensajeVenta[]).reverse()
     // Si ya se marcó una venta, solo cuenta lo que vino después (una compra nueva).
     if (anterior) {
       if (Date.now() - anterior < DIAS_ENTRE_VENTAS * 86400_000) return false
@@ -137,10 +138,18 @@ export async function detectarVenta(deps: DepsVenta, conversacionId: string, dis
     if (!r?.venta) return false
 
     const motivo = (r.monto ? `$${Math.round(r.monto).toLocaleString('es-AR')} · ` : '') + r.motivo
+    const ahora = new Date().toISOString()
     await deps.sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ estado: 'Venta concretada', venta_detectada_at: new Date().toISOString(), venta_detectada_motivo: motivo.slice(0, 200) }),
+      body: JSON.stringify({ estado: 'Venta concretada', venta_detectada_at: ahora, venta_detectada_motivo: motivo.slice(0, 200) }),
     })
+    // Una fila por venta (tabla crm_ventas): monto y si la cerró el bot.
+    // El bot guarda sus mensajes con automatico = 'bot'.
+    const atendio = msgs.some(m => m.direccion === 'out' && m.automatico === 'bot') ? 'bot' : 'humano'
+    await deps.sbFetch('crm_ventas', {
+      method: 'POST',
+      body: JSON.stringify({ conversacion_id: conversacionId, detectada_at: ahora, monto: r.monto, motivo: r.motivo.slice(0, 300), origen: 'ia', atendio }),
+    }).catch(err => console.error('venta: no se pudo guardar en crm_ventas', err))
     return true
   } catch (err) {
     console.error('venta: error al detectar la venta', err)

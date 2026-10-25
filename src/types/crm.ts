@@ -153,7 +153,7 @@ export interface CrmStatsData {
   }
   // Chats sin leer en este momento (no depende del rango de fechas).
   sinLeer: { cantidad: number; masViejaHoras: number | null }
-  conversion: { chatsNuevos: number; concretadas: number; porcentaje: number }
+  conversion: { chatsNuevos: number; concretadas: number; porcentaje: number; monto: number; conMonto: number; porBot: number }
   embudo: { etapa: string; cantidad: number }[]
   porCategoria: { categoria: string; cantidad: number }[]
   // Mensajes recibidos por día de la semana (lunes a domingo) y hora (0-23), hora de Argentina.
