@@ -98,7 +98,7 @@ export function montoDeLaCharla(msgs: MensajeVenta[]): number | null {
 // Mira un pago puntual del cliente (posición f). null si no es un pago confirmado.
 function evaluarPago(msgs: MensajeVenta[], f: number): { resultado: Exclude<ResultadoReglas, 'nada'>; monto: number | null } | null {
   if (!esPagoDelCliente(msgs[f])) return null
-  const despues = msgs.slice(f + 1, f + 7).filter(m => m.direccion === 'out')
+  const despues = msgs.slice(f + 1, f + 11).filter(m => m.direccion === 'out')
   // "Recibido" / "quedó registrada tu compra" es firme. Un "gracias" o "perfecto"
   // suelto no: la foto puede ser el diseño del personalizado (pasó) → que mire la IA.
   const firme = despues.some(m => CONFIRMA.test(texto(m)))
@@ -112,8 +112,10 @@ function evaluarPago(msgs: MensajeVenta[], f: number): { resultado: Exclude<Resu
   const desde = Math.max(0, (p >= 0 ? p : f) - 12)
   const ventana = msgs.slice(desde, f + 7)
   const hayTexto = (re: RegExp) => ventana.some(m => re.test(texto(m)))
+  // "El número de orden del anterior es #826" habla de otra compra: no la hace web.
+  const esWeb = ventana.some(m => WEB.test(texto(m)) && !/anterior|otra compra|la vez pasada/i.test(texto(m)))
 
-  if (hayTexto(WEB)) return { resultado: 'web', monto: null }
+  if (esWeb) return { resultado: 'web', monto: null }
   // Fotos sin alias ni charla de pago (por ejemplo "llegaron los botines"): no es un pago.
   if (p < 0 && !ventana.some(m => m.direccion === 'in' && AVISA_PAGO.test(texto(m)))) return null
   if (p < 0 || hayTexto(POSTVENTA) || !firme) return { resultado: 'dudoso', monto: null }

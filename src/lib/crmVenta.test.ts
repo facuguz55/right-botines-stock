@@ -62,6 +62,24 @@ describe('ventas cerradas por WhatsApp', () => {
     )
     expect(clasificarPorReglas(m)).toEqual({ resultado: 'venta', monto: 108500 })
   })
+  it('Mel: compra nueva por chat aunque nombra un pedido anterior', () => {
+    expect(clase(charla(
+      'L:Sino también si te parece te puedo tomar la compra por acá', 'L:Que modelos te había gustado?',
+      'C:(foto no incluida en la exportación)', 'C:En talle 41', 'C:Y quería personalizarlos', 'C:Y ya te envío el comprobante',
+      'C:Me pasas el alias', 'L:BOTINES.RIGHT Ese sería el alias a nombre de Marcelo benjamín Fernández', 'L:Es de personal pay',
+      'C:attachment.pdf • 1 página (documento no incluido en la exportación)', 'L:Recibido! Muchas gracias por elegirnos nuevamente 🤗',
+      'C:El número de orden del anterior es #826', 'L:Dale muchas gracias!',
+    ))).toBe('venta')
+  })
+  it('Gonzaa: "quedó registrada tu compra" unos mensajes después del comprobante', () => {
+    expect(clase(charla(
+      'L:Con envío incluido te quedaría en $108.500 con transferencia!', 'C:Te pagaría por transferencia',
+      'L:BOTINES.RIGHT a nombre de Marcelo benjamín Fernández', 'C:Dale ya te paso', 'C:[image]', 'L:Perfecto, muchas gracias',
+      'L:DATOS DE ENVIO •Nombre y apellido:', 'L:Esos datos vamos a necesitar para el envío', 'C:DATOS DE ENVIO •Nombre: Gonzalo',
+      'C:Perdona', 'C:Ya te mando completo', 'C:DATOS DE ENVIO •Nombre: Gonzalo •DNI', 'L:Buenísimo! Muchas gracias! Mañana ya va a estar saliendo 🤗',
+      'L:Listo, quedó registrada tu compra: - Nike Vapor Rosa Blanco talle 44',
+    ))).toBe('venta')
+  })
 })
 
 describe('pedidos de la web pagados por WhatsApp', () => {
