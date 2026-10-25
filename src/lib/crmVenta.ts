@@ -73,6 +73,7 @@ Clasificá la charla en un tipo:
 - "pedido_web": el cliente ya había comprado en la página web (menciona un número de pedido, "hice una compra", "compré en la web") y por WhatsApp solo manda el comprobante, pregunta por el pedido o confirma datos.
 - "postventa": todo lo que pasa con una compra ya hecha: el envío o el Uber de un pedido, avisar que llegó, seguimiento, cambios de talle o de modelo, reemplazos porque no había stock o el paquete no llegó, devoluciones, pagar el envío o la diferencia de un cambio, regalos por las molestias.
 - "consulta": preguntas de precio o stock, pidió el alias, dijo que va a pagar o lo piensa, o nada de lo anterior.
+Si en la charla aparece un cambio o una devolución (el cliente devolvió un producto, pide otro talle o modelo en lugar del que compró, o se habla de "la diferencia" o de "a favor"), es "postventa" aunque mande comprobantes: lo que paga es la diferencia o el envío, y el comprobante puede ser el de la compra original.
 Ojo: las fotos que manda el cliente pueden ser botines, capturas de la tienda o del chat. Solo es comprobante si se ve un pago (monto, fecha, operación, destinatario).
 Si hay comprobante de una venta nueva, poné el monto (número, sin signos); si no, null.
 El motivo es una frase corta en español que diga qué compró y cómo pagó (por ejemplo: "Nike Tiempo Blanco 39, transferencia de $85.000").
