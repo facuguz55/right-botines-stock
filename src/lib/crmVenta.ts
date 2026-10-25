@@ -70,7 +70,7 @@ const VENTA_SCHEMA = {
 const SYSTEM_VENTA = `Leés la charla de WhatsApp entre un cliente y Right Botines (tienda de botines de fútbol) y decidís si en esta charla se CERRÓ UNA COMPRA NUEVA. Junto con la charla pueden venir las fotos o archivos que mandó el cliente.
 Clasificá la charla en un tipo:
 - "venta_nueva": el cliente eligió un producto en esta charla (o pidió uno que no había comprado antes) y PAGÓ: mandó el comprobante de la transferencia / Mercado Pago / depósito, o el local confirmó que recibió el pago, o quedó registrada la compra con pago o seña. Tiene que haber pago, no alcanza con que elija.
-- "pedido_web": el cliente ya había comprado en la página web (menciona un número de pedido, "hice una compra", "compré en la web") y por WhatsApp solo manda el comprobante, pregunta por el pedido o confirma datos.
+- "pedido_web": el cliente ya había comprado en la página web (menciona un número de pedido, "hice una compra", "realicé una compra", "compré en la web") y por WhatsApp solo manda el comprobante, pregunta por el pedido o confirma datos. Si en la charla no se eligió el producto ni se habló de precio o alias antes del comprobante, es "pedido_web".
 - "postventa": todo lo que pasa con una compra ya hecha: el envío o el Uber de un pedido, avisar que llegó, seguimiento, cambios de talle o de modelo, reemplazos porque no había stock o el paquete no llegó, devoluciones, pagar el envío o la diferencia de un cambio, regalos por las molestias.
 - "consulta": preguntas de precio o stock, pidió el alias, dijo que va a pagar o lo piensa, o nada de lo anterior.
 Si en la charla aparece un cambio o una devolución (el cliente devolvió un producto, pide otro talle o modelo en lugar del que compró, o se habla de "la diferencia" o de "a favor"), es "postventa" aunque mande comprobantes: lo que paga es la diferencia o el envío, y el comprobante puede ser el de la compra original.
@@ -124,6 +124,11 @@ export async function evaluarVenta(deps: DepsVenta, msgs: MensajeVenta[]): Promi
   return { venta, pagoWeb, tipo: r.tipo, motivo: r.motivo, monto: typeof r.monto === 'number' && r.monto > 0 ? r.monto : null }
 }
 
+function fechaDelPago(msgs: MensajeVenta[]): string {
+  const archivo = [...msgs].reverse().find(m => m.direccion === 'in' && esArchivo(m.tipo))
+  return new Date(archivo?.timestamp ?? msgs[msgs.length - 1]?.timestamp ?? Date.now()).toISOString()
+}
+
 // Los últimos 30 mensajes del chat, del más viejo al más nuevo (hasta `hasta`, si viene).
 export async function traerMensajes(deps: DepsVenta, conversacionId: string, hasta?: string): Promise<MensajeVenta[]> {
   const filtro = hasta ? `&timestamp=lte.${encodeURIComponent(hasta)}` : ''
@@ -154,14 +159,16 @@ export async function detectarVenta(deps: DepsVenta, conversacionId: string, dis
       // no es una venta del CRM y el chat no cambia de estado.
       await deps.sbFetch('crm_ventas', {
         method: 'POST',
-        body: JSON.stringify({ conversacion_id: conversacionId, monto: r.monto, motivo: r.motivo.slice(0, 300), origen: 'ia', tipo: 'web' }),
+        body: JSON.stringify({ conversacion_id: conversacionId, detectada_at: fechaDelPago(msgs), monto: r.monto, motivo: r.motivo.slice(0, 300), origen: 'ia', tipo: 'web' }),
       })
       return false
     }
     if (!r.venta) return false
 
     const motivo = (r.monto ? `$${Math.round(r.monto).toLocaleString('es-AR')} · ` : '') + r.motivo
-    const ahora = new Date().toISOString()
+    // Fecha de la venta: la del último comprobante (foto/archivo) del cliente, así una
+    // revisión de días anteriores no la anota como si fuera de hoy.
+    const ahora = fechaDelPago(msgs)
     await deps.sbFetch(`wsp_conversaciones?id=eq.${conversacionId}`, {
       method: 'PATCH',
       body: JSON.stringify({ estado: 'Venta concretada', venta_detectada_at: ahora, venta_detectada_motivo: motivo.slice(0, 200) }),
