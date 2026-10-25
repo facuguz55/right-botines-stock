@@ -1,4 +1,4 @@
-import { detectarVenta, evaluarVenta, traerMensajes } from '../src/lib/crmVenta'
+import { detectarVenta, evaluarVenta, pagosDelHistorial, traerMensajes, type MensajeVenta } from '../src/lib/crmVenta'
 
 export const config = { runtime: 'edge' }
 
@@ -9,6 +9,8 @@ export const config = { runtime: 'edge' }
 //   no tienen venta marcada (para no perder las que pasaron antes de este cambio).
 // - { evaluar: [{ conversacionId, hasta? }] }: solo dice qué opina la IA, sin guardar
 //   nada (para controlar el detector contra charlas reales).
+// - { auditarReglas: true }: pasa las reglas (sin IA) por el historial completo de
+//   todos los chats y devuelve cada pago que encuentran. No guarda nada.
 // El webhook de WhatsApp hace lo mismo cuando escribe el cliente.
 
 const SB_URL = process.env.SUPABASE_URL ?? ''
@@ -50,7 +52,19 @@ export default async function handler(req: Request): Promise<Response> {
 
   const deps = { sbFetch, anthropicKey: ANTHROPIC_API_KEY }
   try {
-    const body = await req.json() as { conversacionId?: string; revisarDias?: number; evaluar?: { conversacionId: string; hasta?: string }[] }
+    const body = await req.json() as { conversacionId?: string; revisarDias?: number; evaluar?: { conversacionId: string; hasta?: string }[]; auditarReglas?: boolean }
+
+    if (body.auditarReglas) {
+      const convs = await sbFetch('wsp_conversaciones?select=id,nombre&limit=1000').then(r => r.json()) as { id: string; nombre: string | null }[]
+      const pagos: unknown[] = []
+      for (let i = 0; i < convs.length; i += 10) {
+        await Promise.all(convs.slice(i, i + 10).map(async c => {
+          const msgs = await sbFetch(`wsp_mensajes?conversacion_id=eq.${c.id}&select=direccion,tipo,contenido,transcripcion,media_url,timestamp&order=timestamp.asc&limit=2000`).then(r => r.json()) as MensajeVenta[]
+          for (const p of pagosDelHistorial(msgs)) pagos.push({ conversacionId: c.id, nombre: c.nombre, ...p })
+        }))
+      }
+      return json({ ok: true, chats: convs.length, pagos })
+    }
 
     if (Array.isArray(body.evaluar)) {
       const casos = body.evaluar.filter(c => /^[0-9a-f-]{36}$/i.test(c.conversacionId)).slice(0, 12)

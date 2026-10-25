@@ -52,6 +52,97 @@ export function valeLaPenaRevisar(msgs: MensajeVenta[], disparador: Disparador):
   return esArchivo(ultimo.tipo) || (hablaronDePago && (PISTAS_PAGO.test(t) || PISTAS_ENVIO.test(t)))
 }
 
+// ── Reglas (sin IA) ─────────────────────────────────────────────────────
+// Sacadas de revisar a mano los 157 chats (24/10). Una venta cerrada por WhatsApp
+// siempre tuvo esta forma: el local pasa el alias / CBU / link de pago → el cliente
+// manda el comprobante (foto o PDF) o avisa que transfirió → el local confirma
+// ("Recibido!", "quedó registrada tu compra", "muchas gracias").
+// Si en esa charla hay un pedido de la web (nº de pedido, "hice una compra") es un
+// pago web. Si se habla de cambio, diferencia, devolución… puede ser postventa: ahí
+// (y solo ahí) decide la IA.
+
+const ARCHIVO_IMPORTADO = /foto no incluida|documento no incluido|attachment\.pdf|\.pdf\b/i
+const AVISA_PAGO = /(paso|mando|env[ií]o|adjunto|ah[ií] (va|est[aá])) (el |tu )?comprobante|comprobante (de (la )?(transferencia|pago))|te transfer[ií]|ya (te )?(transfer[ií]|pagu[eé]|abon[eé]|lo pagu[eé])|ah[ií] (te )?(transfer[ií]|pagu[eé])/i
+const DATOS_PAGO = /alias|\bcbu\b|\bcvu\b|botines\.right|naranja\.botines|mpago\.la|link de pago|mercadopago\.com/i
+const CONFIRMA = /recibid[oa]|registrada tu compra|gracias por (tu compra|elegirnos)|pago (confirmado|acreditado)|ya (est[aá] )?(confirmad|acreditad)/i
+const GRACIAS = /gracias|perfecto|buen[ií]simo/i
+const WEB = /pedido n[º°o.]|pedido #?\d{3,4}|#\d{3,4}\b|en relaci[oó]n a tu pedido|hic(e|imos) (una|la) compr|realic[eé] (una|la) compr|compr[eé] (en|por|desde) la (web|p[aá]gina)|en la web ya est|compra (desde|por|en) la (web|p[aá]gina)|n[uú]mero de (orden|pedido)/i
+const POSTVENTA = /cambi(o|ar|amos|arlo|arlos|arla)\b|diferencia|ida y vuelta|devol|r[oó]tulo|a favor|reembols|no (nos )?lleg[oó] (el|tu) paquete/i
+
+const texto = (m: MensajeVenta) => m.contenido || m.transcripcion || ''
+const esPagoDelCliente = (m: MensajeVenta) =>
+  m.direccion === 'in' && (esArchivo(m.tipo) || ARCHIVO_IMPORTADO.test(texto(m)) || AVISA_PAGO.test(texto(m)))
+
+export type ResultadoReglas = 'venta' | 'web' | 'dudoso' | 'nada'
+
+// El monto: el último precio que pasó el local antes del pago. Si en el mismo mensaje
+// hay dos (transferencia / tarjeta), se elige según lo que dijo el cliente.
+export function montoDeLaCharla(msgs: MensajeVenta[]): number | null {
+  const pagaConTarjeta = msgs.some(m => m.direccion === 'in' && /tarjeta|cuotas|link/i.test(texto(m)))
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]
+    if (m.direccion !== 'out') continue
+    const t = texto(m)
+    const montos = [...t.matchAll(/\$\s?(\d{1,3}(?:[.,]\d{3})+|\d{4,7})/g)]
+      .map(x => ({ valor: Number(x[1].replace(/[.,]/g, '')), despues: t.slice(x.index! + x[0].length, x.index! + x[0].length + 30) }))
+      .filter(x => x.valor >= 20000)
+    if (!montos.length) continue
+    if (montos.length === 1) return montos[0].valor
+    const conTarjeta = montos.find(x => /tarjeta|cuotas/i.test(x.despues))
+    if (pagaConTarjeta && conTarjeta) return conTarjeta.valor
+    return montos.find(x => !/tarjeta|cuotas/i.test(x.despues))?.valor ?? montos[0].valor
+  }
+  return null
+}
+
+// Mira un pago puntual del cliente (posición f). null si no es un pago confirmado.
+function evaluarPago(msgs: MensajeVenta[], f: number): { resultado: Exclude<ResultadoReglas, 'nada'>; monto: number | null } | null {
+  if (!esPagoDelCliente(msgs[f])) return null
+  const despues = msgs.slice(f + 1, f + 7).filter(m => m.direccion === 'out')
+  // "Recibido" / "quedó registrada tu compra" es firme. Un "gracias" o "perfecto"
+  // suelto no: la foto puede ser el diseño del personalizado (pasó) → que mire la IA.
+  const firme = despues.some(m => CONFIRMA.test(texto(m)))
+  const suelto = despues.slice(0, 3).some(m => GRACIAS.test(texto(m)))
+  if (!firme && !suelto) return null
+
+  let p = -1
+  for (let i = f - 1; i >= Math.max(0, f - 25); i--) {
+    if (msgs[i].direccion === 'out' && DATOS_PAGO.test(texto(msgs[i]))) { p = i; break }
+  }
+  const desde = Math.max(0, (p >= 0 ? p : f) - 12)
+  const ventana = msgs.slice(desde, f + 7)
+  const hayTexto = (re: RegExp) => ventana.some(m => re.test(texto(m)))
+
+  if (hayTexto(WEB)) return { resultado: 'web', monto: null }
+  // Fotos sin alias ni charla de pago (por ejemplo "llegaron los botines"): no es un pago.
+  if (p < 0 && !ventana.some(m => m.direccion === 'in' && AVISA_PAGO.test(texto(m)))) return null
+  if (p < 0 || hayTexto(POSTVENTA) || !firme) return { resultado: 'dudoso', monto: null }
+  return { resultado: 'venta', monto: montoDeLaCharla(msgs.slice(desde, f)) }
+}
+
+// El último pago del cliente que el local confirmó.
+export function clasificarPorReglas(msgs: MensajeVenta[]): { resultado: ResultadoReglas; monto: number | null } {
+  for (let f = msgs.length - 1; f >= 0; f--) {
+    const r = evaluarPago(msgs, f)
+    if (r) return r
+  }
+  return { resultado: 'nada', monto: null }
+}
+
+// Todos los pagos de un historial completo (para auditar las reglas contra los chats).
+// Varios archivos del mismo pago (foto + PDF) cuentan una vez.
+export function pagosDelHistorial(msgs: MensajeVenta[]): { fecha: string; resultado: ResultadoReglas; monto: number | null }[] {
+  const out: { fecha: string; resultado: ResultadoReglas; monto: number | null; i: number }[] = []
+  msgs.forEach((_, f) => {
+    const r = evaluarPago(msgs, f)
+    if (!r) return
+    const prev = out[out.length - 1]
+    if (prev && f - prev.i <= 6) return
+    out.push({ ...r, fecha: msgs[f].timestamp, i: f })
+  })
+  return out.map(({ i: _i, ...r }) => r)
+}
+
 const VENTA_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -152,7 +243,14 @@ export async function detectarVenta(deps: DepsVenta, conversacionId: string, dis
     }
     if (!valeLaPenaRevisar(msgs, disparador)) return false
 
-    const r = await evaluarVenta(deps, msgs)
+    // Primero las reglas (gratis). La IA solo para los casos dudosos.
+    const reglas = clasificarPorReglas(msgs)
+    if (reglas.resultado === 'nada') return false
+    const r: ResultadoVenta | null = reglas.resultado === 'venta'
+      ? { venta: true, pagoWeb: false, tipo: 'venta_nueva', motivo: 'Pago confirmado en el chat (reglas)', monto: reglas.monto }
+      : reglas.resultado === 'web'
+        ? { venta: false, pagoWeb: true, tipo: 'pedido_web', motivo: 'Pedido de la web pagado por WhatsApp (reglas)', monto: null }
+        : await evaluarVenta(deps, msgs)
     if (!r) return false
     if (r.pagoWeb) {
       // Pedido de la web que mandó el comprobante por WhatsApp: se guarda aparte,
