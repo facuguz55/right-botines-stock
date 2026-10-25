@@ -82,6 +82,17 @@ describe('ventas cerradas por WhatsApp', () => {
   })
 })
 
+describe('ventas con preguntas de cambio antes de comprar', () => {
+  it('Maffei: pregunta si puede cambiar y después compra', () => {
+    expect(clase(charla(
+      'C:En caso que me queden chicos los puedo cambiar?', 'L:Sisi, se puede hacer el cambio siempre y cuando estén sin uso',
+      'C:Los voy a querer en 27 cm', 'L:El total sería $108.500 con el envío incluido', 'L:Querrías pagar con transferencia?', 'C:Sii',
+      'L:BOTINES.RIGHT Ese sería el alias a nombre de Marcelo benjamín Fernández', 'C:Los Hypervenom que te envié los voy a llevar',
+      'C:DATOS DE ENVIO •Nombre y apellido:Santino', 'C:(foto no incluida en la exportación)', 'L:Recibido! Muchas gracias! 🤗💗',
+    ))).toBe('venta')
+  })
+})
+
 describe('pedidos de la web pagados por WhatsApp', () => {
   it('Jero: comprobante de un pedido #969', () => {
     expect(clase(charla(

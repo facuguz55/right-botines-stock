@@ -111,14 +111,18 @@ function evaluarPago(msgs: MensajeVenta[], f: number): { resultado: Exclude<Resu
   }
   const desde = Math.max(0, (p >= 0 ? p : f) - 12)
   const ventana = msgs.slice(desde, f + 7)
-  const hayTexto = (re: RegExp) => ventana.some(m => re.test(texto(m)))
   // "El número de orden del anterior es #826" habla de otra compra: no la hace web.
   const esWeb = ventana.some(m => WEB.test(texto(m)) && !/anterior|otra compra|la vez pasada/i.test(texto(m)))
 
   if (esWeb) return { resultado: 'web', monto: null }
   // Fotos sin alias ni charla de pago (por ejemplo "llegaron los botines"): no es un pago.
   if (p < 0 && !ventana.some(m => m.direccion === 'in' && AVISA_PAGO.test(texto(m)))) return null
-  if (p < 0 || hayTexto(POSTVENTA) || !firme) return { resultado: 'dudoso', monto: null }
+  // Cambio/diferencia de una compra ya hecha. Una pregunta del cliente antes de comprar
+  // ("¿si me quedan chicos los puedo cambiar?") no cuenta.
+  // Tampoco cuando el local explica la política ("se puede hacer el cambio siempre y cuando…").
+  const POLITICA = /se (puede|pueden) (hacer )?(el )?cambi|siempre y cuando|tiene(n)? cambio|pol[ií]tica de cambio/i
+  const postventa = ventana.some(m => POSTVENTA.test(texto(m)) && !POLITICA.test(texto(m)) && !(m.direccion === 'in' && /\?\s*$/.test(texto(m))))
+  if (p < 0 || postventa || !firme) return { resultado: 'dudoso', monto: null }
   return { resultado: 'venta', monto: montoDeLaCharla(msgs.slice(desde, f)) }
 }
 
