@@ -1,4 +1,4 @@
-import { detectarVenta } from '../src/lib/crmVenta'
+import { detectarVenta, evaluarVenta, traerMensajes } from '../src/lib/crmVenta'
 
 export const config = { runtime: 'edge' }
 
@@ -7,6 +7,8 @@ export const config = { runtime: 'edge' }
 //   gracias" tras un comprobante), vuelve a mirar ese chat.
 // - { revisarDias }: revisa los chats con movimiento de los últimos días que todavía
 //   no tienen venta marcada (para no perder las que pasaron antes de este cambio).
+// - { evaluar: [{ conversacionId, hasta? }] }: solo dice qué opina la IA, sin guardar
+//   nada (para controlar el detector contra charlas reales).
 // El webhook de WhatsApp hace lo mismo cuando escribe el cliente.
 
 const SB_URL = process.env.SUPABASE_URL ?? ''
@@ -48,7 +50,16 @@ export default async function handler(req: Request): Promise<Response> {
 
   const deps = { sbFetch, anthropicKey: ANTHROPIC_API_KEY }
   try {
-    const body = await req.json() as { conversacionId?: string; revisarDias?: number }
+    const body = await req.json() as { conversacionId?: string; revisarDias?: number; evaluar?: { conversacionId: string; hasta?: string }[] }
+
+    if (Array.isArray(body.evaluar)) {
+      const casos = body.evaluar.filter(c => /^[0-9a-f-]{36}$/i.test(c.conversacionId)).slice(0, 12)
+      const resultados = await Promise.all(casos.map(async c => {
+        const r = await evaluarVenta(deps, await traerMensajes(deps, c.conversacionId, c.hasta)).catch(e => ({ error: String(e) }))
+        return { conversacionId: c.conversacionId, ...r }
+      }))
+      return json({ ok: true, resultados })
+    }
 
     if (body.conversacionId && /^[0-9a-f-]{36}$/i.test(body.conversacionId)) {
       const marcada = await detectarVenta(deps, body.conversacionId, 'local')

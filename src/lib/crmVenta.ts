@@ -56,31 +56,34 @@ const VENTA_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    venta_concretada: { type: 'boolean' },
+    tipo: { type: 'string', enum: ['venta_nueva', 'pedido_web', 'postventa', 'consulta'] },
     hay_comprobante: { type: 'boolean' },
     confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
     monto: { type: ['number', 'null'] },
     motivo: { type: 'string' },
   },
-  required: ['venta_concretada', 'hay_comprobante', 'confianza', 'monto', 'motivo'],
+  required: ['tipo', 'hay_comprobante', 'confianza', 'monto', 'motivo'],
 }
 
-const SYSTEM_VENTA = `Leés la charla de WhatsApp entre un cliente y Right Botines (tienda de botines de fútbol) y decidís si la VENTA YA SE CONCRETÓ. Junto con la charla pueden venir las fotos o archivos que mandó el cliente.
-Es venta concretada si pasa cualquiera de estas:
-- El cliente mandó un comprobante de pago (transferencia, Mercado Pago, depósito): una captura o PDF con monto, fecha, destinatario u operación. Mirá las imágenes: si alguna es un comprobante, es venta aunque el local todavía no haya contestado.
-- El cliente avisó que pagó (link de pago, tarjeta, efectivo, seña) y el local lo confirmó, o se pidieron/mandaron datos de envío o se coordinó el retiro de una compra ya pagada.
-- El local confirma que recibió el pago o que ya despachó / preparó el pedido.
-NO es venta si solo preguntó precios o stock, pidió el alias o los datos para transferir, dijo que va a pagar o que lo piensa, o mandó fotos de botines, capturas de la tienda o de un chat.
-Si hay comprobante, poné el monto (número, sin signos) si se lee; si no, null.
-El motivo es una frase corta en español (por ejemplo: "Mandó comprobante de transferencia por $85.000").
-Usá confianza "alta" cuando se ve el comprobante o el pago está confirmado por el local.`
+// Revisado contra los chats reales (24/10): la mayoría de los falsos positivos eran
+// postventa (cambios por falta de stock, envíos y llegadas de pedidos ya pagados).
+const SYSTEM_VENTA = `Leés la charla de WhatsApp entre un cliente y Right Botines (tienda de botines de fútbol) y decidís si en esta charla se CERRÓ UNA COMPRA NUEVA. Junto con la charla pueden venir las fotos o archivos que mandó el cliente.
+Clasificá la charla en un tipo:
+- "venta_nueva": el cliente eligió un producto en esta charla (o pidió uno que no había comprado antes) y PAGÓ: mandó el comprobante de la transferencia / Mercado Pago / depósito, o el local confirmó que recibió el pago, o quedó registrada la compra con pago o seña. Tiene que haber pago, no alcanza con que elija.
+- "pedido_web": el cliente ya había comprado en la página web (menciona un número de pedido, "hice una compra", "compré en la web") y por WhatsApp solo manda el comprobante, pregunta por el pedido o confirma datos.
+- "postventa": todo lo que pasa con una compra ya hecha: el envío o el Uber de un pedido, avisar que llegó, seguimiento, cambios de talle o de modelo, reemplazos porque no había stock o el paquete no llegó, devoluciones, pagar el envío o la diferencia de un cambio, regalos por las molestias.
+- "consulta": preguntas de precio o stock, pidió el alias, dijo que va a pagar o lo piensa, o nada de lo anterior.
+Ojo: las fotos que manda el cliente pueden ser botines, capturas de la tienda o del chat. Solo es comprobante si se ve un pago (monto, fecha, operación, destinatario).
+Si hay comprobante de una venta nueva, poné el monto (número, sin signos); si no, null.
+El motivo es una frase corta en español que diga qué compró y cómo pagó (por ejemplo: "Nike Tiempo Blanco 39, transferencia de $85.000").
+Usá confianza "alta" solo si no hay dudas.`
 
 type Bloque =
   | { type: 'text'; text: string }
   | { type: 'image'; source: { type: 'url'; url: string } }
   | { type: 'document'; source: { type: 'url'; url: string } }
 
-export interface ResultadoVenta { venta: boolean; motivo: string; monto: number | null }
+export interface ResultadoVenta { venta: boolean; tipo: string; motivo: string; monto: number | null }
 
 export async function evaluarVenta(deps: DepsVenta, msgs: MensajeVenta[]): Promise<ResultadoVenta | null> {
   const lineas = msgs.map(m => {
@@ -112,10 +115,17 @@ export async function evaluarVenta(deps: DepsVenta, msgs: MensajeVenta[]): Promi
   const data = await res.json() as { content?: { type: string; text?: string }[] }
   const raw = data.content?.find(b => b.type === 'text')?.text
   if (!raw) return null
-  const r = JSON.parse(raw) as { venta_concretada: boolean; hay_comprobante: boolean; confianza: string; monto: number | null; motivo: string }
-  // Con comprobante a la vista alcanza con confianza media; sin comprobante, tiene que estar clarísimo.
-  const venta = r.venta_concretada && (r.confianza === 'alta' || (r.confianza === 'media' && r.hay_comprobante))
-  return { venta, motivo: r.motivo, monto: typeof r.monto === 'number' && r.monto > 0 ? r.monto : null }
+  const r = JSON.parse(raw) as { tipo: string; hay_comprobante: boolean; confianza: string; monto: number | null; motivo: string }
+  // Solo cuentan las compras nuevas cerradas en el chat, y sin dudas.
+  const venta = r.tipo === 'venta_nueva' && r.confianza === 'alta'
+  return { venta, tipo: r.tipo, motivo: r.motivo, monto: typeof r.monto === 'number' && r.monto > 0 ? r.monto : null }
+}
+
+// Los últimos 30 mensajes del chat, del más viejo al más nuevo (hasta `hasta`, si viene).
+export async function traerMensajes(deps: DepsVenta, conversacionId: string, hasta?: string): Promise<MensajeVenta[]> {
+  const filtro = hasta ? `&timestamp=lte.${encodeURIComponent(hasta)}` : ''
+  const res = await deps.sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}${filtro}&select=direccion,tipo,contenido,transcripcion,media_url,timestamp,automatico&order=timestamp.desc&limit=30`)
+  return (await res.json() as MensajeVenta[]).reverse()
 }
 
 // Revisa un chat y, si hubo venta, la marca. Devuelve true si la marcó.
@@ -126,7 +136,7 @@ export async function detectarVenta(deps: DepsVenta, conversacionId: string, dis
     if (!conv) return false
     const anterior = conv.venta_detectada_at ? Date.parse(conv.venta_detectada_at) : null
 
-    let msgs = (await deps.sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion,media_url,timestamp,automatico&order=timestamp.desc&limit=30`).then(r => r.json()) as MensajeVenta[]).reverse()
+    let msgs = await traerMensajes(deps, conversacionId)
     // Si ya se marcó una venta, solo cuenta lo que vino después (una compra nueva).
     if (anterior) {
       if (Date.now() - anterior < DIAS_ENTRE_VENTAS * 86400_000) return false
