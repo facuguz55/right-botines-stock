@@ -49,7 +49,7 @@ export async function fetchCrmStats(inicio: string, fin: string): Promise<CrmSta
     traerTodo<AsignacionRaw>((a, b) => supabase.from('wsp_conversacion_etiquetas')
       .select('conversacion_id, etiqueta_id').order('conversacion_id').order('etiqueta_id').range(a, b)).catch(() => [] as AsignacionRaw[]),
     traerTodo<VentaRaw>((a, b) => supabase.from('crm_ventas')
-      .select('id, conversacion_id, detectada_at, monto, atendio')
+      .select('id, conversacion_id, detectada_at, monto, atendio, tipo')
       .gte('detectada_at', desdeISO).lte('detectada_at', hastaISO)
       .order('detectada_at').order('id').range(a, b)).catch(() => undefined),
   ])

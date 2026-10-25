@@ -33,7 +33,7 @@ export interface FotoRaw {
   modelos: { marca: string; modelo: string } | null
 }
 export interface AprRaw { origen: string }
-export interface VentaRaw { conversacion_id: string; detectada_at: string; monto: number | null; atendio: string }
+export interface VentaRaw { conversacion_id: string; detectada_at: string; monto: number | null; atendio: string; tipo?: string }
 export interface EtiquetaRaw { id: string; nombre: string; color: string }
 export interface AsignacionRaw { conversacion_id: string; etiqueta_id: string }
 
@@ -214,10 +214,13 @@ export function calcularStats(d: DatosStats): CrmStatsData {
     }
     return c.estado === 'Venta concretada'
   }
-  const ventasRango = d.ventas?.filter(v => {
+  const enRango = d.ventas?.filter(v => {
     const f = toISOLocal(new Date(v.detectada_at))
     return f >= d.inicio && f <= d.fin
   })
+  // Los pedidos de la web que pagan por WhatsApp no son ventas del CRM: van aparte.
+  const ventasRango = enRango?.filter(v => v.tipo !== 'web')
+  const pagosWeb = (enRango ?? []).filter(v => v.tipo === 'web')
   const chatsConVenta = ventasRango ? new Set(ventasRango.map(v => v.conversacion_id)) : null
   const concretadasActivas = activosLista.filter(id => chatsConVenta ? chatsConVenta.has(id) : ventaEnRango(convPorId.get(id)))
   const concretadasNuevas = ventasRango
@@ -343,6 +346,8 @@ export function calcularStats(d: DatosStats): CrmStatsData {
       monto: Math.round(conMonto.reduce((s, v) => s + Number(v.monto), 0)),
       conMonto: conMonto.length,
       porBot: (ventasRango ?? []).filter(v => v.atendio === 'bot').length,
+      pedidosWeb: pagosWeb.length,
+      montoWeb: Math.round(pagosWeb.reduce((s, v) => s + Number(v.monto ?? 0), 0)),
     },
     embudo,
     porCategoria,

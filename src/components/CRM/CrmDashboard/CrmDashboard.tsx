@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { Download, Loader2, ScanSearch, MessageSquare, Clock, TrendingUp, Users, Zap, MailWarning } from 'lucide-react'
+import { Download, Globe, Loader2, ScanSearch, MessageSquare, Clock, TrendingUp, Users, Zap, MailWarning } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useCrmStats } from '../../../hooks/useCrmStats'
 import { CATEGORIA_COLORS } from '../../../types/crm'
@@ -81,6 +81,7 @@ export function CrmDashboard() {
       'Contestados en 1 h (%)': stats.respuesta.dentroDe60, 'Sin leer ahora': stats.sinLeer.cantidad,
       'Ventas concretadas': stats.conversion.concretadas, 'Conversion (%)': stats.conversion.porcentaje,
       'Monto con comprobante': stats.conversion.monto, 'Ventas cerradas por el bot': stats.conversion.porBot,
+      'Pedidos web pagados por WhatsApp': stats.conversion.pedidosWeb, 'Monto pedidos web': stats.conversion.montoWeb,
     }])
     hoja('Mensajes por dia', stats.mensajesPorDia)
     hoja('Embudo', stats.embudo)
@@ -174,6 +175,8 @@ function Contenido({ stats }: { stats: CrmStatsData }) {
             stats.conversion.conMonto ? `$${stats.conversion.monto.toLocaleString('es-AR')} en ${stats.conversion.conMonto} con comprobante` : null,
             stats.conversion.porBot ? `${stats.conversion.porBot} las cerró el bot` : null,
           ].filter(Boolean).join(' · ')} accent />
+        <KpiCard icon={<Globe size={18} />} label="Pedidos web pagados por WhatsApp" value={stats.conversion.pedidosWeb.toLocaleString('es-AR')}
+          sub={stats.conversion.montoWeb ? `$${stats.conversion.montoWeb.toLocaleString('es-AR')} · no cuentan como ventas del CRM` : 'No cuentan como ventas del CRM'} />
       </div>
 
       <Tarjeta titulo="Mensajes por día">

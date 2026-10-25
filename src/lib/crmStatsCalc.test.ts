@@ -91,7 +91,7 @@ describe('calcularStats', () => {
       fotos: [{ conversacion_id: 'a', modelo_id: 'm1', modelos: { marca: 'Nike', modelo: 'Tiempo' } }],
     })
     expect(s.embudo.map(e => e.cantidad)).toEqual([3, 1, 1, 1])
-    expect(s.conversion).toEqual({ chatsNuevos: 3, concretadas: 1, porcentaje: 33, monto: 0, conMonto: 0, porBot: 0 })
+    expect(s.conversion).toEqual({ chatsNuevos: 3, concretadas: 1, porcentaje: 33, monto: 0, conMonto: 0, porBot: 0, pedidosWeb: 0, montoWeb: 0 })
     // Con la tabla de ventas: cuenta cada venta del período (aunque el chat ya no esté en "Venta concretada").
     const conVentas = calcularStats({
       ...vacio,
@@ -100,9 +100,10 @@ describe('calcularStats', () => {
       ventas: [
         { conversacion_id: 'a', detectada_at: '2026-10-20T16:00:00Z', monto: 85000, atendio: 'bot' },
         { conversacion_id: 'b', detectada_at: '2026-10-20T17:00:00Z', monto: null, atendio: 'humano' },
+        { conversacion_id: 'b', detectada_at: '2026-10-20T18:00:00Z', monto: 120000, atendio: 'humano', tipo: 'web' },
       ],
     })
-    expect(conVentas.conversion).toMatchObject({ concretadas: 2, porcentaje: 100, monto: 85000, conMonto: 1, porBot: 1 })
+    expect(conVentas.conversion).toMatchObject({ concretadas: 2, porcentaje: 100, monto: 85000, conMonto: 1, porBot: 1, pedidosWeb: 1, montoWeb: 120000 })
     expect(s.productosMasConsultados[0]).toMatchObject({ marca: 'Nike', consultas: 1 })
   })
   it('talles: cada chat cuenta una sola vez por talle', () => {

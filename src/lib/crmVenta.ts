@@ -84,7 +84,8 @@ type Bloque =
   | { type: 'image'; source: { type: 'url'; url: string } }
   | { type: 'document'; source: { type: 'url'; url: string } }
 
-export interface ResultadoVenta { venta: boolean; tipo: string; motivo: string; monto: number | null }
+// venta: compra nueva cerrada en el chat. pagoWeb: pedido de la web pagado por WhatsApp (va aparte).
+export interface ResultadoVenta { venta: boolean; pagoWeb: boolean; tipo: string; motivo: string; monto: number | null }
 
 export async function evaluarVenta(deps: DepsVenta, msgs: MensajeVenta[]): Promise<ResultadoVenta | null> {
   const lineas = msgs.map(m => {
@@ -119,7 +120,8 @@ export async function evaluarVenta(deps: DepsVenta, msgs: MensajeVenta[]): Promi
   const r = JSON.parse(raw) as { tipo: string; hay_comprobante: boolean; confianza: string; monto: number | null; motivo: string }
   // Solo cuentan las compras nuevas cerradas en el chat, y sin dudas.
   const venta = r.tipo === 'venta_nueva' && r.confianza === 'alta'
-  return { venta, tipo: r.tipo, motivo: r.motivo, monto: typeof r.monto === 'number' && r.monto > 0 ? r.monto : null }
+  const pagoWeb = r.tipo === 'pedido_web' && r.hay_comprobante && r.confianza === 'alta'
+  return { venta, pagoWeb, tipo: r.tipo, motivo: r.motivo, monto: typeof r.monto === 'number' && r.monto > 0 ? r.monto : null }
 }
 
 // Los últimos 30 mensajes del chat, del más viejo al más nuevo (hasta `hasta`, si viene).
@@ -133,9 +135,9 @@ export async function traerMensajes(deps: DepsVenta, conversacionId: string, has
 export async function detectarVenta(deps: DepsVenta, conversacionId: string, disparador: Disparador): Promise<boolean> {
   try {
     if (!deps.anthropicKey) return false
-    const conv = (await deps.sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=venta_detectada_at&limit=1`).then(r => r.json()) as { venta_detectada_at: string | null }[])[0]
-    if (!conv) return false
-    const anterior = conv.venta_detectada_at ? Date.parse(conv.venta_detectada_at) : null
+    // La última venta o pago web de este chat (crm_ventas tiene las dos).
+    const ultima = (await deps.sbFetch(`crm_ventas?conversacion_id=eq.${conversacionId}&select=detectada_at&order=detectada_at.desc&limit=1`).then(r => r.json()) as { detectada_at: string }[])[0]
+    const anterior = ultima ? Date.parse(ultima.detectada_at) : null
 
     let msgs = await traerMensajes(deps, conversacionId)
     // Si ya se marcó una venta, solo cuenta lo que vino después (una compra nueva).
@@ -146,7 +148,17 @@ export async function detectarVenta(deps: DepsVenta, conversacionId: string, dis
     if (!valeLaPenaRevisar(msgs, disparador)) return false
 
     const r = await evaluarVenta(deps, msgs)
-    if (!r?.venta) return false
+    if (!r) return false
+    if (r.pagoWeb) {
+      // Pedido de la web que mandó el comprobante por WhatsApp: se guarda aparte,
+      // no es una venta del CRM y el chat no cambia de estado.
+      await deps.sbFetch('crm_ventas', {
+        method: 'POST',
+        body: JSON.stringify({ conversacion_id: conversacionId, monto: r.monto, motivo: r.motivo.slice(0, 300), origen: 'ia', tipo: 'web' }),
+      })
+      return false
+    }
+    if (!r.venta) return false
 
     const motivo = (r.monto ? `$${Math.round(r.monto).toLocaleString('es-AR')} · ` : '') + r.motivo
     const ahora = new Date().toISOString()
