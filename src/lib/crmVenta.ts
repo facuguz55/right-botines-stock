@@ -64,6 +64,9 @@ export function valeLaPenaRevisar(msgs: MensajeVenta[], disparador: Disparador):
 const ARCHIVO_IMPORTADO = /foto no incluida|documento no incluido|attachment\.pdf|\.pdf\b/i
 const AVISA_PAGO = /(paso|mando|env[ií]o|adjunto|ah[ií] (va|est[aá])) (el |tu )?comprobante|comprobante (de (la )?(transferencia|pago))|te transfer[ií]|ya (te )?(transfer[ií]|pagu[eé]|abon[eé]|lo pagu[eé])|ah[ií] (te )?(transfer[ií]|pagu[eé])/i
 const DATOS_PAGO = /alias|\bcbu\b|\bcvu\b|botines\.right|naranja\.botines|mpago\.la|link de pago|mercadopago\.com/i
+// Si el chat original se perdió (o el alias se pasó por otro lado) no queda el mensaje del
+// local con el alias: alcanza con que el cliente haya hablado de pagar por transferencia.
+const PAGO_HABLADO_POR_CLIENTE = /(hago|hice|hacer|hacemos|voy a hacer|hiciste)\s+(la\s+|una\s+)?transfer|con transferencia/i
 const CONFIRMA = /recibid[oa]|registrada tu compra|gracias por (tu compra|elegirnos)|pago (confirmado|acreditado)|ya (est[aá] )?(confirmad|acreditad)/i
 const GRACIAS = /gracias|perfecto|buen[ií]simo/i
 const WEB = /pedido n[º°o.]|pedido #?\d{3,4}|#\d{3,4}\b|en relaci[oó]n a tu pedido|hic(e|imos) (una|la) compr|realic[eé] (una|la) compr|compr[eé] (en|por|desde) la (web|p[aá]gina)|en la web ya est|compra (desde|por|en) la (web|p[aá]gina)|n[uú]mero de (orden|pedido)/i
@@ -79,18 +82,21 @@ export type ResultadoReglas = 'venta' | 'web' | 'dudoso' | 'nada'
 // hay dos (transferencia / tarjeta), se elige según lo que dijo el cliente.
 export function montoDeLaCharla(msgs: MensajeVenta[]): number | null {
   const pagaConTarjeta = msgs.some(m => m.direccion === 'in' && /tarjeta|cuotas|link/i.test(texto(m)))
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const m = msgs[i]
-    if (m.direccion !== 'out') continue
-    const t = texto(m)
-    const montos = [...t.matchAll(/\$\s?(\d{1,3}(?:[.,]\d{3})+|\d{4,7})/g)]
-      .map(x => ({ valor: Number(x[1].replace(/[.,]/g, '')), despues: t.slice(x.index! + x[0].length, x.index! + x[0].length + 30) }))
-      .filter(x => x.valor >= 20000)
-    if (!montos.length) continue
-    if (montos.length === 1) return montos[0].valor
-    const conTarjeta = montos.find(x => /tarjeta|cuotas/i.test(x.despues))
-    if (pagaConTarjeta && conTarjeta) return conTarjeta.valor
-    return montos.find(x => !/tarjeta|cuotas/i.test(x.despues))?.valor ?? montos[0].valor
+  // Primero lo que pasó el local; si el chat original se perdió, lo que el cliente repitió.
+  for (const lado of ['out', 'in'] as const) {
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i]
+      if (m.direccion !== lado) continue
+      const t = texto(m)
+      const montos = [...t.matchAll(/\$\s?(\d{1,3}(?:[.,]\d{3})+|\d{4,7})/g)]
+        .map(x => ({ valor: Number(x[1].replace(/[.,]/g, '')), despues: t.slice(x.index! + x[0].length, x.index! + x[0].length + 30) }))
+        .filter(x => x.valor >= 20000)
+      if (!montos.length) continue
+      if (montos.length === 1) return montos[0].valor
+      const conTarjeta = montos.find(x => /tarjeta|cuotas/i.test(x.despues))
+      if (pagaConTarjeta && conTarjeta) return conTarjeta.valor
+      return montos.find(x => !/tarjeta|cuotas/i.test(x.despues))?.valor ?? montos[0].valor
+    }
   }
   return null
 }
@@ -107,7 +113,8 @@ function evaluarPago(msgs: MensajeVenta[], f: number): { resultado: Exclude<Resu
 
   let p = -1
   for (let i = f - 1; i >= Math.max(0, f - 25); i--) {
-    if (msgs[i].direccion === 'out' && DATOS_PAGO.test(texto(msgs[i]))) { p = i; break }
+    const t = texto(msgs[i])
+    if ((msgs[i].direccion === 'out' && DATOS_PAGO.test(t)) || (msgs[i].direccion === 'in' && PAGO_HABLADO_POR_CLIENTE.test(t))) { p = i; break }
   }
   const desde = Math.max(0, (p >= 0 ? p : f) - 12)
   const ventana = msgs.slice(desde, f + 7)

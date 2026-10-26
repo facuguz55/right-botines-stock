@@ -82,6 +82,25 @@ describe('ventas cerradas por WhatsApp', () => {
   })
 })
 
+describe('chat que se perdió y el cliente repite todo', () => {
+  const equi = [
+    'C:Siguen estando ?', 'C:Así llego a mi casa en 1 hora y te hago la transferencia',
+    'L:Hola buenas cómo estás? Tuvimos un problema con el WhatsApp, y se nos borró el chat',
+    'C:Estos botines en talle 34', 'C:[image]', 'L:Sisi están disponibles',
+    'C:Sería $144.500 con transferencia el total', 'L:Despachamos dentro de las 24 hs hábiles, así que cuando hagas la transferencia ya te mandamos el botín',
+    'C:Dale perfecto gracias', 'L:A vos!', 'C:[image]',
+  ]
+  it('Equi: sin alias en el chat, pero habló de transferir; la venta sale cuando el local confirma', () => {
+    expect(clase(charla(...equi))).toBe('nada')
+    const r = clasificarPorReglas(charla(...equi, 'L:Recibido! Quedó registrada tu compra'))
+    expect(r.resultado).toBe('venta')
+    expect(r.monto).toBe(144500)
+  })
+  it('sin hablar de pago antes, una foto suelta no es venta', () => {
+    expect(clase(charla('C:Hola', 'L:Hola!', 'C:[image]', 'L:Recibido!'))).toBe('nada')
+  })
+})
+
 describe('ventas con preguntas de cambio antes de comprar', () => {
   it('Maffei: pregunta si puede cambiar y después compra', () => {
     expect(clase(charla(
