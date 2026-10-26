@@ -111,6 +111,7 @@ export async function sendImageMessage(
 // pone un tope más bajo para documentos porque se suben desde el celular.
 export const MAX_IMAGEN_BYTES = 5 * 1024 * 1024
 export const MAX_DOCUMENTO_BYTES = 16 * 1024 * 1024
+export const MAX_VIDEO_BYTES = 16 * 1024 * 1024
 
 // La guía de talles es un archivo estático de la app (public/): Meta necesita
 // una URL pública, así que va siempre la de producción, aunque se mande desde
@@ -128,6 +129,42 @@ export async function uploadSalidaMedia(file: File): Promise<string> {
   })
   if (error) throw new Error(`No se pudo subir el archivo: ${error.message}`)
   return supabase.storage.from('crm-media').getPublicUrl(path).data.publicUrl
+}
+
+export async function sendVideoMessage(
+  conversacionId: string,
+  mediaUrl: string,
+  caption: string | null,
+  empleadoId: string | null,
+  waContactId: string,
+): Promise<WspMensaje> {
+  const waMessageId = await sendViaWhatsApp(waContactId, { type: 'video', videoUrl: mediaUrl, caption: caption || undefined })
+
+  const { data: msg, error } = await supabase
+    .from('wsp_mensajes')
+    .insert([{
+      conversacion_id: conversacionId,
+      direccion: 'out',
+      tipo: 'video',
+      contenido: caption,
+      media_url: mediaUrl,
+      enviado_por: empleadoId,
+      wa_message_id: waMessageId,
+    }])
+    .select('*, empleados(nombre)')
+    .single()
+  if (error) throw error
+
+  await supabase
+    .from('wsp_conversaciones')
+    .update({
+      ultimo_mensaje: caption || '🎥 Video',
+      ultimo_mensaje_at: new Date().toISOString(),
+      estado: 'Respondido',
+    })
+    .eq('id', conversacionId)
+
+  return msg as WspMensaje
 }
 
 export async function sendDocumentMessage(

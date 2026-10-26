@@ -73,6 +73,10 @@ export interface WspMensaje {
   wa_message_id: string | null
   // Mensaje al que respondió el cliente deslizando en WhatsApp (su wa_message_id).
   contexto_wa_id?: string | null
+  // Estado de entrega que informa Meta (migración 054): sent, delivered, read o failed.
+  wa_estado?: 'sent' | 'delivered' | 'read' | 'failed' | null
+  wa_estado_at?: string | null
+  wa_error?: string | null
   // 'bienvenida' | 'ausencia' si lo mandó el CRM solo (no una persona).
   automatico?: string | null
   enviado_por: string | null

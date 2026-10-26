@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply, Paperclip, Ruler, FileText, Tag, MailOpen } from 'lucide-react'
+import { Send, Camera, Plus, DollarSign, Bot, X, ChevronDown, MessageSquare, Trash2, MoreVertical, Footprints, Pencil, MessageCircleQuestion, Loader2, Package, Reply, Paperclip, Ruler, FileText, Tag, CircleDot, Check, CheckCheck, AlertCircle } from 'lucide-react'
 import type { WspConversacion, WspMensaje, WspIaSugerencia, CrmCategoria, CrmEstado, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS, CRM_ESTADOS } from '../../../types/crm'
 import { TIPO_LABEL, busquedaVigente, etiquetaModelo, normalizeTipo, textoPreguntarTalle, textoPreguntarTipo } from '../../../lib/crmBusqueda'
@@ -8,6 +8,7 @@ import EtiquetaChip from '../Etiquetas/EtiquetaChip'
 import EtiquetasPicker from '../Etiquetas/EtiquetasPicker'
 import { OrdersPanel } from '../OrdersPanel/OrdersPanel'
 import { humanizar } from '../../../lib/crmTexto'
+import { estadoEntrega, motivoFallo, ESTADO_TITULO } from '../../../lib/crmEstadoMensaje'
 import { mensajesDeSugerencia } from '../../../lib/crmAprendizaje'
 import './ChatPanel.css'
 
@@ -427,6 +428,13 @@ export default function ChatPanel({
               <option key={est} value={est}>{est}</option>
             ))}
           </select>
+          <button
+            className="chat-panel-unread-btn"
+            onClick={onMarkUnread}
+            title="Dejar este chat resaltado como no leído para contestarlo después (solo se ve acá, el cliente no se entera)"
+          >
+            <CircleDot size={14} /> No leído
+          </button>
         </div>
 
         <div className="chat-panel-header-actions">
@@ -444,9 +452,6 @@ export default function ChatPanel({
             title="Etiquetas del chat"
           >
             <Tag size={16} />
-          </button>
-          <button className="chat-panel-action-btn" onClick={onMarkUnread} title="Marcar como no leído">
-            <MailOpen size={16} />
           </button>
           <button className="chat-panel-action-btn" onClick={handleGuiaTalles} title="Mandar la guía de talles">
             <Ruler size={16} />
@@ -570,6 +575,9 @@ export default function ChatPanel({
                       loading="lazy"
                     />
                   )}
+                  {msg.tipo === 'video' && msg.media_url && (
+                    <video className="chat-panel-msg-video" src={msg.media_url} controls preload="metadata" playsInline />
+                  )}
                   {msg.tipo === 'document' && msg.media_url && (
                     <a className="chat-panel-msg-doc" href={msg.media_url} target="_blank" rel="noreferrer">
                       <FileText size={18} />
@@ -647,7 +655,26 @@ export default function ChatPanel({
                 </div>
                 <span className="chat-panel-msg-time">
                   {msg._pending ? 'Enviando...' : msg._failed ? 'No se pudo enviar' : formatTime(msg.timestamp)}
+                  {!msg._pending && !msg._failed && (() => {
+                    const est = estadoEntrega(msg)
+                    if (!est) return null
+                    const titulo = est === 'read' && msg.wa_estado_at
+                      ? `Visto por el cliente a las ${formatTime(msg.wa_estado_at)}`
+                      : ESTADO_TITULO[est]
+                    return (
+                      <span className={`chat-panel-msg-ticks chat-panel-msg-ticks--${est}`} title={titulo} aria-label={titulo}>
+                        {est === 'sent' && <Check size={13} />}
+                        {(est === 'delivered' || est === 'read') && <CheckCheck size={14} />}
+                        {est === 'failed' && <AlertCircle size={13} />}
+                      </span>
+                    )
+                  })()}
                 </span>
+                {msg.wa_estado === 'failed' && !msg._pending && (
+                  <span className="chat-panel-msg-fallo">
+                    No le llegó: {motivoFallo(msg.wa_error)}.
+                  </span>
+                )}
               </div>
               )
             })}
@@ -705,7 +732,7 @@ export default function ChatPanel({
           type="file"
           multiple
           hidden
-          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+          accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx"
           onChange={handleFilePicked}
         />
         <button

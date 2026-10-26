@@ -74,6 +74,23 @@ export function useMessages(conversacionId: string | null) {
         }
       )
       .on(
+        // Avisos de entrega de Meta (enviado → entregado → visto / fallido):
+        // llegan como UPDATE sobre el mensaje ya guardado.
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'wsp_mensajes',
+          filter: `conversacion_id=eq.${conversacionId}`,
+        },
+        (payload) => {
+          const upd = payload.new as WspMensaje
+          setMensajes(prev => prev.map(m => m.id === upd.id
+            ? { ...m, wa_estado: upd.wa_estado, wa_estado_at: upd.wa_estado_at, wa_error: upd.wa_error }
+            : m))
+        }
+      )
+      .on(
         // La IA tarda unos segundos en clasificar el mensaje y recién ahí
         // inserta la fila en wsp_ia_sugerencias — bastante después de que el
         // mensaje ya se mostró. Sin este listener, el botón de "mandar

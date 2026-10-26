@@ -3,11 +3,12 @@ import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspConversacion, WspMensaje
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { registrarAprendizaje } from '../../../services/crmAprendizajes'
+import { prepararFoto } from '../../../lib/crmImagen'
 import { useEtiquetas } from '../../../hooks/useEtiquetas'
 import { useCrmTema } from '../../../hooks/useCrmTema'
 import {
-  sendTextMessage, sendImageMessage, sendDocumentMessage, uploadSalidaMedia, markSuggestionUsed, deleteMensaje,
-  GUIA_TALLES_URL, MAX_IMAGEN_BYTES, MAX_DOCUMENTO_BYTES,
+  sendTextMessage, sendImageMessage, sendVideoMessage, sendDocumentMessage, uploadSalidaMedia, markSuggestionUsed, deleteMensaje,
+  GUIA_TALLES_URL, MAX_VIDEO_BYTES, MAX_DOCUMENTO_BYTES,
 } from '../../../services/crmMessages'
 import {
   markAsRead, markAsUnread, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda,
@@ -149,7 +150,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   // comprobantes de devolución, etc.) y la guía de talles. Mismo esquema que
   // el texto: aparece al toque como "enviando" y se resuelve con el real.
   const handleSendMedia = useCallback(async (
-    kind: 'image' | 'document',
+    kind: 'image' | 'video' | 'document',
     mediaUrl: string | (() => Promise<string>),
     label: string,
     filename: string,
@@ -174,6 +175,8 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
       const url = typeof mediaUrl === 'string' ? mediaUrl : await mediaUrl()
       const real = kind === 'image'
         ? await sendImageMessage(selectedId, url, null, empleadoId, selectedConv.wa_contact_id)
+        : kind === 'video'
+        ? await sendVideoMessage(selectedId, url, null, empleadoId, selectedConv.wa_contact_id)
         : await sendDocumentMessage(selectedId, url, filename, null, empleadoId, selectedConv.wa_contact_id)
       resolvePendingMensaje(tempId, real)
     } catch (err) {
@@ -186,17 +189,33 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   }, [selectedId, selectedConv, empleadoId, addPendingMensaje, resolvePendingMensaje, failPendingMensaje])
 
   const handleSendFile = useCallback(async (file: File) => {
-    const esImagen = /^image\/(jpeg|png)$/.test(file.type)
-    if (esImagen && file.size > MAX_IMAGEN_BYTES) {
-      alert('La foto pesa más de 5 MB y WhatsApp no la acepta. Probá con una más liviana.')
-      return
+    // Fotos: se pasan a JPG y se achican (las del celular suelen pesar más de
+    // lo que WhatsApp acepta, y las de iPhone vienen en HEIC).
+    if (file.type.startsWith('image/') && file.type !== 'image/gif') {
+      const foto = await prepararFoto(file)
+      if (foto) {
+        await handleSendMedia('image', () => uploadSalidaMedia(foto), 'la foto', foto.name)
+        return
+      }
+      // No se pudo leer: va como archivo (abajo).
     }
-    if (!esImagen && file.size > MAX_DOCUMENTO_BYTES) {
+    // Videos: WhatsApp solo reproduce MP4 / 3GP de hasta 16 MB.
+    if (file.type.startsWith('video/')) {
+      if (file.size > MAX_VIDEO_BYTES) {
+        alert('El video pesa más de 16 MB y WhatsApp no lo acepta. Probá con uno más corto o grabado en menor calidad.')
+        return
+      }
+      if (/^video\/(mp4|3gpp)$/.test(file.type)) {
+        await handleSendMedia('video', () => uploadSalidaMedia(file), 'el video', file.name)
+        return
+      }
+      if (!window.confirm('Este video no está en formato MP4 (por ejemplo, un .mov de iPhone). WhatsApp se lo va a mostrar al cliente como un archivo para descargar, no como video que se reproduce. ¿Mandarlo igual?')) return
+    }
+    if (file.size > MAX_DOCUMENTO_BYTES) {
       alert('El archivo pesa más de 16 MB. Probá con uno más liviano.')
       return
     }
-    // WhatsApp solo manda como foto JPG/PNG; el resto (WebP, HEIC, PDF, Word…) va como archivo.
-    await handleSendMedia(esImagen ? 'image' : 'document', () => uploadSalidaMedia(file), 'el archivo', file.name)
+    await handleSendMedia('document', () => uploadSalidaMedia(file), 'el archivo', file.name)
   }, [handleSendMedia])
 
   const handleSendGuiaTalles = useCallback(

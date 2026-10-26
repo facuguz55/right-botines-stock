@@ -588,6 +588,38 @@ async function analizarFotoCliente(
   }
 }
 
+// Guarda el aviso de entrega de Meta en el mensaje. Los avisos pueden llegar
+// desordenados (visto antes que entregado), así que solo se avanza: nunca se
+// pisa un "visto" con un "entregado". Si la migración 054 no está aplicada o
+// el mensaje todavía no se guardó, se loguea y se sigue: nunca debe romper el
+// webhook (Meta reintenta si no recibe 200).
+async function registrarEstadoMensaje(st: { id: string; status: string; timestamp: string; errors?: { code?: number; title?: string; message?: string; error_data?: { details?: string } }[] }) {
+  try {
+    if (!['sent', 'delivered', 'read', 'failed'].includes(st.status)) return
+    const filtro: Record<string, string> = {
+      sent: '&wa_estado=is.null',
+      delivered: '&or=(wa_estado.is.null,wa_estado.eq.sent)',
+      read: '',
+      failed: '&or=(wa_estado.is.null,wa_estado.neq.read)',
+    }
+    const err = st.errors?.[0]
+    const body: Record<string, unknown> = {
+      wa_estado: st.status,
+      wa_estado_at: new Date(parseInt(st.timestamp) * 1000).toISOString(),
+    }
+    if (st.status === 'failed') {
+      body.wa_error = `${err?.code ?? ''}: ${err?.error_data?.details || err?.message || err?.title || 'sin detalle'}`.trim()
+    }
+    await sbFetch(`wsp_mensajes?wa_message_id=eq.${encodeURIComponent(st.id)}${filtro[st.status]}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(body),
+    })
+  } catch (err) {
+    console.error('No se pudo guardar el estado del mensaje (¿falta la migración 054?):', err)
+  }
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') {
     const url = new URL(req.url)
@@ -635,6 +667,12 @@ export default async function handler(req: Request): Promise<Response> {
               audio?: { id: string; mime_type: string }
             }[]
             contacts?: { profile?: { name?: string }; wa_id: string }[]
+            statuses?: {
+              id: string
+              status: string
+              timestamp: string
+              errors?: { code?: number; title?: string; message?: string; error_data?: { details?: string } }[]
+            }[]
           }
         }[]
       }[]
@@ -644,6 +682,9 @@ export default async function handler(req: Request): Promise<Response> {
     for (const entry of entries) {
       for (const change of entry.changes || []) {
         const value = change.value
+        // Avisos de entrega de lo que mandamos: enviado → entregado → visto, o
+        // fallido (con el motivo). Vienen solos, sin "messages".
+        for (const st of value?.statuses ?? []) await registrarEstadoMensaje(st)
         if (!value?.messages) continue
 
         for (const msg of value.messages) {
