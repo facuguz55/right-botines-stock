@@ -179,6 +179,7 @@ Clasificá la charla en un tipo:
 - "consulta": preguntas de precio o stock, pidió el alias, dijo que va a pagar o lo piensa, o nada de lo anterior.
 Si en la charla aparece un cambio o una devolución (el cliente devolvió un producto, pide otro talle o modelo en lugar del que compró, o se habla de "la diferencia" o de "a favor"), es "postventa" aunque mande comprobantes: lo que paga es la diferencia o el envío, y el comprobante puede ser el de la compra original.
 Ojo: las fotos que manda el cliente pueden ser botines, capturas de la tienda o del chat. Solo es comprobante si se ve un pago (monto, fecha, operación, destinatario).
+Lo primero que tenés que hacer es mirar el ÚLTIMO archivo o foto del cliente y decidir si es un comprobante de transferencia o de pago (se ve un banco o billetera, monto, fecha, número de operación o destinatario). Si no lo es (una foto de botines, una captura de la tienda, un rótulo, un diseño), hay_comprobante es false. Si lo es, mirá la charla para decidir si es una venta nueva cerrada en este chat o el pago de un pedido de la web. Si en la charla el cliente elige el producto y habla de precio, talle o envío en este chat, y manda el comprobante, es "venta_nueva" con confianza "alta" aunque falte el mensaje del alias (a veces el chat se perdió y el cliente repite todo): no hace falta que el local ya haya confirmado el pago.
 Si hay comprobante de una venta nueva, poné el monto (número, sin signos); si no, null.
 El motivo es una frase corta en español que diga qué compró y cómo pagó (por ejemplo: "Nike Tiempo Blanco 39, transferencia de $85.000").
 Usá confianza "alta" solo si no hay dudas.`
@@ -256,8 +257,13 @@ export async function detectarVenta(deps: DepsVenta, conversacionId: string, dis
     }
     if (!valeLaPenaRevisar(msgs, disparador)) return false
 
-    // Primero las reglas (gratis). La IA solo para los casos dudosos.
-    const reglas = clasificarPorReglas(msgs)
+    // Cada foto o PDF nuevo del cliente se mira SIEMPRE con la IA (ve el archivo): puede ser
+    // un comprobante de transferencia, y ahí decide si es una venta cerrada en el chat o el
+    // pago de un pedido de la web. No espera a que el local confirme. Para el resto
+    // (texto, revisiones) van primero las reglas (gratis) y la IA solo en los dudosos.
+    const ultimo = msgs[msgs.length - 1]
+    const archivoNuevo = disparador === 'cliente' && ultimo.direccion === 'in' && esArchivo(ultimo.tipo) && !!ultimo.media_url
+    const reglas = archivoNuevo ? { resultado: 'dudoso' as const, monto: null } : clasificarPorReglas(msgs)
     if (reglas.resultado === 'nada') return false
     const r: ResultadoVenta | null = reglas.resultado === 'venta'
       ? { venta: true, pagoWeb: false, tipo: 'venta_nueva', motivo: 'Pago confirmado en el chat (reglas)', monto: reglas.monto }
