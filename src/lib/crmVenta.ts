@@ -262,7 +262,11 @@ export async function detectarVenta(deps: DepsVenta, conversacionId: string, dis
     // pago de un pedido de la web. No espera a que el local confirme. Para el resto
     // (texto, revisiones) van primero las reglas (gratis) y la IA solo en los dudosos.
     const ultimo = msgs[msgs.length - 1]
-    const archivoNuevo = disparador === 'cliente' && ultimo.direccion === 'in' && esArchivo(ultimo.tipo) && !!ultimo.media_url
+    // En la revisión de chats recientes también, pero solo con archivos de los últimos 2 días.
+    const ultimoArchivo = [...msgs].reverse().find(m => m.direccion === 'in' && esArchivo(m.tipo) && m.media_url)
+    const archivoNuevo = disparador === 'cliente'
+      ? ultimo.direccion === 'in' && esArchivo(ultimo.tipo) && !!ultimo.media_url
+      : disparador === 'revision' && !!ultimoArchivo && Date.now() - Date.parse(ultimoArchivo.timestamp) < 2 * 86400_000
     const reglas = archivoNuevo ? { resultado: 'dudoso' as const, monto: null } : clasificarPorReglas(msgs)
     if (reglas.resultado === 'nada') return false
     const r: ResultadoVenta | null = reglas.resultado === 'venta'
