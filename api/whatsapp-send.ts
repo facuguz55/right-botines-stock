@@ -40,7 +40,8 @@ export default async function handler(req: Request): Promise<Response> {
   try {
     const body = await req.json() as {
       to: string
-      type: 'text' | 'image' | 'document'
+      type: 'text' | 'image' | 'document' | 'video'
+      videoUrl?: string
       text?: string
       imageUrl?: string
       documentUrl?: string
@@ -66,6 +67,16 @@ export default async function handler(req: Request): Promise<Response> {
         type: 'image',
         image: {
           link: body.imageUrl,
+          caption: body.caption || undefined,
+        },
+      }
+    } else if (body.type === 'video' && body.videoUrl) {
+      waBody = {
+        messaging_product: 'whatsapp',
+        to: body.to,
+        type: 'video',
+        video: {
+          link: body.videoUrl,
           caption: body.caption || undefined,
         },
       }

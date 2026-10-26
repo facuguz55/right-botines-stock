@@ -1081,3 +1081,25 @@
   cursor: pointer;
 }
 .chat-panel-unread-btn:hover { background: var(--accent); color: #fff; }
+
+/* Tildes de entrega (como WhatsApp): enviado, entregado, visto, no entregado */
+.chat-panel-msg-ticks { display: inline-flex; vertical-align: middle; margin-left: 4px; color: var(--text-muted); }
+.chat-panel-msg-ticks--read { color: #34B7F1; }
+.chat-panel-msg-ticks--failed { color: #EF4444; }
+.chat-panel-msg-fallo {
+  align-self: flex-end;
+  max-width: 280px;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #EF4444;
+  text-align: right;
+}
+
+.chat-panel-msg-video {
+  display: block;
+  max-width: 260px;
+  max-height: 340px;
+  border-radius: var(--radius-md);
+  background: #000;
+}
