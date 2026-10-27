@@ -25,6 +25,46 @@ function isAllowedOrigin(origin: string | null): boolean {
   return !!origin && ALLOWED_ORIGINS.includes(origin)
 }
 
+const MIMES_IMAGEN_OK = ['image/jpeg', 'image/png', 'image/webp']
+
+// Tienda Nube sirve algunas fotos (las subidas "originales", sin el sufijo
+// -1024-1024) como application/octet-stream, y Meta las rechaza (error 131053)
+// aunque sean JPG de verdad. Se detecta el formato real por los primeros bytes
+// y, si el servidor no lo declara bien, se sube la foto a Meta con su mime
+// correcto y se manda por id en vez de por link.
+function mimeDeImagen(b: Uint8Array): string | null {
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg'
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png'
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp'
+  return null
+}
+
+async function idDeImagenSiHaceFalta(url: string): Promise<string | null> {
+  try {
+    const head = await fetch(url, { method: 'HEAD' })
+    const tipo = (head.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
+    if (head.ok && MIMES_IMAGEN_OK.includes(tipo)) return null
+    const img = await fetch(url)
+    if (!img.ok) return null
+    const bytes = new Uint8Array(await img.arrayBuffer())
+    const mime = mimeDeImagen(bytes)
+    if (!mime || bytes.byteLength > 5 * 1024 * 1024) return null
+    const form = new FormData()
+    form.append('messaging_product', 'whatsapp')
+    form.append('type', mime)
+    form.append('file', new Blob([bytes], { type: mime }), mime === 'image/png' ? 'foto.png' : mime === 'image/webp' ? 'foto.webp' : 'foto.jpg')
+    const up = await fetch(`https://graph.facebook.com/v21.0/${WA_PHONE_NUMBER_ID}/media`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${WA_TOKEN}` },
+      body: form,
+    })
+    const data = await up.json() as { id?: string }
+    return up.ok && data.id ? data.id : null
+  } catch {
+    return null
+  }
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
@@ -61,12 +101,13 @@ export default async function handler(req: Request): Promise<Response> {
     let waBody: Record<string, unknown>
 
     if (body.type === 'image' && body.imageUrl) {
+      const mediaId = await idDeImagenSiHaceFalta(body.imageUrl)
       waBody = {
         messaging_product: 'whatsapp',
         to: body.to,
         type: 'image',
         image: {
-          link: body.imageUrl,
+          ...(mediaId ? { id: mediaId } : { link: body.imageUrl }),
           caption: body.caption || undefined,
         },
       }
