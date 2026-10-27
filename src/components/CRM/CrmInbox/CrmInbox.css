@@ -68,3 +68,17 @@
     padding-bottom: 68px;
   }
 }
+
+.crm-inbox-video-progreso {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}

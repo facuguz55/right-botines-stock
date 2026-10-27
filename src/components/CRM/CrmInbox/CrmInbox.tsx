@@ -3,12 +3,13 @@ import type { CrmCategoria, CrmEstado, CrmVentaInfo, WspConversacion, WspMensaje
 import { useConversations } from '../../../hooks/useConversations'
 import { useMessages } from '../../../hooks/useMessages'
 import { registrarAprendizaje } from '../../../services/crmAprendizajes'
+import { prepararVideo } from '../../../lib/crmVideo'
 import { prepararFoto } from '../../../lib/crmImagen'
 import { useEtiquetas } from '../../../hooks/useEtiquetas'
 import { useCrmTema } from '../../../hooks/useCrmTema'
 import {
   sendTextMessage, sendImageMessage, sendVideoMessage, sendDocumentMessage, uploadSalidaMedia, markSuggestionUsed, deleteMensaje,
-  GUIA_TALLES_URL, MAX_VIDEO_BYTES, MAX_DOCUMENTO_BYTES,
+  GUIA_TALLES_URL, MAX_DOCUMENTO_BYTES,
 } from '../../../services/crmMessages'
 import {
   markAsRead, markAsUnread, updateCategoria, updateEstado, renameConversacion, startOrGetConversacion, clearBusqueda,
@@ -36,6 +37,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [categoriaFilter, setCategoriaFilter] = useState<CrmCategoria | undefined>(undefined)
   const [sending, setSending] = useState(false)
+  const [videoProgreso, setVideoProgreso] = useState<number | null>(null)
   const [mpLinkOpen, setMpLinkOpen] = useState(false)
   const { tema, alternar: alternarTema } = useCrmTema()
   const [etiquetaFilter, setEtiquetaFilter] = useState<string | undefined>(undefined)
@@ -199,17 +201,19 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
       }
       // No se pudo leer: va como archivo (abajo).
     }
-    // Videos: WhatsApp solo reproduce MP4 / 3GP de hasta 16 MB.
+    // Videos: WhatsApp solo reproduce MP4 (H.264) de hasta 16 MB. Se pasan a
+    // MP4 y se achican en el navegador si hace falta (el .mov de iPhone también).
     if (file.type.startsWith('video/')) {
-      if (file.size > MAX_VIDEO_BYTES) {
-        alert('El video pesa más de 16 MB y WhatsApp no lo acepta. Probá con uno más corto o grabado en menor calidad.')
-        return
-      }
-      if (/^video\/(mp4|3gpp)$/.test(file.type)) {
-        await handleSendMedia('video', () => uploadSalidaMedia(file), 'el video', file.name)
-        return
-      }
-      if (!window.confirm('Este video no está en formato MP4 (por ejemplo, un .mov de iPhone). WhatsApp se lo va a mostrar al cliente como un archivo para descargar, no como video que se reproduce. ¿Mandarlo igual?')) return
+      const nombre = file.name.replace(/\.[^.]+$/, '') || 'video'
+      await handleSendMedia('video', async () => {
+        try {
+          const listo = await prepararVideo(file, p => setVideoProgreso(Math.round(p * 100)))
+          return await uploadSalidaMedia(listo)
+        } finally {
+          setVideoProgreso(null)
+        }
+      }, 'el video', `${nombre}.mp4`)
+      return
     }
     if (file.size > MAX_DOCUMENTO_BYTES) {
       alert('El archivo pesa más de 16 MB. Probá con uno más liviano.')
@@ -409,6 +413,9 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
 
   return (
     <div className="crm-inbox">
+      {videoProgreso !== null && (
+        <div className="crm-inbox-video-progreso" role="status">Preparando el video para WhatsApp… {videoProgreso}%</div>
+      )}
       <div className={`crm-inbox-list${isMobile && selectedId ? ' crm-inbox-list--hidden' : ''}`}>
         <ConversationList
           conversaciones={conversacionesVisibles}
