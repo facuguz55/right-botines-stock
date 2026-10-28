@@ -34,7 +34,7 @@ export function DispositivoBanner() {
       <div className="dispositivo-banner">
         <ShieldAlert size={16} />
         <span>
-          Este dispositivo todavía no está habilitado para TiendaNube. Habilitalo con el PIN del dueño para que sus ventas y cambios sigan actualizando el stock de la web.
+          Este dispositivo todavía no está habilitado para TiendaNube. Habilitalo con el PIN del dueño para ver órdenes y productos de la web desde acá. (El stock de las ventas llega a la web igual.)
         </span>
         <button className="btn btn-primary btn-sm" onClick={() => setAbierto(true)}>Habilitar</button>
       </div>

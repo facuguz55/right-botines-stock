@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Modelo } from '../types'
 import { pushStockToTN } from './tnSync'
-import { logFallaDevolucionCambio } from './devolucionesCambiosFallos'
 
 // Lleva a TiendaNube el stock de los talles que tocó una operación (venta,
 // ingreso, cambio o devolución) y devuelve un aviso si alguno no se pudo.
@@ -35,17 +34,16 @@ export async function reflejarStockEnTN(talleIds: string[]): Promise<string | nu
   return fallas.length ? `no se pudo actualizar ${fallas.join(', ')}` : null
 }
 
-// Avisa que una operación quedó registrada en la app pero no llegó a
-// TiendaNube: cartel para quien la hizo y registro en la campanita de fallas
-// del dueño (la operación la suele cargar un empleado, que puede no avisar).
+// El envío desde el dispositivo es solo para que la web se actualice al
+// instante. Si falla no hace falta que nadie haga nada: el cambio quedó en la
+// cola del servidor (migración 054, Edge Function tn-stock), que lo manda a
+// TiendaNube en menos de un minuto y reintenta hasta que llegue. Si el
+// servidor tampoco puede después de varios intentos, avisa él en la campanita.
+// Antes esto mostraba un cartel y pedía corregir a mano: ya no corresponde.
 export function avisarFallaStockTN(
   operacion: 'La venta' | 'El ingreso de stock' | 'El cambio' | 'La devolución',
   aviso: string,
-  empleadoId: string | null,
+  _empleadoId: string | null,
 ) {
-  logFallaDevolucionCambio(empleadoId, `${operacion} se registró, pero ${aviso} en TiendaNube — corregir el stock en la web`).catch(() => {})
-  window.alert(
-    `${operacion} se registró, pero ${aviso} en TiendaNube.\n\n` +
-    'Revisá ese stock en la web (o avisale al dueño): si no se corrige, la próxima sincronización puede deshacer el ajuste.',
-  )
+  console.warn(`${operacion}: ${aviso} desde este dispositivo; lo manda el servidor.`)
 }
