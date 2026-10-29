@@ -79,6 +79,9 @@ async function verifyMetaSignature(req: Request, rawBody: string): Promise<boole
 // pedirle a la Graph API la URL temporal real (vence en minutos) y bajar los
 // bytes con el mismo token, para recién ahí poder subirlo a nuestro storage
 // y tener una URL pública estable que el CRM pueda mostrar después.
+// Lo mismo usa la lista de chats (src/lib/crmVistaPrevia.ts) para mostrarlo con ícono.
+const MENSAJE_NO_DISPONIBLE = 'Mensaje que WhatsApp no deja ver en la app (foto de ver una vez, encuesta o similar). Abrilo en el celular.'
+
 async function descargarYSubirMedia(mediaId: string, mimeType: string): Promise<string | null> {
   const WA_TOKEN = process.env.WA_TOKEN ?? ''
   if (!WA_TOKEN) return null
@@ -665,6 +668,8 @@ export default async function handler(req: Request): Promise<Response> {
               image?: { id: string; mime_type: string; caption?: string }
               document?: { id: string; mime_type: string; caption?: string; filename?: string }
               audio?: { id: string; mime_type: string }
+              video?: { id: string; mime_type: string; caption?: string }
+              sticker?: { id: string; mime_type: string }
               reaction?: { emoji?: string; message_id?: string }
               location?: { latitude?: number; longitude?: number; name?: string; address?: string }
               contacts?: { name?: { formatted_name?: string }; phones?: { phone?: string }[] }[]
@@ -721,6 +726,14 @@ export default async function handler(req: Request): Promise<Response> {
           } else if (msg.type === 'audio' && msg.audio) {
             tipo = 'audio'
             if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.audio.id, msg.audio.mime_type)
+          } else if (msg.type === 'video' && msg.video) {
+            // Antes se guardaba el video sin bajarlo y en el chat no aparecía nada.
+            contenido = msg.video.caption || null
+            tipo = 'video'
+            if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.video.id, msg.video.mime_type)
+          } else if (msg.type === 'sticker' && msg.sticker) {
+            tipo = 'sticker'
+            if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.sticker.id, msg.sticker.mime_type)
           }
 
           // La base solo acepta estos tipos (wsp_mensajes_tipo_check). Lo
@@ -738,7 +751,11 @@ export default async function handler(req: Request): Promise<Response> {
               : msg.type === 'contacts' && c ? `Contacto: ${c.name?.formatted_name ?? ''} ${c.phones?.map(p => p.phone).filter(Boolean).join(', ') ?? ''}`.trim()
               : msg.type === 'button' && msg.button?.text ? msg.button.text
               : msg.type === 'interactive' ? (msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '[respuesta]')
-              : `[${msg.type || 'mensaje'} que la app no muestra: miralo en WhatsApp]`
+              // "unsupported": WhatsApp no le pasa el contenido a ninguna app
+              // conectada (fotos o videos de ver una sola vez, encuestas,
+              // eventos…). No hay forma de traerlo: solo se ve en el celular.
+              : msg.type === 'unsupported' ? MENSAJE_NO_DISPONIBLE
+              : `${MENSAJE_NO_DISPONIBLE} (${msg.type || 'mensaje'})`
             tipo = 'text'
           }
 
@@ -808,7 +825,7 @@ export default async function handler(req: Request): Promise<Response> {
               },
               {
                 titulo: name || phone,
-                cuerpo: contenido?.slice(0, 140) || (tipo === 'image' ? 'Te mandó una foto' : tipo === 'audio' ? 'Te mandó un audio' : 'Mensaje nuevo'),
+                cuerpo: contenido?.slice(0, 140) || (tipo === 'image' ? '📷 Foto' : tipo === 'audio' ? '🎤 Mensaje de voz' : tipo === 'video' ? '🎥 Video' : tipo === 'sticker' ? 'Sticker' : 'Mensaje nuevo'),
                 url: '/crm',
                 tag: `conv-${conversacionId}`,
               },

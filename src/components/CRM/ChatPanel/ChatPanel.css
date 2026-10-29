@@ -1096,6 +1096,13 @@
   text-align: right;
 }
 
+.chat-panel-msg-sticker {
+  display: block;
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+}
+
 .chat-panel-msg-video {
   display: block;
   max-width: 260px;

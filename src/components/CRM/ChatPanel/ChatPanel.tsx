@@ -578,6 +578,14 @@ export default function ChatPanel({
                   {msg.tipo === 'video' && msg.media_url && (
                     <video className="chat-panel-msg-video" src={msg.media_url} controls preload="metadata" playsInline />
                   )}
+                  {msg.tipo === 'sticker' && msg.media_url && (
+                    <img src={msg.media_url} alt="Sticker" className="chat-panel-msg-sticker" loading="lazy" />
+                  )}
+                  {(msg.tipo === 'video' || msg.tipo === 'sticker') && !msg.media_url && (
+                    <div className="chat-panel-msg-audio">
+                      {msg.tipo === 'video' ? '(video: abrilo en el celular)' : '(sticker)'}
+                    </div>
+                  )}
                   {msg.tipo === 'document' && msg.media_url && (
                     <a className="chat-panel-msg-doc" href={msg.media_url} target="_blank" rel="noreferrer">
                       <FileText size={18} />

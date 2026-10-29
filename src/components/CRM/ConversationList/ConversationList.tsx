@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageCircle, Plus, X, Loader2, RefreshCw, Sun, Moon, BellOff } from 'lucide-react'
+import { MessageCircle, Plus, X, Loader2, RefreshCw, Sun, Moon, BellOff, Mic, Camera, Video, Sticker, FileText, Smartphone } from 'lucide-react'
 import type { CrmTema } from '../../../lib/crmTema'
 import type { WspConversacion, CrmCategoria, CrmEtiqueta } from '../../../types/crm'
 import { CRM_CATEGORIAS } from '../../../types/crm'
@@ -8,7 +8,23 @@ import EtiquetaChip from '../Etiquetas/EtiquetaChip'
 import ChatMenu, { type AccionesChat } from './ChatMenu'
 import { estaSilenciada } from '../../../lib/crmSilencio'
 import { vibrar } from '../../../lib/haptico'
+import { vistaPrevia, type IconoVistaPrevia } from '../../../lib/crmVistaPrevia'
 import './ConversationList.css'
+
+const ICONO_PREVIA: Record<Exclude<IconoVistaPrevia, null>, typeof Mic> = {
+  voz: Mic, foto: Camera, video: Video, sticker: Sticker, archivo: FileText, celular: Smartphone,
+}
+
+function Previa({ ultimo }: { ultimo: string | null }) {
+  const { icono, texto } = vistaPrevia(ultimo)
+  const Icono = icono ? ICONO_PREVIA[icono] : null
+  return (
+    <span className="conv-list-preview">
+      {Icono && <Icono size={13} className={`conv-list-preview-icon${icono === 'voz' ? ' conv-list-preview-icon--voz' : ''}`} aria-hidden />}
+      {texto}
+    </span>
+  )
+}
 
 interface ConversationListProps {
   conversaciones: WspConversacion[]
@@ -310,7 +326,7 @@ export default function ConversationList({
                   <span className="conv-list-time">{timeAgo(conv.ultimo_mensaje_at)}</span>
                 </div>
                 <div className="conv-list-bottom">
-                  <span className="conv-list-preview">{conv.ultimo_mensaje || 'Sin mensajes'}</span>
+                  <Previa ultimo={conv.ultimo_mensaje} />
                   <div className="conv-list-meta">
                     <CategoryChip categoria={conv.categoria} size="sm" />
                     {conv.no_leidos > 0 && (

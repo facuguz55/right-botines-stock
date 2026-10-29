@@ -467,6 +467,15 @@
   flex: 1;
 }
 
+/* Ícono delante de "Mensaje de voz", "Foto"… (como en WhatsApp) */
+.conv-list-preview-icon {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 4px;
+  opacity: 0.8;
+}
+.conv-list-preview-icon--voz { color: #25a366; opacity: 1; }
+
 .conv-list-meta {
   display: flex;
   align-items: center;
