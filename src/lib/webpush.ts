@@ -33,6 +33,15 @@ export async function enviarPush(cfg: PushConfig, msg: PushMensaje): Promise<num
   if (!res.ok) return 0
   const subs = (await res.json()) as FilaSuscripcion[]
 
+  // Resultado de cada envío (migración 055): si a alguien no le llegan, acá
+  // se ve si Apple/Google lo rechazaron y por qué.
+  const anotar = (id: string, estado: number, error: string | null) =>
+    fetch(`${base}/rest/v1/push_subscriptions?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ ultimo_envio_at: new Date().toISOString(), ultimo_estado: estado, ultimo_error: error }),
+    }).catch(() => {})
+
   let enviados = 0
   await Promise.all(subs.map(async s => {
     try {
@@ -53,11 +62,13 @@ export async function enviarPush(cfg: PushConfig, msg: PushMensaje): Promise<num
       if (r.status === 404 || r.status === 410) {
         // El celu desinstaló la app o revocó el permiso: se borra para no insistir.
         await fetch(`${base}/rest/v1/push_subscriptions?id=eq.${s.id}`, { method: 'DELETE', headers })
-      } else if (r.ok) {
-        enviados++
+        return
       }
+      if (r.ok) enviados++
+      await anotar(s.id, r.status, r.ok ? null : (await r.text().catch(() => '')).slice(0, 300))
     } catch (err) {
       console.error('push', err)
+      await anotar(s.id, 0, err instanceof Error ? err.message : String(err))
     }
   }))
   return enviados
