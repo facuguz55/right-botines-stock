@@ -665,6 +665,11 @@ export default async function handler(req: Request): Promise<Response> {
               image?: { id: string; mime_type: string; caption?: string }
               document?: { id: string; mime_type: string; caption?: string; filename?: string }
               audio?: { id: string; mime_type: string }
+              reaction?: { emoji?: string; message_id?: string }
+              location?: { latitude?: number; longitude?: number; name?: string; address?: string }
+              contacts?: { name?: { formatted_name?: string }; phones?: { phone?: string }[] }[]
+              button?: { text?: string }
+              interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } }
             }[]
             contacts?: { profile?: { name?: string }; wa_id: string }[]
             statuses?: {
@@ -718,8 +723,28 @@ export default async function handler(req: Request): Promise<Response> {
             if (!bloqueada) mediaUrl = await descargarYSubirMedia(msg.audio.id, msg.audio.mime_type)
           }
 
-          const insertRes = await sbFetch('wsp_mensajes', {
+          // La base solo acepta estos tipos (wsp_mensajes_tipo_check). Lo
+          // demás (reacciones, ubicaciones, contactos, botones…) se guardaba
+          // con el tipo crudo de WhatsApp, la base lo rechazaba y el error
+          // cortaba el lote entero: no se guardaba, no avisaba y Meta lo
+          // reintentaba sin fin. Se guarda como texto que lo describe.
+          const esReaccion = msg.type === 'reaction'
+          if (!['text', 'image', 'audio', 'video', 'document', 'sticker'].includes(tipo)) {
+            const c = msg.contacts?.[0]
+            contenido =
+              esReaccion ? `Reaccionó ${msg.reaction?.emoji || '(quitó la reacción)'} a un mensaje`
+              : msg.type === 'location' && msg.location
+                ? `📍 Ubicación: ${[msg.location.name, msg.location.address].filter(Boolean).join(' — ') || ''} https://maps.google.com/?q=${msg.location.latitude},${msg.location.longitude}`.replace(':  https', ': https')
+              : msg.type === 'contacts' && c ? `Contacto: ${c.name?.formatted_name ?? ''} ${c.phones?.map(p => p.phone).filter(Boolean).join(', ') ?? ''}`.trim()
+              : msg.type === 'button' && msg.button?.text ? msg.button.text
+              : msg.type === 'interactive' ? (msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '[respuesta]')
+              : `[${msg.type || 'mensaje'} que la app no muestra: miralo en WhatsApp]`
+            tipo = 'text'
+          }
+
+          const insertRes = await fetch(`${SB_URL}/rest/v1/wsp_mensajes`, {
             method: 'POST',
+            headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
             body: JSON.stringify({
               conversacion_id: conversacionId,
               direccion: 'in',
@@ -730,7 +755,15 @@ export default async function handler(req: Request): Promise<Response> {
               contexto_wa_id: msg.context?.id ?? null,
             }),
           })
+          // Ya guardado en un intento anterior (Meta reintenta el lote si algo
+          // falló): se saltea en vez de cortar todo con error.
+          if (insertRes.status === 409) continue
+          if (!insertRes.ok) throw new Error(`insert wsp_mensajes → ${insertRes.status}: ${await insertRes.text().catch(() => '')}`)
           const inserted = (await insertRes.json() as { id: string }[])[0]
+
+          // Una reacción queda en el historial, pero no es un mensaje nuevo:
+          // no suma sin leer, no avisa ni pasa por la IA.
+          if (esReaccion) continue
 
           // Contacto bloqueado desde el menú del chat: queda guardado en el historial,
           // pero no cuenta como sin leer, no avisa, no sugiere ni contesta.
