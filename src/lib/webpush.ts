@@ -1,4 +1,5 @@
 import { buildPushPayload, type PushSubscription } from '@block65/webcrypto-web-push'
+import { instalarBase64Js } from './base64Js'
 
 // Notificaciones push del CRM: cuando entra un mensaje de WhatsApp se avisa a
 // todos los celulares que activaron las notificaciones (tabla
@@ -26,6 +27,8 @@ interface FilaSuscripcion { id: string; endpoint: string; p256dh: string; auth: 
 // nada (así el webhook sigue andando aunque todavía no estén cargadas).
 export async function enviarPush(cfg: PushConfig, msg: PushMensaje): Promise<number> {
   if (!cfg.vapidPublic || !cfg.vapidPrivate || !cfg.supabaseUrl || !cfg.supabaseKey) return 0
+  // Sin esto la librería falla con «Illegal invocation» en Vercel (ver base64Js.ts).
+  instalarBase64Js()
   const headers = { apikey: cfg.supabaseKey, Authorization: `Bearer ${cfg.supabaseKey}` }
   const base = cfg.supabaseUrl.replace(/\/$/, '')
 
