@@ -63,6 +63,7 @@ import { linkClienteLocal } from './services/crmClients'
 import type { CrmVentaInfo, PhotoMatch } from './types/crm'
 import { FeedbackButton } from './components/FeedbackButton/FeedbackButton'
 import { setupGlobalErrorHandler } from './services/errorReporter'
+import { iniciarUso, usoPagina, usoUsuario } from './lib/usoPanel'
 import './App.css'
 
 const ACCENT_KEY = 'rb_accent'
@@ -127,6 +128,11 @@ export function App() {
 
   useEffect(() => { restoreAccent() }, [])
   useEffect(() => { setupGlobalErrorHandler() }, [])
+
+  // Medidor de uso para Nova OS («Uso de paneles»): sección activa y quién usa.
+  useEffect(() => { iniciarUso('right') }, [])
+  useEffect(() => { usoUsuario(empleadoNombre ?? (role === 'dueno' ? 'Dueño' : role === 'atencion' ? 'Atención' : null), role) }, [role, empleadoNombre])
+  useEffect(() => { usoPagina(role ? activePage : 'login') }, [role, activePage])
 
   // Barrido de fichajes abandonados y corte de turno (ej. mediodía): cierra
   // fichajes de días anteriores, fichajes de hoy vencidos, y si corresponde
