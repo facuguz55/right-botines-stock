@@ -144,7 +144,7 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       )}
 
       <p className="nav-group-label">Gestión</p>
-      {(['tn_ordenes', 'tn_preventa', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
+      {(['tn_ordenes', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
         <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
       ))}
 
