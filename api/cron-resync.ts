@@ -218,6 +218,26 @@ async function eliminarModelosYaNoExistentesEnTN(idsVigentes: Set<number>): Prom
   return { eliminados, errores }
 }
 
+// Productos vinculados al Stock Buenos Aires: no entran al stock del local,
+// sus cantidades van a stock_ba_talles (migración 062).
+async function productosVinculadosBA(): Promise<Set<number>> {
+  const res = await sbFetch('stock_ba_modelos?tn_product_id=not.is.null&select=tn_product_id')
+  return new Set(((await res.json()) as { tn_product_id: number }[]).map(r => Number(r.tn_product_id)))
+}
+
+async function sincronizarStockBA(prod: TNRawProductMinimal): Promise<void> {
+  const talles = prod.variants
+    .map(v => {
+      const t = parseTalleArg(variantLabel(v))
+      return t !== null ? { talle: String(t), cantidad: v.stock ?? 0, variant_id: v.id } : null
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+  await sbFetch('rpc/sincronizar_stock_ba_tn', {
+    method: 'POST',
+    body: JSON.stringify({ p_tn_product_id: prod.id, p_talles: talles }),
+  })
+}
+
 async function upsertModeloFromTNProductREST(
   prod: TNRawProductMinimal,
   recargoPct: number | null,
@@ -393,10 +413,12 @@ export default async function handler(req: VercelReq, res: VercelRes): Promise<v
     // En paralelo de a lotes (no todo junto, para no saturar Supabase).
     // Subido de 8 a 16 ahora que cada producto pesa mucho menos (talles en
     // paralelo, sin fetches repetidos ni retries innecesarios).
+    const vinculadosBA = await productosVinculadosBA()
     const BATCH = 16
     for (let i = 0; i < productos.length; i += BATCH) {
       const lote = productos.slice(i, i + BATCH)
-      const resultados = await Promise.allSettled(lote.map(prod => upsertModeloFromTNProductREST(prod, recargoPct, tiers)))
+      const resultados = await Promise.allSettled(lote.map(prod =>
+        vinculadosBA.has(prod.id) ? sincronizarStockBA(prod) : upsertModeloFromTNProductREST(prod, recargoPct, tiers)))
       resultados.forEach((r, idx) => {
         if (r.status === 'fulfilled') ok++
         else errores.push(`producto ${lote[idx].id}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`)

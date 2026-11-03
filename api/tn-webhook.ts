@@ -91,6 +91,28 @@ async function fetchTNProductServerSide(productId: number): Promise<TNRawProduct
   return await res.json()
 }
 
+// Un producto vinculado a un modelo del Stock Buenos Aires NO entra al stock
+// del local: sus cantidades van a stock_ba_talles (migración 062). Devuelve
+// true si el producto estaba vinculado y ya quedó sincronizado.
+export async function sincronizarStockBA(prod: TNRawProductMinimal): Promise<boolean> {
+  const talles = prod.variants
+    .map(v => {
+      const t = parseTalleArg(variantLabel(v))
+      return t !== null ? { talle: String(t), cantidad: v.stock ?? 0, variant_id: v.id } : null
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+  const res = await sbFetch('rpc/sincronizar_stock_ba_tn', {
+    method: 'POST',
+    body: JSON.stringify({ p_tn_product_id: prod.id, p_talles: talles }),
+  })
+  return (await res.json()) === true
+}
+
+async function esProductoBA(productId: number): Promise<boolean> {
+  const res = await sbFetch(`stock_ba_modelos?tn_product_id=eq.${productId}&select=id&limit=1`)
+  return ((await res.json()) as unknown[]).length > 0
+}
+
 async function fetchRecargoCredito3Cuotas(): Promise<number | null> {
   const res = await sbFetch(`recargos_tarjeta?tarjeta=eq.${encodeURIComponent('Crédito')}&cuotas=eq.3&activo=eq.true&select=porcentaje&limit=1`)
   const rows = await res.json() as { porcentaje: number }[]
@@ -374,6 +396,10 @@ async function upsertClienteServerSide(c: TNRawCustomer): Promise<void> {
 // insertar-la-venta-y-descontar-stock se movió a la base.
 async function descontarStockPorOrden(order: TNRawOrder): Promise<void> {
   for (const item of order.products) {
+    // Lo que se vende del Stock Buenos Aires baja por el webhook de producto
+    // (la tienda descuenta su stock y avisa), no de modelo_talles.
+    if (item.product_id && await esProductoBA(item.product_id)) continue
+
     let talleRow: { id: string; cantidad: number; talle_arg: number } | undefined
     let modeloRow: { id: string; precio_costo: number } | undefined
 
@@ -463,7 +489,7 @@ export default async function handler(req: Request): Promise<Response> {
       const productId = payload.id
       if (!productId) return new Response('OK', { status: 200 })
       const prod = await fetchTNProductServerSide(productId)
-      await upsertModeloFromTNProductREST(prod)
+      if (!(await sincronizarStockBA(prod))) await upsertModeloFromTNProductREST(prod)
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
