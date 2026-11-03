@@ -541,3 +541,32 @@ export function respuestaPorModeloFoto(nombre: string, talle: number | null, tal
   const lista = talles.length <= 1 ? String(talles[0]) : `${talles.slice(0, -1).join(', ')} y ${talles[talles.length - 1]}`
   return `Uh, los ${nombre} en el ${talle} por el momento no nos quedan. Los tenemos en ${lista}, te sirve?`
 }
+
+// ── Fotos con el nombre del producto escrito ──
+//
+// Muchos clientes mandan una captura de nuestra web o de Instagram, donde el
+// nombre del modelo está escrito ("NIKE PHANTOM GX6 CELESTE ROSITA"). Leer ese
+// texto es mucho más confiable que adivinar por colores: se busca en el
+// catálogo un modelo cuyo nombre (marca + modelo) tenga EXACTAMENTE las mismas
+// palabras. Puede haber más de uno (el mismo nombre cargado dos veces). El
+// prefijo "Mixto-" de la marca no cuenta.
+function palabrasDeNombre(texto: string): string[] {
+  return [...new Set(tokensNombre(texto).filter(t => t !== 'mixto' && t !== 'mixtos'))]
+}
+
+export function coincidirTitulo(titulo: string | null | undefined, catalogo: { marca: string; modelo: string }[]): number[] {
+  const buscado = palabrasDeNombre(titulo ?? '')
+  if (buscado.length < 3) return []
+  const clave = [...buscado].sort().join(' ')
+  const idx: number[] = []
+  catalogo.forEach((m, i) => {
+    if ([...palabrasDeNombre(`${m.marca} ${m.modelo}`)].sort().join(' ') === clave) idx.push(i)
+  })
+  return idx
+}
+
+// Mensajes que se refieren a "la foto" sin nombrar el modelo.
+const REFERENCIA_A_FOTO = /\b(ese|esa|esos|esas|este|esta|estos|estas|eso|esto|el mismo|los mismos|la misma|las mismas|el de la foto|los de la foto)\b/i
+export function hablaDeLaFoto(texto: string): boolean {
+  return REFERENCIA_A_FOTO.test(normalizar(texto))
+}

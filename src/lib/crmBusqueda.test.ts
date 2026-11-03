@@ -10,6 +10,8 @@ import {
   vocabularioCatalogo,
   combinarBusqueda,
   respuestaPorModeloFoto,
+  coincidirTitulo,
+  hablaDeLaFoto,
   detectarBusqueda,
   normalizeTipo,
   respuestaSugeridaBusqueda,
@@ -311,5 +313,44 @@ describe('respuestaPorModeloFoto', () => {
     for (const t of [respuestaPorModeloFoto('X', null, []), respuestaPorModeloFoto('X', 40, [40]), respuestaPorModeloFoto('X', 41, [40, 42]), respuestaPorModeloFoto('X', null, [40])]) {
       expect(humanizar(t)).toBe(t)
     }
+  })
+})
+
+describe('coincidirTitulo (captura de la web con el nombre escrito)', () => {
+  const cat = [
+    { marca: 'Mixto-', modelo: 'Nike Phantom GX6 Rosa Blanco Semibot' },
+    { marca: 'Nike', modelo: 'Phantom GX6 celeste rosita' },
+    { marca: 'Nike', modelo: 'Phantom GX6 Celeste Blanco' },
+    { marca: 'Adidas', modelo: 'Predator Freak Negro Con Cordones Bot' },
+    { marca: 'Adidas', modelo: 'Predator Freak Negro Bot' },
+    { marca: 'Nike', modelo: 'Phantom GX6 Gris Naranja' },
+    { marca: 'Nike', modelo: 'Phantom GX6 Gris Naranja' },
+  ]
+  it('encuentra el modelo exacto aunque el color parezca de otro', () => {
+    expect(coincidirTitulo('NIKE PHANTOM GX6 CELESTE ROSITA', cat)).toEqual([1])
+    expect(coincidirTitulo('ADIDAS PREDATOR FREAK NEGRO CON CORDONES BOT', cat)).toEqual([3])
+  })
+  it('no confunde un nombre más corto con uno más largo', () => {
+    expect(coincidirTitulo('Adidas Predator Freak Negro Bot', cat)).toEqual([4])
+    expect(coincidirTitulo('Nike Phantom GX6 Rosa Blanco', cat)).toEqual([])
+  })
+  it('el mismo nombre cargado dos veces devuelve las dos', () => {
+    expect(coincidirTitulo('Nike Phantom GX6 Gris Naranja', cat)).toEqual([5, 6])
+  })
+  it('el prefijo Mixto- de la marca no cuenta', () => {
+    expect(coincidirTitulo('Nike Phantom GX6 Rosa Blanco Semibot', cat)).toEqual([0])
+  })
+  it('sin título o con muy pocas palabras no adivina', () => {
+    expect(coincidirTitulo(null, cat)).toEqual([])
+    expect(coincidirTitulo('Nike Phantom', cat)).toEqual([])
+  })
+})
+
+describe('hablaDeLaFoto', () => {
+  it('detecta referencias a la foto', () => {
+    for (const t of ['Quiero ese', 'Quisiera eso', 'Y esos?', 'el mismo en 42', 'Este seria']) expect(hablaDeLaFoto(t)).toBe(true)
+  })
+  it('no se confunde con otras cosas', () => {
+    for (const t of ['Me figuran todo sin stock', 'En talle 42', 'Hola buenas', 'Cuanto sale?']) expect(hablaDeLaFoto(t)).toBe(false)
   })
 })

@@ -15,6 +15,8 @@ import {
   type EstadoBusqueda,
   combinarBusqueda,
   respuestaPorModeloFoto,
+  coincidirTitulo,
+  hablaDeLaFoto,
   tipoDeCategoria,
 } from '../src/lib/crmBusqueda'
 import { llamarClasificadorIA, rankearAprendizajes, type FilaAprendizaje } from '../src/lib/botIa'
@@ -344,14 +346,14 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const [mensajesRes, estadoRes, catalogoRes] = await Promise.all([
       // Con tipo y descripción de las fotos (migración 064); si esa columna
       // todavía no existe, se pide como antes.
-      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion,imagen_descripcion&order=timestamp.desc&limit=12`)
-        .catch(() => sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=12`)),
+      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion,imagen_descripcion&order=timestamp.desc&limit=12`)
+        .catch(() => sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=12`)),
       sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=*&limit=1`)
         .catch(err => { console.error('No se pudo leer la búsqueda guardada:', err); return null }),
       sbFetch('modelos?select=marca,modelo')
         .catch(err => { console.error('No se pudo leer el catálogo para detectar modelos:', err); return null }),
     ])
-    const filasMsgs = (await mensajesRes.json() as { direccion: 'in' | 'out'; tipo?: string; contenido: string | null; transcripcion: string | null; imagen_descripcion?: string | null }[])
+    const filasMsgs = (await mensajesRes.json() as { id?: string; direccion: 'in' | 'out'; tipo?: string; contenido: string | null; transcripcion: string | null; imagen_descripcion?: string | null }[])
       .reverse()
     const recientes = filasMsgs
       .map(m => ({ direccion: m.direccion, texto: (m.contenido || m.transcripcion || '').trim() }))
@@ -384,6 +386,19 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // El modelo sale solo del catálogo real (nunca de la IA).
     const det = detectarBusqueda(text, { ultimoMensajeLocal })
     const modeloMsg = catalogo.length ? extraerModeloBuscado(text, vocabularioCatalogo(catalogo)) : null
+
+    // Si lo último que mandó el cliente antes de este mensaje fue una foto, el
+    // modelo de esa foto cuenta para "quiero ese", "esos", "en 42"... Solo en ese
+    // caso: si siguió hablando de otra cosa, la foto ya no condiciona nada.
+    let modeloDeFoto: string | null = null
+    const idxActual = filasMsgs.findIndex(m => m.id === messageId)
+    const ultimoDelCliente = [...(idxActual >= 0 ? filasMsgs.slice(0, idxActual) : filasMsgs)].reverse().find(m => m.direccion === 'in')
+    if (ultimoDelCliente?.tipo === 'image' && ultimoDelCliente.id) {
+      const filaFoto = await sbFetch(`wsp_ia_sugerencias?mensaje_id=eq.${ultimoDelCliente.id}&select=modelo_buscado&limit=1`)
+        .then(r => r.json() as Promise<{ modelo_buscado: string | null }[]>)
+        .catch(() => [] as { modelo_buscado: string | null }[])
+      modeloDeFoto = filaFoto[0]?.modelo_buscado || null
+    }
 
     // Si el mensaje parece hablar de un pedido ya hecho, se busca en paralelo
     // con la IA (para no sumar su demora a la de TiendaNube).
@@ -432,7 +447,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // tema: mayorista, un pedido ya hecho, un reclamo…).
     const { busqueda, aporto, limpiar } = decidirBusqueda({
       previa: busquedaPrevia,
-      nuevo: { talle: talleMsg, tipo: tipoMsg, modelo: modeloMsg },
+      nuevo: { talle: talleMsg, tipo: tipoMsg, modelo: modeloMsg ?? (modeloDeFoto && (talleMsg || tipoMsg || hablaDeLaFoto(text)) ? modeloDeFoto : null) },
       intencion: ia?.intencion ?? (preguntaPorPedido ? 'estado_pedido' : null),
       categoria: ia?.categoria ?? null,
       cambioDeTema: ia?.cambio_de_tema === true,
@@ -512,13 +527,14 @@ const FOTO_SCHEMA = {
     indice: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
     seguridad: { type: 'string', enum: ['alta', 'media', 'baja'] },
     descripcion: { type: 'string' },
+    titulo_visible: { anyOf: [{ type: 'string' }, { type: 'null' }] },
   },
-  required: ['es_botin', 'indice', 'seguridad', 'descripcion'],
+  required: ['es_botin', 'indice', 'seguridad', 'descripcion', 'titulo_visible'],
 }
 
 async function identificarModeloEnFoto(
   mediaUrl: string, caption: string | null, catalogo: { marca: string; modelo: string }[],
-): Promise<{ indice: number | null; descripcion: string } | null> {
+): Promise<{ indice: number | null; descripcion: string; titulo: string | null } | null> {
   if (!ANTHROPIC_API_KEY || catalogo.length === 0) return null
   const lista = catalogo.map((m, i) => `${i}: ${m.marca} ${m.modelo}`).join('\n')
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -527,7 +543,7 @@ async function identificarModeloEnFoto(
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
       max_tokens: 300,
-      system: 'Sos el asistente de Right Botines, una tienda de botines de fútbol. Un cliente te manda por WhatsApp la foto de un botín que quiere. Tu trabajo es decir cuál de los modelos de la lista del catálogo es: mirá la marca, la línea (por ejemplo F50, Predator, Mercurial, Phantom, Copa) y el color. Elegí un índice de la lista solo si el botín de la foto coincide con esa línea y ese color; si es de otra marca, de una línea que no está o no se ve bien, devolvé indice null. Si la imagen no es un botín (comprobante, rótulo de envío, captura de chat, persona, etc.) devolvé es_botin false e indice null. Ante la duda, null: es preferible no sugerir nada a sugerir un modelo equivocado. Además, en descripcion poné en una frase corta (máximo 100 caracteres) qué muestra la imagen, para que otra persona sepa de qué foto se habla sin verla: por ejemplo "botín Nike Mercurial naranja, taco de fútbol 11", "comprobante de transferencia", "captura de un chat", "rótulo de envío".',
+      system: 'Sos el asistente de Right Botines, una tienda de botines de fútbol. Un cliente te manda por WhatsApp la foto de un botín que quiere. Tu trabajo es decir cuál de los modelos de la lista del catálogo es: mirá la marca, la línea (por ejemplo F50, Predator, Mercurial, Phantom, Copa) y el color. Elegí un índice de la lista solo si el botín de la foto coincide con esa línea y ese color; si es de otra marca, de una línea que no está o no se ve bien, devolvé indice null. Si la imagen no es un botín (comprobante, rótulo de envío, captura de chat, persona, etc.) devolvé es_botin false e indice null. Si en la imagen está escrito el nombre del producto (típico de una captura de la web de Right o de Instagram, donde se lee algo como "NIKE PHANTOM GX6 CELESTE ROSITA"), copialo tal cual en titulo_visible; si no hay un nombre escrito, null. El nombre escrito vale más que el color que creas ver. Si la captura muestra varios productos (un listado o un catálogo) y no uno solo, devolvé indice null y titulo_visible null. Ante la duda, null: es preferible no sugerir nada a sugerir un modelo equivocado. Además, en descripcion poné en una frase corta (máximo 100 caracteres) qué muestra la imagen, para que otra persona sepa de qué foto se habla sin verla: por ejemplo "botín Nike Mercurial naranja, taco de fútbol 11", "comprobante de transferencia", "captura de un chat", "rótulo de envío".',
       output_config: { format: { type: 'json_schema', schema: FOTO_SCHEMA } },
       messages: [{
         role: 'user',
@@ -547,10 +563,13 @@ async function identificarModeloEnFoto(
   const raw = data.content?.find(b => b.type === 'text')?.text
   if (!raw) return null
   try {
-    const r = JSON.parse(raw) as { es_botin: boolean; indice: number | null; seguridad: string; descripcion?: string }
+    const r = JSON.parse(raw) as { es_botin: boolean; indice: number | null; seguridad: string; descripcion?: string; titulo_visible?: string | null }
     const descripcion = (r.descripcion ?? '').trim().slice(0, 200)
-    if (!r.es_botin || r.indice == null || r.seguridad === 'baja') return { indice: null, descripcion }
-    return { indice: Number.isInteger(r.indice) && r.indice >= 0 && r.indice < catalogo.length ? r.indice : null, descripcion }
+    const titulo = (r.titulo_visible ?? '').trim().slice(0, 200) || null
+    // Solo se acepta el modelo que la IA eligió mirando la foto si está segura
+    // ("alta"): con "media" adivinaba por colores y se equivocaba de modelo.
+    if (!r.es_botin || r.indice == null || r.seguridad !== 'alta') return { indice: null, descripcion, titulo }
+    return { indice: Number.isInteger(r.indice) && r.indice >= 0 && r.indice < catalogo.length ? r.indice : null, descripcion, titulo }
   } catch {
     console.error('identificarModeloEnFoto: JSON inválido:', raw)
     return null
@@ -579,28 +598,33 @@ async function analizarFotoCliente(
         body: JSON.stringify({ imagen_descripcion: vista.descripcion }),
       }).catch(err => console.error('No se pudo guardar la descripción de la foto (¿falta la migración 064?):', err))
     }
-    const indice = vista.indice
-    if (indice == null) return false
-    const elegido = catalogo[indice]
+    // 1º el nombre escrito en la imagen (captura de la web), que es exacto;
+    // 2º lo que la IA reconoció mirando la foto, solo si estaba segura.
+    const porTitulo = coincidirTitulo(vista.titulo, catalogo)
+    const candidatos = porTitulo.length ? porTitulo : (vista.indice != null ? [vista.indice] : [])
+    if (candidatos.length === 0) return false
+    const elegido = catalogo[candidatos[0]]
 
     const estadoRow = estadoRes ? (await estadoRes.json() as Record<string, unknown>[])[0] ?? {} : {}
     const previa = busquedaVigente(estadoRow as Parameters<typeof busquedaVigente>[0])
-    const talle = (caption ? detectarBusqueda(caption).talle : null) ?? previa.talle
+    const talleCaption = caption ? detectarBusqueda(caption).talle : null
+    const talle = talleCaption ?? previa.talle
 
+    // Si el mismo nombre está cargado más de una vez, el stock es la suma de todos.
+    const ids = candidatos.map(i => catalogo[i].id)
     const filas = await (await sbFetch(
-      `modelo_talles?modelo_id=eq.${encodeURIComponent(elegido.id)}&cantidad=gt.0&select=talle_arg`,
+      `modelo_talles?modelo_id=in.(${ids.map(encodeURIComponent).join(',')})&cantidad=gt.0&select=talle_arg`,
     )).json() as { talle_arg: number }[]
     const nombre = `${elegido.marca} ${elegido.modelo}`.trim()
     const respuesta = humanizar(respuestaPorModeloFoto(nombre, talle, filas.map(f => Number(f.talle_arg))))
-    const busqueda = combinarBusqueda(previa, { talle, tipo: tipoDeCategoria(elegido.categoria), modelo: nombre })
 
     await sbWriteConFallback('wsp_ia_sugerencias', 'POST', {
       mensaje_id: messageId,
       conversacion_id: conversacionId,
       categoria_sugerida: 'Pedido de talles',
       intencion: 'pedido_talle',
-      tipo_detectado: busqueda.tipo,
-      talle_detectado: busqueda.talle,
+      tipo_detectado: tipoDeCategoria(elegido.categoria),
+      talle_detectado: talle,
       modelo_buscado: nombre,
       respuesta_sugerida: respuesta,
     }, ['modelo_buscado'])
@@ -609,12 +633,20 @@ async function analizarFotoCliente(
       method: 'PATCH',
       body: JSON.stringify({ categoria: 'Pedido de talles' }),
     })
-    await sbWriteConFallback(`wsp_conversaciones?id=eq.${conversacionId}`, 'PATCH', {
-      busqueda_talle: busqueda.talle,
-      busqueda_tipo: busqueda.tipo,
-      busqueda_modelo: nombre,
-      busqueda_updated_at: new Date().toISOString(),
-    }, ['busqueda_modelo']).catch(err => console.error('No se pudo guardar la búsqueda de la foto:', err))
+    // El modelo y el tipo de la foto NO quedan guardados como "lo que busca":
+    // se pegaban a todo lo que el cliente dijera después, aunque hablara de
+    // otra cosa. Para los mensajes que vienen enseguida se vuelve a leer de la
+    // sugerencia de esta foto (ver classifyWithAI). Solo se guarda el talle si
+    // lo escribió junto con la foto.
+    if (talleCaption) {
+      const nueva = combinarBusqueda(previa, { talle: talleCaption, tipo: null, modelo: null })
+      await sbWriteConFallback(`wsp_conversaciones?id=eq.${conversacionId}`, 'PATCH', {
+        busqueda_talle: nueva.talle,
+        busqueda_tipo: nueva.tipo,
+        busqueda_modelo: nueva.modelo ?? null,
+        busqueda_updated_at: new Date().toISOString(),
+      }, ['busqueda_modelo']).catch(err => console.error('No se pudo guardar el talle de la foto:', err))
+    }
     return true
   } catch (err) {
     console.error('analizarFotoCliente falló:', err)
