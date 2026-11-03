@@ -54,6 +54,8 @@ export const SECUENCIAS_ESTILO_CAMI: { cliente: string; mensajes: string[] }[] =
 
 export const SYSTEM_CLASIFICADOR = `Sos el asistente que clasifica los mensajes de WhatsApp que recibe Right Botines, una tienda de botines de fútbol de Santa Fe, Argentina, y le sugiere a la vendedora qué responder. Te paso la conversación reciente y el último mensaje del cliente; clasificás ESE último mensaje usando el resto como contexto.
 
+Las fotos que manda el cliente aparecen en la conversación como [foto del cliente: lo que muestra] (la descripción la armó otra IA mirando la imagen: puede ser un botín, un comprobante, un rótulo de envío, una captura). Cuando el cliente dice "este", "ese modelo", "esos", "quiero esos" o "y ese", casi siempre habla de su última foto de botines: tomalo como contexto, pero no inventes qué modelo exacto es ni si lo tenemos (eso lo resuelve el sistema aparte); pedí el talle o decí que lo revisás.
+
 <informacion_del_negocio>
 ${INFO_NEGOCIO}
 </informacion_del_negocio>

@@ -342,14 +342,18 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // (select=* para no romper si falta alguna migración de búsqueda) y los
     // nombres del catálogo, para reconocer modelos puntuales ("los f50").
     const [mensajesRes, estadoRes, catalogoRes] = await Promise.all([
-      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,contenido,transcripcion&order=timestamp.desc&limit=12`),
+      // Con tipo y descripción de las fotos (migración 064); si esa columna
+      // todavía no existe, se pide como antes.
+      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion,imagen_descripcion&order=timestamp.desc&limit=12`)
+        .catch(() => sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=12`)),
       sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=*&limit=1`)
         .catch(err => { console.error('No se pudo leer la búsqueda guardada:', err); return null }),
       sbFetch('modelos?select=marca,modelo')
         .catch(err => { console.error('No se pudo leer el catálogo para detectar modelos:', err); return null }),
     ])
-    const recientes = (await mensajesRes.json() as { direccion: 'in' | 'out'; contenido: string | null; transcripcion: string | null }[])
+    const filasMsgs = (await mensajesRes.json() as { direccion: 'in' | 'out'; tipo?: string; contenido: string | null; transcripcion: string | null; imagen_descripcion?: string | null }[])
       .reverse()
+    const recientes = filasMsgs
       .map(m => ({ direccion: m.direccion, texto: (m.contenido || m.transcripcion || '').trim() }))
       .filter(m => m.texto)
     const estadoRow = estadoRes ? (await estadoRes.json() as Record<string, unknown>[])[0] ?? {} : {}
@@ -358,7 +362,20 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
 
     const ultimoMensajeLocal = [...recientes].reverse().find(m => m.direccion === 'out')?.texto ?? null
     const textosCliente = recientes.filter(m => m.direccion === 'in').map(m => m.texto)
-    const contexto = recientes.map(m => `${m.direccion === 'in' ? 'Cliente' : 'Local'}: ${m.texto}`).join('\n')
+    // Para la IA, las fotos cuentan: aparecen como [foto del cliente: lo que muestra].
+    const contexto = filasMsgs
+      .map(m => {
+        const texto = (m.contenido || m.transcripcion || '').trim()
+        if (m.tipo === 'image') {
+          const marca = m.direccion === 'in'
+            ? `[foto del cliente: ${m.imagen_descripcion?.trim() || 'no se vio qué muestra'}]`
+            : '[foto que mandó el local]'
+          return `${m.direccion === 'in' ? 'Cliente' : 'Local'}: ${[texto, marca].filter(Boolean).join(' ')}`
+        }
+        return texto ? `${m.direccion === 'in' ? 'Cliente' : 'Local'}: ${texto}` : ''
+      })
+      .filter(Boolean)
+      .join('\n')
 
     // 1) Reglas deterministas sobre el mensaje nuevo. 2) La IA con contexto,
     // validada: solo se le cree un talle que el cliente escribió y un tipo si
@@ -494,13 +511,14 @@ const FOTO_SCHEMA = {
     es_botin: { type: 'boolean' },
     indice: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
     seguridad: { type: 'string', enum: ['alta', 'media', 'baja'] },
+    descripcion: { type: 'string' },
   },
-  required: ['es_botin', 'indice', 'seguridad'],
+  required: ['es_botin', 'indice', 'seguridad', 'descripcion'],
 }
 
 async function identificarModeloEnFoto(
   mediaUrl: string, caption: string | null, catalogo: { marca: string; modelo: string }[],
-): Promise<number | null> {
+): Promise<{ indice: number | null; descripcion: string } | null> {
   if (!ANTHROPIC_API_KEY || catalogo.length === 0) return null
   const lista = catalogo.map((m, i) => `${i}: ${m.marca} ${m.modelo}`).join('\n')
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -508,8 +526,8 @@ async function identificarModeloEnFoto(
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
-      max_tokens: 200,
-      system: 'Sos el asistente de Right Botines, una tienda de botines de fútbol. Un cliente te manda por WhatsApp la foto de un botín que quiere. Tu trabajo es decir cuál de los modelos de la lista del catálogo es: mirá la marca, la línea (por ejemplo F50, Predator, Mercurial, Phantom, Copa) y el color. Elegí un índice de la lista solo si el botín de la foto coincide con esa línea y ese color; si es de otra marca, de una línea que no está o no se ve bien, devolvé indice null. Si la imagen no es un botín (comprobante, rótulo de envío, captura de chat, persona, etc.) devolvé es_botin false e indice null. Ante la duda, null: es preferible no sugerir nada a sugerir un modelo equivocado.',
+      max_tokens: 300,
+      system: 'Sos el asistente de Right Botines, una tienda de botines de fútbol. Un cliente te manda por WhatsApp la foto de un botín que quiere. Tu trabajo es decir cuál de los modelos de la lista del catálogo es: mirá la marca, la línea (por ejemplo F50, Predator, Mercurial, Phantom, Copa) y el color. Elegí un índice de la lista solo si el botín de la foto coincide con esa línea y ese color; si es de otra marca, de una línea que no está o no se ve bien, devolvé indice null. Si la imagen no es un botín (comprobante, rótulo de envío, captura de chat, persona, etc.) devolvé es_botin false e indice null. Ante la duda, null: es preferible no sugerir nada a sugerir un modelo equivocado. Además, en descripcion poné en una frase corta (máximo 100 caracteres) qué muestra la imagen, para que otra persona sepa de qué foto se habla sin verla: por ejemplo "botín Nike Mercurial naranja, taco de fútbol 11", "comprobante de transferencia", "captura de un chat", "rótulo de envío".',
       output_config: { format: { type: 'json_schema', schema: FOTO_SCHEMA } },
       messages: [{
         role: 'user',
@@ -529,9 +547,10 @@ async function identificarModeloEnFoto(
   const raw = data.content?.find(b => b.type === 'text')?.text
   if (!raw) return null
   try {
-    const r = JSON.parse(raw) as { es_botin: boolean; indice: number | null; seguridad: string }
-    if (!r.es_botin || r.indice == null || r.seguridad === 'baja') return null
-    return Number.isInteger(r.indice) && r.indice >= 0 && r.indice < catalogo.length ? r.indice : null
+    const r = JSON.parse(raw) as { es_botin: boolean; indice: number | null; seguridad: string; descripcion?: string }
+    const descripcion = (r.descripcion ?? '').trim().slice(0, 200)
+    if (!r.es_botin || r.indice == null || r.seguridad === 'baja') return { indice: null, descripcion }
+    return { indice: Number.isInteger(r.indice) && r.indice >= 0 && r.indice < catalogo.length ? r.indice : null, descripcion }
   } catch {
     console.error('identificarModeloEnFoto: JSON inválido:', raw)
     return null
@@ -548,7 +567,19 @@ async function analizarFotoCliente(
       sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=*&limit=1`).catch(() => null),
     ])
     const catalogo = await catRes.json() as { id: string; marca: string; modelo: string; categoria: string | null }[]
-    const indice = await identificarModeloEnFoto(mediaUrl, caption, catalogo)
+    const vista = await identificarModeloEnFoto(mediaUrl, caption, catalogo)
+    if (!vista) return false
+    // Qué muestra la foto queda guardado: así, cuando después el cliente dice
+    // "ese modelo" o "quiero esos", el bot sabe de qué foto habla (aunque no se
+    // haya reconocido el modelo exacto, o sea un comprobante).
+    if (vista.descripcion) {
+      await sbFetch(`wsp_mensajes?id=eq.${messageId}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ imagen_descripcion: vista.descripcion }),
+      }).catch(err => console.error('No se pudo guardar la descripción de la foto (¿falta la migración 064?):', err))
+    }
+    const indice = vista.indice
     if (indice == null) return false
     const elegido = catalogo[indice]
 
@@ -811,10 +842,16 @@ export default async function handler(req: Request): Promise<Response> {
             }),
           })
 
-          // Aviso al celular de quien atiende, aunque la app esté cerrada. Se
-          // espera (con tope) por el mismo motivo que la IA de más abajo: en las
-          // funciones edge lo que queda pendiente al devolver la Response se corta.
-          if (!silenciada) await Promise.race([
+          // Todo lo que sigue corre A LA VEZ (cada cosa con su propio tope) y se
+          // espera junto antes de responderle a Meta: en las funciones edge lo que
+          // queda pendiente al devolver la Response se corta. Antes iba en fila
+          // (aviso → mensaje automático → detección de ventas → IA), y la sugerencia
+          // quedaba última: en los chats con fotos la detección de ventas mira las
+          // imágenes con IA y tarda, y a la sugerencia no le quedaba tiempo.
+          const tareas: Promise<unknown>[] = []
+
+          // Aviso al celular de quien atiende, aunque la app esté cerrada.
+          if (!silenciada) tareas.push(Promise.race([
             enviarPush(
               {
                 supabaseUrl: SB_URL,
@@ -831,27 +868,27 @@ export default async function handler(req: Request): Promise<Response> {
               },
             ),
             new Promise<number>(resolve => setTimeout(() => resolve(0), 4000)),
-          ]).catch(console.error)
+          ]).catch(console.error))
 
-          await Promise.race([
+          tareas.push(Promise.race([
             enviarMensajeAutomatico(conversacionId, msg.from, previo),
             new Promise<void>(resolve => setTimeout(resolve, 5000)),
-          ]).catch(console.error)
+          ]).catch(console.error))
 
-          await Promise.race([
+          tareas.push(Promise.race([
             detectarVenta({ sbFetch, anthropicKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL }, conversacionId, 'cliente'),
             new Promise<boolean>(resolve => setTimeout(() => resolve(false), 9000)),
-          ]).catch(console.error)
+          ]).catch(console.error))
 
           if (tipo === 'image' && mediaUrl) {
             // Foto del botín que quiere: se reconoce el modelo y se mira el
             // stock. Si no se reconoce (o no es un botín: comprobante, rótulo…),
             // queda el flujo de siempre sobre el texto que la acompañe.
-            await Promise.race([
+            tareas.push(Promise.race([
               analizarFotoCliente(mediaUrl, contenido, conversacionId, inserted.id)
                 .then(ok => (!ok && contenido ? classifyWithAI(contenido, conversacionId, inserted.id) : undefined)),
               new Promise<void>(resolve => setTimeout(resolve, 14000)),
-            ]).catch(console.error)
+            ]).catch(console.error))
           } else if (contenido) {
             // OJO: hay que ESPERARLA antes de responder. En las funciones
             // edge de Vercel, cuando se devuelve la Response el runtime corta
@@ -860,11 +897,13 @@ export default async function handler(req: Request): Promise<Response> {
             // wsp_ia_sugerencias y sin ningún error en los logs), por eso la
             // clasificación y el botón de talle nunca aparecían. El tope de 8s
             // evita que una IA lenta demore de más la respuesta a Meta.
-            await Promise.race([
+            tareas.push(Promise.race([
               classifyWithAI(contenido, conversacionId, inserted.id),
               new Promise<void>(resolve => setTimeout(resolve, 8000)),
-            ]).catch(console.error)
+            ]).catch(console.error))
           }
+
+          await Promise.all(tareas)
         }
       }
     }
