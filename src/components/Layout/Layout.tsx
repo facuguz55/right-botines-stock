@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Package, BarChart2, Brain, DollarSign, Settings, List, FolderOpen, Activity,
   ShoppingBag, TrendingUp, ShoppingCart, Users, UserCheck, Tag, MessageCircle, PieChart,
-  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Inbox, Clock, CalendarClock, MousePointerClick,
+  LogOut, Banknote, UserCog, Menu, X, Truck, RotateCcw, User, Inbox, Clock, CalendarClock, MousePointerClick, Warehouse,
 } from 'lucide-react'
 import type { ActivePage, Role } from '../../types'
 import { AccessAlerts } from '../AccessAlerts/AccessAlerts'
@@ -45,6 +45,7 @@ const ALL_NAV: NavItem[] = [
   { page: 'dashboard',      label: 'Dashboard',    Icon: BarChart2    },
   { page: 'seguimientos',   label: 'Seguimientos', Icon: Activity     },
   { page: 'stock',          label: 'Stock',         Icon: Package      },
+  { page: 'stock_ba',       label: 'Stock Bs As',   Icon: Warehouse    },
   { page: 'carpetas',       label: 'Carpetas',      Icon: FolderOpen   },
   { page: 'ventas',         label: 'Ventas',        Icon: DollarSign   },
   { page: 'stock_avanzado', label: 'Avanzado',      Icon: List         },
@@ -82,7 +83,7 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       <p className="nav-group-label">CRM</p>
       <NavBtn item={nav('crm_inbox')} active={activePage === 'crm_inbox'} onClick={() => onNav('crm_inbox')} />
       <p className="nav-group-label">Stock</p>
-      {(['stock', 'carpetas', 'ventas', 'clientes_locales'] as ActivePage[]).map(p => (
+      {(['stock', 'stock_ba', 'carpetas', 'ventas', 'clientes_locales'] as ActivePage[]).map(p => (
         <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
       ))}
       <p className="nav-group-label">Caja</p>
@@ -102,7 +103,7 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
       )}
 
       <p className="nav-group-label">Gestión</p>
-      {(['stock', 'carpetas', 'ventas', 'stock_avanzado', 'clientes_locales'] as ActivePage[]).map(p => (
+      {(['stock', 'stock_ba', 'carpetas', 'ventas', 'stock_avanzado', 'clientes_locales'] as ActivePage[]).map(p => (
         <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
       ))}
 
