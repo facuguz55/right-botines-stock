@@ -6,6 +6,7 @@ import {
 import type { CrmEtiqueta, WspConversacion } from '../../../types/crm'
 import { SILENCIAR_SIEMPRE, estaSilenciada } from '../../../lib/crmSilencio'
 import EtiquetasPicker from '../Etiquetas/EtiquetasPicker'
+import { limpiarNombreWsp } from '../../../lib/crmSugerencia'
 
 // Menú de un chat de la lista (mantener apretado en el celular, clic derecho en la
 // compu), como el de WhatsApp. Cada acción que necesita más pasos (nombre, cuánto
@@ -40,14 +41,14 @@ type Paso = 'menu' | 'renombrar' | 'silenciar' | 'etiquetas' | 'bloquear' | 'vac
 const HORA = 3600 * 1000
 
 export function nombreDeChat(c: WspConversacion): string {
-  return c.nombre_personalizado || c.nombre || c.telefono || 'este chat'
+  return c.nombre_personalizado || limpiarNombreWsp(c.nombre) || c.telefono || 'este chat'
 }
 
 export default function ChatMenu({ conv, x, y, etiquetas, etiquetasDelChat, acciones, onClose }: Props) {
   const [paso, setPaso] = useState<Paso>('menu')
   const [trabajando, setTrabajando] = useState(false)
   const [error, setError] = useState('')
-  const [nombre, setNombre] = useState(conv.nombre_personalizado || conv.nombre || '')
+  const [nombre, setNombre] = useState(conv.nombre_personalizado || limpiarNombreWsp(conv.nombre) || '')
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number; origen: string }>({ left: x, top: y, origen: '0 0' })
 

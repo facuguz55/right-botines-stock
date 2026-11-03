@@ -11,6 +11,7 @@ import { humanizar } from '../../../lib/crmTexto'
 import { estadoEntrega, motivoFallo, ESTADO_TITULO } from '../../../lib/crmEstadoMensaje'
 import { mensajesDeSugerencia } from '../../../lib/crmAprendizaje'
 import './ChatPanel.css'
+import { limpiarNombreWsp } from '../../../lib/crmSugerencia'
 
 interface ChatPanelProps {
   conversacion: WspConversacion | null
@@ -387,11 +388,11 @@ export default function ChatPanel({
                 className="chat-panel-header-name chat-panel-header-name--editable"
                 title="Click para renombrar (solo en el CRM)"
                 onClick={() => {
-                  setNombreDraft(conversacion.nombre_personalizado || conversacion.nombre || '')
+                  setNombreDraft(conversacion.nombre_personalizado || limpiarNombreWsp(conversacion.nombre) || '')
                   setRenaming(true)
                 }}
               >
-                {conversacion.nombre_personalizado || conversacion.nombre || conversacion.telefono || 'Sin nombre'}
+                {conversacion.nombre_personalizado || limpiarNombreWsp(conversacion.nombre) || conversacion.telefono || 'Sin nombre'}
                 <Pencil size={11} className="chat-panel-header-rename-icon" />
               </div>
             )}

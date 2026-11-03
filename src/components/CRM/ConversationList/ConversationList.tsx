@@ -10,6 +10,7 @@ import { estaSilenciada } from '../../../lib/crmSilencio'
 import { vibrar } from '../../../lib/haptico'
 import { vistaPrevia, type IconoVistaPrevia } from '../../../lib/crmVistaPrevia'
 import './ConversationList.css'
+import { limpiarNombreWsp } from '../../../lib/crmSugerencia'
 
 const ICONO_PREVIA: Record<Exclude<IconoVistaPrevia, null>, typeof Mic> = {
   voz: Mic, foto: Camera, video: Video, sticker: Sticker, archivo: FileText, celular: Smartphone,
@@ -317,11 +318,11 @@ export default function ConversationList({
               onPointerLeave={cancelarPulsacion}
             >
               <div className="conv-list-avatar">
-                {getInitial(conv.nombre_personalizado || conv.nombre)}
+                {getInitial(conv.nombre_personalizado || limpiarNombreWsp(conv.nombre))}
               </div>
               <div className="conv-list-info">
                 <div className="conv-list-top">
-                  <span className="conv-list-name">{conv.nombre_personalizado || conv.nombre || conv.telefono || 'Sin nombre'}</span>
+                  <span className="conv-list-name">{conv.nombre_personalizado || limpiarNombreWsp(conv.nombre) || conv.telefono || 'Sin nombre'}</span>
                   {estaSilenciada(conv) && <BellOff size={12} className="conv-list-mute" aria-label="Silenciado" />}
                   <span className="conv-list-time">{timeAgo(conv.ultimo_mensaje_at)}</span>
                 </div>

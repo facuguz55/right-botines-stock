@@ -21,6 +21,7 @@ import type { AccionesChat } from '../ConversationList/ChatMenu'
 import ChatPanel from '../ChatPanel/ChatPanel'
 import { MpLinkModal } from '../MpLinkModal/MpLinkModal'
 import './CrmInbox.css'
+import { limpiarNombreWsp } from '../../../lib/crmSugerencia'
 
 interface CrmInboxProps {
   empleadoId: string | null
@@ -461,7 +462,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
               conversacionId: selectedId,
               crmClienteId: selectedConv.crm_cliente_id,
               clienteLocalId: selectedConv.crm_clientes?.cliente_local_id ?? null,
-              nombre: selectedConv.nombre_personalizado || selectedConv.nombre,
+              nombre: selectedConv.nombre_personalizado || limpiarNombreWsp(selectedConv.nombre),
               telefono: selectedConv.telefono,
               waContactId: selectedConv.wa_contact_id,
             })

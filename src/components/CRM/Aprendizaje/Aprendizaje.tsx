@@ -6,6 +6,7 @@ import {
   type CrmAprendizaje, type PruebaBot,
 } from '../../../services/crmAprendizajes'
 import './Aprendizaje.css'
+import { limpiarNombreWsp } from '../../../lib/crmSugerencia'
 
 type Pestana = 'aprendio' | 'probar'
 
@@ -13,7 +14,7 @@ const EJEMPLOS_PRUEBA = ['Tienen catálogo de botines?', 'Cuánto sale el envío
 
 function nombreDe(a: CrmAprendizaje) {
   const c = a.wsp_conversaciones
-  return c?.nombre_personalizado || c?.nombre || c?.telefono || 'Cliente'
+  return c?.nombre_personalizado || limpiarNombreWsp(c?.nombre) || c?.telefono || 'Cliente'
 }
 
 function fechaDe(iso: string) {

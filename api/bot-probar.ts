@@ -65,7 +65,7 @@ export default async function handler(req: Request): Promise<Response> {
     const ia = await llamarClasificadorIA({
       apiKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL, contexto,
       busquedaGuardada: { talle: null, tipo: null, modelo: null },
-      text: ultimo, aprendizajes,
+      text: ultimo, bloque: cliente, aprendizajes,
     })
     if (!ia || ia.mensajes_sugeridos.length === 0) return json({ error: 'El bot no quiso o no pudo contestar ese mensaje. Probá con otra frase.' }, 502)
 

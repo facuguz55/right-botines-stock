@@ -1,5 +1,6 @@
 import {
   TIPOS_BOTIN,
+  type TipoBotin,
   busquedaVigente,
   decidirBusqueda,
   detectarBusqueda,
@@ -33,6 +34,14 @@ import {
   type PedidoTN,
 } from '../src/lib/crmPedidos'
 import { detectarVenta } from '../src/lib/crmVenta'
+import {
+  descripcionFoto,
+  esSaludoOMedia,
+  marcadorAdjunto,
+  preguntaPorPedidoConfiable,
+  sugerenciaDeRescate,
+  usarRespuestaArmadaDeStock,
+} from '../src/lib/crmSugerencia'
 
 export const config = { runtime: 'edge' }
 
@@ -343,7 +352,11 @@ async function sbWriteConFallback(path: string, method: 'POST' | 'PATCH', body: 
   }
 }
 
-async function classifyWithAI(text: string, conversacionId: string, messageId: string) {
+// Lo que se sabe de la foto que se está sugiriendo, cuando no alcanza con armar
+// la respuesta de stock (el cliente preguntó otra cosa antes de mandarla).
+interface AdjuntoFoto { modelo: string | null; tipo: TipoBotin | null }
+
+async function classifyWithAI(text: string, conversacionId: string, messageId: string, adjunto?: AdjuntoFoto) {
   try {
     // Contexto: últimos mensajes de la charla, lo que ya se sabía que buscaba
     // (select=* para no romper si falta alguna migración de búsqueda) y los
@@ -390,7 +403,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // tipos distintos, es ambiguo y tampoco se le cree a la IA.
     // El modelo sale solo del catálogo real (nunca de la IA).
     const det = detectarBusqueda(text, { ultimoMensajeLocal })
-    const modeloMsg = catalogo.length ? extraerModeloBuscado(text, vocabularioCatalogo(catalogo)) : null
+    const modeloMsg = adjunto?.modelo ?? (catalogo.length ? extraerModeloBuscado(text, vocabularioCatalogo(catalogo)) : null)
 
     // Si lo último que mandó el cliente antes de este mensaje fue una foto, el
     // modelo de esa foto cuenta para "quiero ese", "esos", "en 42"... Solo en ese
@@ -418,8 +431,20 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const bloqueCliente: string[] = []
     for (let i = recientes.length - 1; i >= 0 && recientes[i].direccion === 'in'; i--) bloqueCliente.unshift(recientes[i].texto)
     const aprendizajes = await buscarAprendizajes(bloqueCliente.slice(-3).join('\n') || text)
+    // El mismo bloque, pero con las fotos y audios (no tienen texto): la
+    // sugerencia contesta todo lo que mandó seguido, sobre todo lo último.
+    const bloqueConAdjuntos: string[] = []
+    for (let i = filasMsgs.length - 1; i >= 0 && filasMsgs[i].direccion === 'in'; i--) {
+      const m = filasMsgs[i]
+      const t = (m.contenido || m.transcripcion || '').trim()
+      const adj = m.tipo === 'image'
+        ? `[foto del cliente: ${m.imagen_descripcion?.trim() || 'no se vio qué muestra'}]`
+        : marcadorAdjunto(m.tipo ?? '')
+      bloqueConAdjuntos.unshift([t, adj].filter(Boolean).join(' '))
+    }
     const ia = await llamarClasificadorIA({
       apiKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL, contexto, busquedaGuardada: busquedaPrevia, text, aprendizajes,
+      bloque: bloqueConAdjuntos.length > 1 ? bloqueConAdjuntos : undefined,
     }).catch(err => {
       console.error('classifyWithAI: falló la llamada a Anthropic:', err)
       return null
@@ -427,7 +452,11 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
 
     // Pregunta por el estado de un pedido: lo decide la IA; sin IA, solo
     // frases inequívocas ("cuándo me llega", "seguimiento").
-    const preguntaPorPedido = ia ? ia.intencion === 'estado_pedido' : esConsultaEnvioSegura(text)
+    // La IA a veces ve "pedido" en un "Dale" o un "Bien" a mitad de una compra:
+    // solo se contesta con el estado de un pedido si el mensaje habla de uno.
+    const preguntaPorPedido = ia
+      ? preguntaPorPedidoConfiable(ia.intencion === 'estado_pedido', mencionaPedido(text))
+      : esConsultaEnvioSegura(text)
     if (preguntaPorPedido && !pedidoPromise) pedidoPromise = buscarPedidoDelCliente(telefono, numeroPedido)
     const pedido = preguntaPorPedido && pedidoPromise ? await pedidoPromise : null
     // Con el pedido real, la respuesta sale de sus datos. Sin pedido, NUNCA
@@ -438,6 +467,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
         : 'Hola buenas! Me pasás el número de pedido, o el nombre o mail con el que compraste? Así te lo busco 🤗')
       : null
     const tipoMsg = det.tipo
+      ?? (adjunto?.tipo ?? null)
       ?? (det.tiposEncontrados.length === 0 && ia ? tipoIaEsConfiable(ia.tipo, text) : null)
     // El talle de la IA tiene que estar en ESTE mensaje: si no, un "gracias!"
     // después de haber dicho "38" volvería a disparar la sugerencia en cada
@@ -458,17 +488,19 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
       cambioDeTema: ia?.cambio_de_tema === true,
     })
 
-    if (!ia && !aporto && !respuestaPedido) return
+    // Sin IA ni nada armado igual se sugiere algo: nunca queda un mensaje sin sugerencia.
 
     // La respuesta es una lista de mensajes cortos que se mandan uno atrás del
     // otro (como contesta Cami). Lo armado con datos reales (pedido, stock)
     // va en un solo mensaje.
     let mensajes: string[] = respuestaPedido ? [respuestaPedido] : ia?.mensajes_sugeridos ?? []
-    if (aporto) {
+    if (aporto && usarRespuestaArmadaDeStock(ia?.intencion, mensajes.length > 0)) {
+      // Con el stock real. Si el cliente preguntó otra cosa (la horma, un envío)
+      // se contesta eso y el talle/modelo igual queda anotado para los botones.
       const stock = await contarStock(busqueda)
       const armada = respuestaSugeridaBusqueda(busqueda, stock)
       if (armada) mensajes = [armada]
-    } else if (ia?.intencion === 'pedido_talle' && !respuestaPedido) {
+    } else if (ia?.intencion === 'pedido_talle' && !respuestaPedido && !aporto) {
       // Pregunta por stock sin decir talle/tipo/modelo reconocibles: la
       // respuesta libre de la IA podría afirmar que "hay de todo" sin mirar
       // nada (pasó: "en talle 32 tenemos F11 y F5" sin stock). Se pide el talle.
@@ -478,6 +510,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // Pase lo que pase (IA o texto armado), al cliente no le llega nada con
     // pinta de IA: sin emojis, sin ¿ ¡, sin guiones largos ni viñetas.
     mensajes = mensajes.map(m => humanizar(m)).filter(Boolean)
+    if (mensajes.length === 0) mensajes = sugerenciaDeRescate(text).map(m => humanizar(m)).filter(Boolean)
     const respuesta = mensajes.length ? mensajes.join('\n\n') : null
 
     const categoria = ia?.categoria ?? (aporto ? 'Pedido de talles' : null)
@@ -602,10 +635,21 @@ async function identificarModeloEnFoto(
   }
 }
 
-// Devuelve true si reconoció el modelo y dejó la sugerencia armada.
+interface ResultadoFoto {
+  // Dejó la sugerencia de stock armada (reconoció el modelo y se pidió armarla).
+  sugerida: boolean
+  descripcion: string | null
+  adjunto: AdjuntoFoto | null
+}
+
+// Lee la foto, guarda qué muestra y, si reconoció el modelo y `armar` es true,
+// deja la sugerencia de stock armada. Con `armar` false (el cliente preguntó
+// otra cosa antes de mandarla) no escribe la sugerencia: la hace classifyWithAI
+// contestando el bloque completo.
 async function analizarFotoCliente(
-  mediaUrl: string, caption: string | null, conversacionId: string, messageId: string,
-): Promise<boolean> {
+  mediaUrl: string, caption: string | null, conversacionId: string, messageId: string, armar: boolean,
+): Promise<ResultadoFoto> {
+  const vacio: ResultadoFoto = { sugerida: false, descripcion: null, adjunto: null }
   try {
     const [catRes, estadoRes] = await Promise.all([
       sbFetch('modelos?select=id,marca,modelo,categoria&order=marca.asc,modelo.asc'),
@@ -613,7 +657,7 @@ async function analizarFotoCliente(
     ])
     const catalogo = await catRes.json() as { id: string; marca: string; modelo: string; categoria: string | null }[]
     const vista = await identificarModeloEnFoto(mediaUrl, caption, catalogo)
-    if (!vista) return false
+    if (!vista) return vacio
     // Qué muestra la foto queda guardado: así, cuando después el cliente dice
     // "ese modelo" o "quiero esos", el bot sabe de qué foto habla (aunque no se
     // haya reconocido el modelo exacto, o sea un comprobante).
@@ -628,8 +672,12 @@ async function analizarFotoCliente(
     // 2º lo que la IA reconoció mirando la foto, solo si estaba segura.
     const porTitulo = coincidirTitulo(vista.titulo, catalogo)
     const candidatos = porTitulo.length ? porTitulo : (vista.indice != null ? [vista.indice] : [])
-    if (candidatos.length === 0) return false
+    if (candidatos.length === 0) return { ...vacio, descripcion: vista.descripcion || null }
     const elegido = catalogo[candidatos[0]]
+    const nombre = `${elegido.marca} ${elegido.modelo}`.trim()
+    if (!armar) {
+      return { sugerida: false, descripcion: vista.descripcion || null, adjunto: { modelo: nombre, tipo: tipoDeCategoria(elegido.categoria) } }
+    }
 
     const estadoRow = estadoRes ? (await estadoRes.json() as Record<string, unknown>[])[0] ?? {} : {}
     const previa = busquedaVigente(estadoRow as Parameters<typeof busquedaVigente>[0])
@@ -641,7 +689,6 @@ async function analizarFotoCliente(
     const filas = await (await sbFetch(
       `modelo_talles?modelo_id=in.(${ids.map(encodeURIComponent).join(',')})&cantidad=gt.0&select=talle_arg`,
     )).json() as { talle_arg: number }[]
-    const nombre = `${elegido.marca} ${elegido.modelo}`.trim()
     const respuesta = humanizar(respuestaPorModeloFoto(nombre, talle, filas.map(f => Number(f.talle_arg))))
 
     await sbWriteConFallback('wsp_ia_sugerencias', 'POST', {
@@ -673,11 +720,42 @@ async function analizarFotoCliente(
         busqueda_updated_at: new Date().toISOString(),
       }, ['busqueda_modelo']).catch(err => console.error('No se pudo guardar el talle de la foto:', err))
     }
-    return true
+    return { sugerida: true, descripcion: vista.descripcion || null, adjunto: null }
   } catch (err) {
     console.error('analizarFotoCliente falló:', err)
-    return false
+    return vacio
   }
+}
+
+// Texto del cliente que venía seguido (sin que nadie le contestara) antes de esta foto.
+async function textosPreviosDelBloque(conversacionId: string, messageId: string): Promise<string[]> {
+  try {
+    const filas = await (await sbFetch(
+      `wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=12`,
+    )).json() as { id: string; direccion: 'in' | 'out'; tipo: string; contenido: string | null; transcripcion: string | null }[]
+    const desde = filas.findIndex(f => f.id === messageId)
+    const out: string[] = []
+    for (let i = desde < 0 ? 0 : desde + 1; i < filas.length && filas[i].direccion === 'in'; i++) {
+      out.unshift((filas[i].contenido || filas[i].transcripcion || marcadorAdjunto(filas[i].tipo)).trim())
+    }
+    return out.filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+// Una foto de cliente. Si es la foto de un botín que quiere y antes no preguntó
+// nada más que saludar, se arma la respuesta de stock. Si preguntó algo (la
+// horma, un envío) o la foto es otra cosa (un comprobante, datos de envío…), la
+// sugerencia sale del bloque completo: siempre se contesta lo último que dijo.
+async function manejarFotoCliente(
+  mediaUrl: string, caption: string | null, conversacionId: string, messageId: string,
+): Promise<void> {
+  const previos = await textosPreviosDelBloque(conversacionId, messageId)
+  const soloSaludo = [...previos, caption ?? ''].every(esSaludoOMedia)
+  const r = await analizarFotoCliente(mediaUrl, caption, conversacionId, messageId, soloSaludo)
+  if (r.sugerida) return
+  await classifyWithAI(descripcionFoto(r.descripcion, caption), conversacionId, messageId, r.adjunto ?? undefined)
 }
 
 // Guarda el aviso de entrega de Meta en el mensaje. Los avisos pueden llegar
@@ -943,8 +1021,7 @@ export default async function handler(req: Request): Promise<Response> {
             // stock. Si no se reconoce (o no es un botín: comprobante, rótulo…),
             // queda el flujo de siempre sobre el texto que la acompañe.
             tareas.push(Promise.race([
-              analizarFotoCliente(mediaUrl, contenido, conversacionId, inserted.id)
-                .then(ok => (!ok && contenido ? classifyWithAI(contenido, conversacionId, inserted.id) : undefined)),
+              manejarFotoCliente(mediaUrl, contenido, conversacionId, inserted.id),
               new Promise<void>(resolve => setTimeout(resolve, 14000)),
             ]).catch(console.error))
           } else if (contenido) {
@@ -957,6 +1034,13 @@ export default async function handler(req: Request): Promise<Response> {
             // evita que una IA lenta demore de más la respuesta a Meta.
             tareas.push(Promise.race([
               classifyWithAI(contenido, conversacionId, inserted.id),
+              new Promise<void>(resolve => setTimeout(resolve, 8000)),
+            ]).catch(console.error))
+          } else if (marcadorAdjunto(tipo)) {
+            // Audio, sticker, video o foto que no se pudo bajar, sin texto:
+            // igual se sugiere algo, mirando lo que venía diciendo el cliente.
+            tareas.push(Promise.race([
+              classifyWithAI(marcadorAdjunto(tipo), conversacionId, inserted.id),
               new Promise<void>(resolve => setTimeout(resolve, 8000)),
             ]).catch(console.error))
           }

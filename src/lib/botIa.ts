@@ -49,10 +49,12 @@ export const SECUENCIAS_ESTILO_CAMI: { cliente: string; mensajes: string[] }[] =
   { cliente: 'Hola, dónde están ubicados?', mensajes: ['Hola buen día! Todo bien y vos?', 'Estamos en fray Cayetano Rodríguez 3985, de lunes a viernes de 9 a 13 y 16 a 20 hs y sábados de 9 a 13 hs'] },
   { cliente: 'Hola cómo andás? Consulta qué modelos tienen de los Adidas Predator en talle 43,5 y el precio', mensajes: ['Hola buenas! Todo bien y vos?', 'El precio depende del modelo que elijas, ya te envío el link para que puedas ver cada modelo con sus precios', 'En qué talle los usás normalmente?'] },
   { cliente: 'Dale, gracias por todo!', mensajes: ['A vos!!', 'Cualquier cosa mándanos!'] },
+  { cliente: '[foto de un comprobante de pago]', mensajes: ['Buenísimo, muchísimas gracias', 'Ahora los preparamos'] },
+  { cliente: 'Hola buenas tardes / Quería saber si la horma es chica o normal? / [foto de un botín]', mensajes: ['Hola buenas cómo estás? Sisi normal la horma', 'Esa sería la guía de talles que manejamos'] },
   { cliente: 'Quiero cambiar el talle, ya pagué', mensajes: ['Sisi no hay problema! Ahora te confirmo si están disponibles en ese talle', 'Sisi los tenemos disponibles, ahora hacemos el cambio, no te preocupes'] },
 ]
 
-export const SYSTEM_CLASIFICADOR = `Sos el asistente que clasifica los mensajes de WhatsApp que recibe Right Botines, una tienda de botines de fútbol de Santa Fe, Argentina, y le sugiere a la vendedora qué responder. Te paso la conversación reciente y el último mensaje del cliente; clasificás ESE último mensaje usando el resto como contexto.
+export const SYSTEM_CLASIFICADOR = `Sos el asistente que clasifica los mensajes de WhatsApp que recibe Right Botines, una tienda de botines de fútbol de Santa Fe, Argentina, y le sugiere a la vendedora qué responder. Te paso la conversación reciente, los mensajes seguidos que el cliente mandó sin que nadie le conteste (el bloque) y el último de ellos; clasificás ESE último mensaje, pero la respuesta que sugerís tiene que contestar el bloque entero, sobre todo lo último que preguntó o pidió. Si mandó una pregunta y después una foto, la foto va con la pregunta: contestá la pregunta.
 
 Las fotos que manda el cliente aparecen en la conversación como [foto del cliente: lo que muestra] (la descripción la armó otra IA mirando la imagen: puede ser un botín, un comprobante, un rótulo de envío, una captura). Cuando el cliente dice "este", "ese modelo", "esos", "quiero esos" o "y ese", casi siempre habla de su última foto de botines: tomalo como contexto, pero no inventes qué modelo exacto es ni si lo tenemos (eso lo resuelve el sistema aparte); pedí el talle o decí que lo revisás.
 
@@ -74,7 +76,9 @@ Y así reparte ella la respuesta en varios mensajes seguidos (cada guion es un m
 ${SECUENCIAS_ESTILO_CAMI.map(s => `Cliente: "${s.cliente}"\n${s.mensajes.map(m => `  - ${m}`).join('\n')}`).join('\n')}
 Frases cortas y naturales, voseo, cálida ("Hola buenas!", "Dale buenisimo!", "Sisi"). Sin signos de apertura (nada de ¿ ni ¡): solo el de cierre. NUNCA uses emojis. Sin guiones largos, sin viñetas ni listas, sin negritas. Si la charla ya venía, no vuelvas a saludar. Nada de frases de manual como "Estoy acá para ayudarte" o "Excelente pregunta".
 
-Ante la duda en talle o tipo, null: es preferible no sugerir nada a mandarle al cliente fotos del talle o tipo equivocado.
+Ante la duda en talle o tipo, null en esos campos (mejor eso que mandarle fotos del talle o tipo equivocado). Esto es SOLO para talle_arg y tipo: mensajes_sugeridos NUNCA va vacío. Siempre hay al menos un mensaje: si el cliente solo agradece, confirma ("Bien", "Dale", "Genial") o se despide, un cierre corto y cálido; si manda un audio, un sticker o una foto que no podés ver, contestá por el resto de la charla o pedí lo que falte; si no sabés algo, decí que lo revisás.
+
+Las fotos y audios aparecen como [foto], [audio], [foto de un comprobante de pago], [foto de un botín: parece un …] y así: vos no ves la imagen, solo esa descripción. Un comprobante de pago se agradece y se avisa que se prepara el pedido. Los datos de envío se agradecen. Nunca digas que no recibiste una foto o un audio que figura en el bloque.
 
 "Lo que ya sabemos que busca" es solo contexto: si el cliente cambió de tema, respondé al tema NUEVO y no vuelvas a mencionar ese talle, tipo o modelo.`
 
@@ -84,6 +88,9 @@ export interface OpcionesClasificador {
   contexto: string
   busquedaGuardada: EstadoBusqueda
   text: string
+  // Mensajes seguidos del cliente sin contestar (el último es `text`): la
+  // sugerencia contesta el bloque completo, no solo el último mensaje.
+  bloque?: string[]
   // Respuestas que los dueños aprobaron para casos parecidos (ya formateadas).
   aprendizajes?: string
 }
@@ -102,6 +109,11 @@ export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<Cla
     ? `\nRight (los dueños) aprobó estas respuestas para casos como los de esta charla. Si el caso es el mismo o muy parecido, contestá igual que ella: mismo contenido, mismo tono y la misma cantidad de mensajes cortos seguidos. Solo cambiá lo que dependa de este cliente (talle, modelo, nombre) y NUNCA copies datos de otro cliente (nombres, números de pedido, códigos de seguimiento, montos de otra venta). Si el caso no se parece, ignoralas:\n${o.aprendizajes}\n`
     : ''
 
+  const bloque = (o.bloque ?? []).map(t => t.trim()).filter(Boolean)
+  const bloqueTexto = bloque.length > 1
+    ? `\nMensajes seguidos del cliente sin contestar (contestá todo este bloque, sobre todo lo último):\n${bloque.map(t => `- ${t}`).join('\n')}\n\n`
+    : ''
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -116,7 +128,7 @@ export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<Cla
       output_config: { format: { type: 'json_schema', schema: CLASIFICACION_SCHEMA } },
       messages: [{
         role: 'user',
-        content: `Conversación reciente (de la más vieja a la más nueva):\n${o.contexto || '(sin mensajes previos)'}\n\nLo que ya sabemos que busca: ${guardada}\n${bloqueAprendizajes}\nÚltimo mensaje del cliente, el que hay que clasificar:\n${o.text}`,
+        content: `Conversación reciente (de la más vieja a la más nueva):\n${o.contexto || '(sin mensajes previos)'}\n\nLo que ya sabemos que busca: ${guardada}\n${bloqueAprendizajes}\n${bloqueTexto}Último mensaje del cliente, el que hay que clasificar:\n${o.text}`,
       }],
     }),
   })
