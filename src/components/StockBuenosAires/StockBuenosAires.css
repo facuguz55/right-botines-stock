@@ -103,22 +103,3 @@
   .sba-acciones { width: 100%; }
   .sba-acciones .btn { width: 100%; justify-content: center; }
 }
-
-.sba-tn {
-  position: absolute; top: 6px; left: 6px; padding: 2px 6px; border-radius: 4px;
-  background: var(--accent); color: #fff; font-size: .625rem; font-weight: 800; letter-spacing: .04em;
-}
-.sba-tn-bloque {
-  display: flex; flex-direction: column; gap: .5rem; margin-top: .75rem; padding: .75rem;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-}
-.sba-tn-bloque .sba-previa-titulo { display: flex; align-items: center; gap: .375rem; font-size: .875rem; }
-.sba-tn-bloque .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: .375rem; }
-.sba-tn-lista { display: flex; flex-direction: column; gap: .25rem; max-height: 190px; overflow-y: auto; }
-.sba-tn-opcion {
-  display: flex; justify-content: space-between; align-items: center; gap: .5rem; text-align: left;
-  padding: .5rem .625rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--bg-surface-2); color: var(--text-primary); font-size: .8125rem; cursor: pointer; font-family: inherit;
-}
-.sba-tn-opcion:hover:not(:disabled) { border-color: var(--accent); }
-.sba-tn-opcion small { color: var(--warning); font-size: .6875rem; white-space: nowrap; }

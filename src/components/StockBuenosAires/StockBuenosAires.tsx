@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FileUp, Search, Minus, Plus, Truck, X, Link2, Link2Off } from 'lucide-react'
+import { FileUp, Search, Minus, Plus, Truck, X } from 'lucide-react'
 import type { Role } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { leerPedidoPdf, type PedidoLeido } from '../../lib/stockBaPdf'
 import {
   fetchStockBA, importarPedidoBA, pedidoBAYaCargado, ajustarStockBA, renombrarModeloBA, fetchMovimientosBA,
-  buscarProductosTN, vincularConTN, desvincularDeTN, empujarTalleATN,
-  type ModeloBA, type MovimientoBA, type ProductoTN,
+  type ModeloBA, type MovimientoBA,
 } from '../../services/stockBA'
 import './StockBuenosAires.css'
 
@@ -165,7 +164,6 @@ export function StockBuenosAires({ role, empleadoId }: Props) {
               <div className="sba-foto">
                 {m.foto_url ? <img src={m.foto_url} alt={m.descripcion} loading="lazy" /> : <span>Sin foto</span>}
                 <span className="sba-pares">{totalPares(m)}</span>
-                {m.tn_product_id && <span className="sba-tn" title="Conectado con Tienda Nube">TN</span>}
               </div>
               <p className="sba-nombre">{m.descripcion}</p>
               <p className="sba-codigo">Código {m.codigo}</p>
@@ -260,12 +258,7 @@ function DetalleModelo({ modelo, empleadoId, onClose, onCambio }: {
     setError(null)
     setOcupado(talleId)
     try {
-      const nueva = await ajustarStockBA(talleId, delta, delta < 0 ? 'Venta / envío' : 'Ajuste', empleadoId)
-      const talle = modelo.stock_ba_talles.find(t => t.id === talleId)
-      if (modelo.tn_product_id && talle?.tn_variant_id) {
-        try { await empujarTalleATN(modelo.tn_product_id, talle.tn_variant_id, nueva) }
-        catch { setError('Se descontó acá, pero no se pudo avisar a Tienda Nube. Revisá el stock de ese talle en la tienda.') }
-      }
+      await ajustarStockBA(talleId, delta, delta < 0 ? 'Venta / envío' : 'Ajuste', empleadoId)
       await onCambio()
       await cargarMovs()
     } catch (e) {
@@ -303,8 +296,6 @@ function DetalleModelo({ modelo, empleadoId, onClose, onCambio }: {
         <p className="sba-previa-nota">El − descuenta un par cuando se vende o se manda. Todo queda anotado abajo.</p>
         {error && <p className="sba-error">{error}</p>}
 
-        <ConexionTN modelo={modelo} onCambio={onCambio} onError={setError} />
-
         {movs.length > 0 && (
           <div className="sba-movs">
             <p className="sba-previa-titulo">Movimientos</p>
@@ -317,75 +308,5 @@ function DetalleModelo({ modelo, empleadoId, onClose, onCambio }: {
         )}
       </div>
     </Modal>
-  )
-}
-
-function ConexionTN({ modelo, onCambio, onError }: { modelo: ModeloBA; onCambio: () => Promise<void>; onError: (m: string | null) => void }) {
-  const [texto, setTexto] = useState('')
-  const [resultados, setResultados] = useState<ProductoTN[]>([])
-  const [buscando, setBuscando] = useState(false)
-  const [guardando, setGuardando] = useState(false)
-  const [nota, setNota] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (modelo.tn_product_id) return
-    let vivo = true
-    setBuscando(true)
-    const t = setTimeout(() => {
-      buscarProductosTN(texto)
-        .then(r => { if (vivo) setResultados(r) })
-        .catch(() => { if (vivo) setResultados([]) })
-        .finally(() => { if (vivo) setBuscando(false) })
-    }, 250)
-    return () => { vivo = false; clearTimeout(t) }
-  }, [texto, modelo.tn_product_id])
-
-  const vincular = async (p: ProductoTN) => {
-    if (p.paresLocal > 0 && !window.confirm(`"${p.marca} ${p.modelo}" tiene ${p.paresLocal} pares en el stock del local. Al vincularlo se sacan de ahí, porque pasan a ser de Buenos Aires. ¿Seguir?`)) return
-    onError(null)
-    setGuardando(true)
-    try {
-      const r = await vincularConTN(modelo.id, p.tn_product_id)
-      setNota(r.sincronizado ? 'Vinculado. Las cantidades ya son las de la tienda.' : 'Vinculado. Las cantidades se actualizan con el próximo cambio del producto en la tienda.')
-      await onCambio()
-    } catch (e) {
-      onError((e as Error).message)
-    } finally {
-      setGuardando(false)
-    }
-  }
-
-  const desvincular = async () => {
-    if (!window.confirm('Se corta la conexión: lo que se venda en la tienda ya no baja de este stock. ¿Desvincular?')) return
-    setGuardando(true)
-    try { await desvincularDeTN(modelo.id); setNota(null); await onCambio() } catch (e) { onError((e as Error).message) } finally { setGuardando(false) }
-  }
-
-  if (modelo.tn_product_id) {
-    return (
-      <div className="sba-tn-bloque">
-        <p className="sba-previa-titulo"><Link2 size={14} /> Conectado con Tienda Nube</p>
-        <p className="sba-previa-nota">Lo que se vende en la tienda baja de este stock solo, y lo que descontás acá baja en la tienda.</p>
-        {nota && <p className="sba-ok">{nota}</p>}
-        <button className="btn btn-secondary btn-sm" disabled={guardando} onClick={desvincular}><Link2Off size={13} /> Desvincular</button>
-      </div>
-    )
-  }
-  return (
-    <div className="sba-tn-bloque">
-      <p className="sba-previa-titulo"><Link2 size={14} /> Conectar con Tienda Nube</p>
-      <p className="sba-previa-nota">Elegí el producto de la tienda que es este modelo. Desde ahí se descuenta solo en las dos puntas.</p>
-      <input className="sba-detalle-nombre" value={texto} onChange={e => setTexto(e.target.value)} placeholder="Buscar el producto en la tienda (ej. Phantom)" aria-label="Buscar producto de Tienda Nube" />
-      {buscando && <p className="sba-previa-nota">Buscando…</p>}
-      <div className="sba-tn-lista">
-        {resultados.map(p => (
-          <button key={p.id} className="sba-tn-opcion" disabled={guardando} onClick={() => vincular(p)}>
-            <span>{p.marca} {p.modelo}</span>
-            {p.paresLocal > 0 && <small>{p.paresLocal} pares en el local</small>}
-          </button>
-        ))}
-        {!buscando && resultados.length === 0 && <p className="sba-previa-nota">No hay productos con ese nombre.</p>}
-      </div>
-    </div>
   )
 }
