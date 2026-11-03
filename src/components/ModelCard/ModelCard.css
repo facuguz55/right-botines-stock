@@ -185,3 +185,9 @@
 @media (max-width: 768px) {
   .icon-btn { min-width: 40px; min-height: 40px; }
 }
+
+/* Stock que está en el depósito de Buenos Aires: se distingue del del local. */
+.card-ba { margin: .25rem 0 .5rem; padding: .375rem .5rem; border: 1px dashed rgba(96,165,250,.55); border-radius: var(--radius-sm); background: rgba(96,165,250,.08); }
+.card-ba-label { display: inline-flex; align-items: center; gap: 4px; font-size: .6875rem; font-weight: 700; letter-spacing: .03em; color: #60a5fa; text-transform: uppercase; }
+.card-ba-talles { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.card-ba-chip { font-family: var(--font-display); font-size: .75rem; font-weight: 700; padding: 1px 6px; border-radius: 3px; border: 1px solid rgba(96,165,250,.45); color: #93c5fd; }

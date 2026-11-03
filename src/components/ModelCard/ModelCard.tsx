@@ -2,12 +2,15 @@ import { memo, useState } from 'react'
 import { etiquetaVarianteTN } from '../../lib/talles'
 import { Pencil, Trash2, Truck } from 'lucide-react'
 import type { Modelo } from '../../types'
+import type { TalleBAVista } from '../../services/stockBA'
 import { getPrecioReal } from '../../utils/precios'
 import { ImageLightbox } from '../ImageLightbox/ImageLightbox'
 import './ModelCard.css'
 
 interface ModelCardProps {
   modelo: Modelo
+  // Talles que hay en Buenos Aires para este modelo (solo envío).
+  stockBA?: TalleBAVista[]
   onSell: (modelo: Modelo) => void
   soloVenta?: boolean
   puedeVender: boolean
@@ -19,7 +22,7 @@ interface ModelCardProps {
   onPriceHistory: (modelo: Modelo) => void
 }
 
-export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onReponer, onPriceHistory }: ModelCardProps) {
+export const ModelCard = memo(function ModelCard({ modelo, stockBA, onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onReponer, onPriceHistory }: ModelCardProps) {
   const totalPares = modelo.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
   const agotado = totalPares === 0
   const ultimoPar = !agotado && totalPares === 1
@@ -82,6 +85,15 @@ export const ModelCard = memo(function ModelCard({ modelo, onSell, soloVenta, pu
             ))
           )}
         </div>
+
+        {stockBA && stockBA.length > 0 && (
+          <div className="card-ba" title="Están en el depósito de Buenos Aires. Solo se mandan por envío, no se retiran en el local.">
+            <span className="card-ba-label"><Truck size={11} /> Bs As · solo envío</span>
+            <div className="card-ba-talles">
+              {stockBA.map(t => <span key={t.talle} className="card-ba-chip">{t.talle}×{t.cantidad}</span>)}
+            </div>
+          </div>
+        )}
 
         <div className="card-meta">
           <span className="card-precio">${getPrecioReal(modelo).toLocaleString('es-AR')}</span>

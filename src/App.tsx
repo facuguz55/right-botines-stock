@@ -16,6 +16,7 @@ import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
 import { ReponerStock } from './components/ReponerStock/ReponerStock'
 import { StockBuenosAires } from './components/StockBuenosAires/StockBuenosAires'
+import { useStockBAVinculado } from './hooks/useStockBAVinculado'
 import { PhotoSearch } from './components/PhotoSearch/PhotoSearch'
 import { TiendaNubeImport } from './components/TiendaNubeImport/TiendaNubeImport'
 import { ImportFotos } from './components/ImportFotos/ImportFotos'
@@ -167,6 +168,7 @@ export function App() {
     modelos, loading, reload,
     addModelo, editModelo, removeModelo, venderCarrito, ingresarStockBatch, clearAll,
   } = useModelos()
+  const stockBAPorModelo = useStockBAVinculado()
 
   const photosReady = usePreloadFirstPhotos(modelos, loading)
 
@@ -313,6 +315,7 @@ export function App() {
           <ModelGrid
             modelos={modelos}
             loading={loading}
+            stockBAPorModelo={stockBAPorModelo}
             onSell={setSellTarget}
             soloVenta={role === 'atencion'}
             puedeVender={puedeVender}
@@ -344,7 +347,7 @@ export function App() {
         </div>
       )}
 
-      {activePage === 'stock_ba' && <StockBuenosAires role={role} empleadoId={empleadoId} />}
+      {activePage === 'stock_ba' && <StockBuenosAires role={role} empleadoId={empleadoId} modelosLocales={modelos} />}
       {activePage === 'carpetas' && <Carpetas modelos={modelos} />}
       {activePage === 'clientes_locales' && (
         <ClientesLocales

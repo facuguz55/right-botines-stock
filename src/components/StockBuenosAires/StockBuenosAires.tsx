@@ -1,15 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FileUp, Search, Minus, Plus, Truck, X } from 'lucide-react'
-import type { Role } from '../../types'
+import { FileUp, Search, Truck, X, Plus, History, ClipboardCopy, Link2 } from 'lucide-react'
+import type { Modelo, Role } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { leerPedidoPdf, type PedidoLeido } from '../../lib/stockBaPdf'
-import {
-  fetchStockBA, importarPedidoBA, pedidoBAYaCargado, ajustarStockBA, renombrarModeloBA, fetchMovimientosBA,
-  type ModeloBA, type MovimientoBA,
-} from '../../services/stockBA'
+import { analizarNombre, type MarcaBA } from '../../lib/stockBaNombre'
+import { fetchStockBA, importarPedidoBA, pedidoBAYaCargado, type ModeloBA } from '../../services/stockBA'
+import { FotoBA } from './FotoBA'
+import { DetalleModeloBA } from './DetalleModeloBA'
+import { AltaModeloBA } from './AltaModeloBA'
+import { HistorialBA } from './HistorialBA'
 import './StockBuenosAires.css'
 
-interface Props { role: Role; empleadoId: string | null }
+interface Props { role: Role; empleadoId: string | null; modelosLocales: Modelo[] }
+
+type Orden = 'pares_desc' | 'pares_asc' | 'nombre' | 'nuevo'
+const ORDENES: { v: Orden; t: string }[] = [
+  { v: 'pares_desc', t: 'Más pares' },
+  { v: 'pares_asc', t: 'Menos pares' },
+  { v: 'nombre', t: 'Nombre A-Z' },
+  { v: 'nuevo', t: 'Más nuevos' },
+]
 
 const totalPares = (m: ModeloBA) => m.stock_ba_talles.reduce((a, t) => a + t.cantidad, 0)
 const ordenTalle = (a: string, b: string) => parseFloat(a) - parseFloat(b)
@@ -17,12 +27,18 @@ const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 0 
 
 interface PedidoEnCola { archivo: string; pedido: PedidoLeido | null; yaCargado: boolean; error: string | null }
 
-export function StockBuenosAires({ role, empleadoId }: Props) {
+export function StockBuenosAires({ role, empleadoId, modelosLocales }: Props) {
   const [modelos, setModelos] = useState<ModeloBA[]>([])
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [talleFiltro, setTalleFiltro] = useState('')
+  const [marcaFiltro, setMarcaFiltro] = useState<MarcaBA | ''>('')
+  const [soloNinos, setSoloNinos] = useState(false)
+  const [verAgotados, setVerAgotados] = useState(false)
+  const [orden, setOrden] = useState<Orden>('pares_desc')
+  const [altaAbierta, setAltaAbierta] = useState(false)
+  const [historialAbierto, setHistorialAbierto] = useState(false)
   const [abierto, setAbierto] = useState<string | null>(null)
   const [cola, setCola] = useState<PedidoEnCola[] | null>(null)
   const [leyendo, setLeyendo] = useState(false)
@@ -47,17 +63,46 @@ export function StockBuenosAires({ role, empleadoId }: Props) {
     [modelos],
   )
 
+  const infos = useMemo(() => new Map(modelos.map(m => [m.id, analizarNombre(m.descripcion)])), [modelos])
+
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
-    return modelos
-      .filter(m => totalPares(m) > 0)
-      .filter(m => !q || m.descripcion.toLowerCase().includes(q) || m.codigo.includes(q))
+    const lista = modelos
+      .filter(m => verAgotados || totalPares(m) > 0)
+      .filter(m => !q || m.descripcion.toLowerCase().includes(q) || infos.get(m.id)!.titulo.toLowerCase().includes(q) || m.codigo.includes(q))
+      .filter(m => !marcaFiltro || infos.get(m.id)!.marca === marcaFiltro)
+      .filter(m => !soloNinos || infos.get(m.id)!.nino)
       .filter(m => !talleFiltro || m.stock_ba_talles.some(t => t.talle === talleFiltro && t.cantidad > 0))
-  }, [modelos, busqueda, talleFiltro])
+    const cmp: Record<Orden, (a: ModeloBA, b: ModeloBA) => number> = {
+      pares_desc: (a, b) => totalPares(b) - totalPares(a),
+      pares_asc: (a, b) => totalPares(a) - totalPares(b),
+      nombre: (a, b) => infos.get(a.id)!.titulo.localeCompare(infos.get(b.id)!.titulo, 'es'),
+      nuevo: (a, b) => b.created_at.localeCompare(a.created_at),
+    }
+    return [...lista].sort(cmp[orden])
+  }, [modelos, infos, busqueda, talleFiltro, marcaFiltro, soloNinos, verAgotados, orden])
 
   const pares = modelos.reduce((a, m) => a + totalPares(m), 0)
   const conStock = modelos.filter(m => totalPares(m) > 0).length
   const costoTotal = modelos.reduce((a, m) => a + totalPares(m) * (m.costo ?? 0), 0)
+  const ventaTotal = modelos.reduce((a, m) => a + totalPares(m) * (m.precio_venta ?? 0), 0)
+  const sinPrecio = modelos.filter(m => totalPares(m) > 0 && !m.precio_venta).length
+
+  // Lista lista para pegar en un chat: lo que se ve con los filtros de ahora.
+  const copiarLista = async () => {
+    const lineas = visibles.map(m => {
+      const t = [...m.stock_ba_talles].filter(x => x.cantidad > 0).sort((a, b) => ordenTalle(a.talle, b.talle))
+        .map(x => (x.cantidad > 1 ? `${x.talle}×${x.cantidad}` : x.talle)).join(', ')
+      return `• ${infos.get(m.id)!.titulo}${m.precio_venta ? ` · $${fmt(m.precio_venta)}` : ''}\n  Talles: ${t}`
+    })
+    const texto = `Stock Buenos Aires (solo envío)\n\n${lineas.join('\n')}`
+    try {
+      await navigator.clipboard.writeText(texto)
+      setResultado(`Lista copiada: ${visibles.length} modelos.`)
+    } catch {
+      setResultado('No se pudo copiar. Probá de nuevo.')
+    }
+  }
 
   const handlePdfs = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
@@ -112,6 +157,8 @@ export function StockBuenosAires({ role, empleadoId }: Props) {
           <p className="sba-sub"><Truck size={14} /> Está en el depósito de la proveedora. Se vende solo por envío, no se retira en el showroom.</p>
         </div>
         <div className="sba-acciones">
+          <button className="btn btn-secondary" onClick={() => setAltaAbierta(true)}><Plus size={15} /> Agregar modelo</button>
+          <button className="btn btn-secondary" onClick={() => setHistorialAbierto(true)}><History size={15} /> Historial</button>
           <input ref={inputRef} type="file" accept="application/pdf" multiple hidden onChange={handlePdfs} />
           <button className="btn btn-primary" disabled={leyendo || !!importando} onClick={() => inputRef.current?.click()}>
             <FileUp size={15} /> {leyendo ? 'Leyendo PDF…' : 'Subir pedido (PDF)'}
@@ -132,15 +179,33 @@ export function StockBuenosAires({ role, empleadoId }: Props) {
         {role === 'dueno' && costoTotal > 0 && (
           <div className="sba-dato"><strong>${fmt(costoTotal)}</strong><span>a costo</span></div>
         )}
+        {role === 'dueno' && ventaTotal > 0 && (
+          <div className="sba-dato"><strong>${fmt(ventaTotal)}</strong><span>a precio de venta{sinPrecio ? ` (${sinPrecio} sin precio)` : ''}</span></div>
+        )}
       </div>
 
       <div className="sba-filtros">
-        <label className="sba-buscar">
-          <Search size={15} />
-          <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar por modelo, color o código" />
-        </label>
+        <div className="sba-fila-filtros">
+          <label className="sba-buscar">
+            <Search size={15} />
+            <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar por modelo, color o código" />
+          </label>
+          <select className="sba-orden" value={orden} onChange={e => setOrden(e.target.value as Orden)} aria-label="Ordenar">
+            {ORDENES.map(o => <option key={o.v} value={o.v}>{o.t}</option>)}
+          </select>
+          <button className="btn btn-secondary sba-copiar" onClick={copiarLista} disabled={visibles.length === 0}>
+            <ClipboardCopy size={14} /> Copiar lista
+          </button>
+        </div>
+        <div className="sba-talles" role="group" aria-label="Filtrar por marca">
+          {(['', 'Nike', 'Adidas', 'Otras'] as const).map(mc => (
+            <button key={mc || 'todas'} className={`sba-talle-btn${marcaFiltro === mc ? ' on' : ''}`} onClick={() => setMarcaFiltro(mc)}>{mc || 'Todas las marcas'}</button>
+          ))}
+          <button className={`sba-talle-btn${soloNinos ? ' on' : ''}`} onClick={() => setSoloNinos(!soloNinos)}>Niños</button>
+          <button className={`sba-talle-btn${verAgotados ? ' on' : ''}`} onClick={() => setVerAgotados(!verAgotados)}>Con agotados</button>
+        </div>
         <div className="sba-talles" role="group" aria-label="Filtrar por talle">
-          <button className={`sba-talle-btn${talleFiltro === '' ? ' on' : ''}`} onClick={() => setTalleFiltro('')}>Todos</button>
+          <button className={`sba-talle-btn${talleFiltro === '' ? ' on' : ''}`} onClick={() => setTalleFiltro('')}>Todos los talles</button>
           {talles.map(t => (
             <button key={t} className={`sba-talle-btn${talleFiltro === t ? ' on' : ''}`} onClick={() => setTalleFiltro(talleFiltro === t ? '' : t)}>{t}</button>
           ))}
@@ -159,21 +224,27 @@ export function StockBuenosAires({ role, empleadoId }: Props) {
         <p className="sba-vacio">No hay modelos con ese filtro.</p>
       ) : (
         <div className="sba-grid">
-          {visibles.map(m => (
-            <button key={m.id} className="sba-card" onClick={() => setAbierto(m.id)}>
-              <div className="sba-foto">
-                {m.foto_url ? <img src={m.foto_url} alt={m.descripcion} loading="lazy" /> : <span>Sin foto</span>}
-                <span className="sba-pares">{totalPares(m)}</span>
-              </div>
-              <p className="sba-nombre">{m.descripcion}</p>
-              <p className="sba-codigo">Código {m.codigo}</p>
-              <div className="sba-chips">
-                {[...m.stock_ba_talles].filter(t => t.cantidad > 0).sort((a, b) => ordenTalle(a.talle, b.talle)).map(t => (
-                  <span key={t.id} className={`sba-chip${talleFiltro === t.talle ? ' on' : ''}`}>{t.talle}<b>×{t.cantidad}</b></span>
-                ))}
-              </div>
-            </button>
-          ))}
+          {visibles.map(m => {
+            const info = infos.get(m.id)!
+            const n = totalPares(m)
+            return (
+              <button key={m.id} className="sba-card" onClick={() => setAbierto(m.id)}>
+                <div className="sba-foto-wrap">
+                  <FotoBA src={m.foto_url} alt={info.titulo} />
+                  <span className={`sba-pares${n === 0 ? ' cero' : ''}`}>{n === 0 ? 'Agotado' : n === 1 ? 'Último par' : n}</span>
+                  {m.modelo_local_id && <span className="sba-vinc" title="Vinculado con un modelo del local"><Link2 size={11} /></span>}
+                </div>
+                <p className="sba-nombre">{info.titulo}</p>
+                <p className="sba-codigo">Código {m.codigo}{info.ref ? ` · ${info.ref}` : ''}{info.nino ? ' · niño' : ''}</p>
+                {m.precio_venta ? <p className="sba-precio">${fmt(m.precio_venta)}</p> : null}
+                <div className="sba-chips">
+                  {[...m.stock_ba_talles].filter(t => t.cantidad > 0).sort((a, b) => ordenTalle(a.talle, b.talle)).map(t => (
+                    <span key={t.id} className={`sba-chip${talleFiltro === t.talle ? ' on' : ''}`}>{t.talle}<b>×{t.cantidad}</b></span>
+                  ))}
+                </div>
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -217,12 +288,16 @@ export function StockBuenosAires({ role, empleadoId }: Props) {
         )}
       </Modal>
 
-      <DetalleModelo
+      <DetalleModeloBA
         modelo={modeloAbierto}
+        modelosLocales={modelosLocales}
+        role={role}
         empleadoId={empleadoId}
         onClose={() => setAbierto(null)}
         onCambio={recargar}
       />
+      <AltaModeloBA isOpen={altaAbierta} empleadoId={empleadoId} verCosto={role === 'dueno'} onClose={() => setAltaAbierta(false)} onCreado={recargar} />
+      <HistorialBA isOpen={historialAbierto} verCosto={role === 'dueno'} onClose={() => setHistorialAbierto(false)} />
     </div>
   )
 }
@@ -235,78 +310,4 @@ function MiniFoto({ blob, titulo }: { blob: Blob; titulo: string }) {
     return () => URL.revokeObjectURL(u)
   }, [blob])
   return url ? <img className="sba-mini" src={url} alt={titulo} title={titulo} /> : null
-}
-
-function DetalleModelo({ modelo, empleadoId, onClose, onCambio }: {
-  modelo: ModeloBA | null; empleadoId: string | null; onClose: () => void; onCambio: () => Promise<void>
-}) {
-  const [nombre, setNombre] = useState('')
-  const [ocupado, setOcupado] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [movs, setMovs] = useState<MovimientoBA[]>([])
-
-  const id = modelo?.id
-  const cargarMovs = useCallback(async () => {
-    if (id) setMovs(await fetchMovimientosBA(id).catch(() => []))
-  }, [id])
-  useEffect(() => { setNombre(modelo?.descripcion ?? ''); setError(null); cargarMovs() }, [modelo?.id, modelo?.descripcion, cargarMovs])
-
-  if (!modelo) return null
-  const total = totalPares(modelo)
-
-  const mover = async (talleId: string, delta: number) => {
-    setError(null)
-    setOcupado(talleId)
-    try {
-      await ajustarStockBA(talleId, delta, delta < 0 ? 'Venta / envío' : 'Ajuste', empleadoId)
-      await onCambio()
-      await cargarMovs()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setOcupado(null)
-    }
-  }
-
-  const guardarNombre = async () => {
-    const n = nombre.trim()
-    if (!n || n === modelo.descripcion) return
-    try { await renombrarModeloBA(modelo.id, n); await onCambio() } catch (e) { setError((e as Error).message) }
-  }
-
-  return (
-    <Modal isOpen onClose={onClose} title={`Código ${modelo.codigo}`} maxWidth="520px">
-      <div className="sba-detalle">
-        {modelo.foto_url && <img className="sba-detalle-foto" src={modelo.foto_url} alt={modelo.descripcion} />}
-        <input className="sba-detalle-nombre" value={nombre} onChange={e => setNombre(e.target.value)} onBlur={guardarNombre} aria-label="Nombre del modelo" />
-        <p className="sba-previa-datos">{total} pares en Buenos Aires · solo envío</p>
-
-        <div className="sba-filas">
-          {[...modelo.stock_ba_talles].sort((a, b) => ordenTalle(a.talle, b.talle)).map(t => (
-            <div key={t.id} className="sba-fila">
-              <span className="sba-fila-talle">Talle {t.talle}</span>
-              <div className="sba-stepper">
-                <button aria-label="Descontar un par" disabled={t.cantidad === 0 || ocupado === t.id} onClick={() => mover(t.id, -1)}><Minus size={14} /></button>
-                <b>{t.cantidad}</b>
-                <button aria-label="Sumar un par" disabled={ocupado === t.id} onClick={() => mover(t.id, 1)}><Plus size={14} /></button>
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="sba-previa-nota">El − descuenta un par cuando se vende o se manda. Todo queda anotado abajo.</p>
-        {error && <p className="sba-error">{error}</p>}
-
-        {movs.length > 0 && (
-          <div className="sba-movs">
-            <p className="sba-previa-titulo">Movimientos</p>
-            {movs.slice(0, 8).map(m => (
-              <p key={m.id} className="sba-mov">
-                <span className={m.delta < 0 ? 'neg' : 'pos'}>{m.delta > 0 ? '+' : ''}{m.delta}</span> talle {m.talle} · {m.motivo} · {new Date(m.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
-              </p>
-            ))}
-          </div>
-        )}
-      </div>
-    </Modal>
-  )
 }

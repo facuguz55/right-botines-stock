@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Camera, Upload, Trash2, Plus, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
 import type { Modelo, ModeloFilters } from '../../types'
 import type { SyncResult } from '../../services/tnSync'
+import type { TalleBAVista } from '../../services/stockBA'
 import { ModelCard } from '../ModelCard/ModelCard'
 import { Filters } from '../Filters/Filters'
 import { ExportButton } from '../ExportButton/ExportButton'
@@ -11,6 +12,7 @@ import './ModelGrid.css'
 interface ModelGridProps {
   modelos: Modelo[]
   loading: boolean
+  stockBAPorModelo?: Map<string, TalleBAVista[]>
   onSell: (m: Modelo) => void
   // Perfil "Atención al público": solo necesita buscar y vender, sin
   // ninguno de los botones de administración del catálogo.
@@ -40,7 +42,7 @@ const DEFAULT_FILTERS: ModeloFilters = {
 }
 
 export function ModelGrid({
-  modelos, loading,
+  modelos, loading, stockBAPorModelo,
   onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onReponer, onPriceHistory,
   onAdd, onPhotoSearch, onImport, onImportFotos, onImportExcel, onClearAll,
   onSyncTN, syncingTN, tnProgress, tnLastResult, tnLastSyncAt,
@@ -182,6 +184,7 @@ export function ModelGrid({
             <ModelCard
               key={m.id}
               modelo={m}
+              stockBA={stockBAPorModelo?.get(m.id)}
               onSell={onSell}
               soloVenta={soloVenta}
               puedeVender={puedeVender}
