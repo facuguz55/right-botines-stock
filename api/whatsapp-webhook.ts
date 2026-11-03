@@ -46,6 +46,11 @@ const WA_APP_SECRET = process.env.WA_APP_SECRET ?? ''
 // así que la clasificación automática de mensajes jamás se había ejecutado.
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY ?? ''
 const ANTHROPIC_MODEL = 'claude-haiku-4-5'
+// Solo para reconocer qué botín hay en la foto del cliente: con el modelo
+// barato se confundía colores parecidos (un Phantom "celeste rosita" por uno
+// "rosa blanco"). Son pocas fotos por día, así que acá conviene el más preciso.
+// Si falla, se reintenta con ANTHROPIC_MODEL (ver identificarModeloEnFoto).
+const ANTHROPIC_MODEL_FOTOS = 'claude-sonnet-5-5'
 // Las mismas credenciales de TiendaNube que usan api/tiendanube.ts y
 // api/tn-webhook.ts — para leer en vivo el estado/seguimiento de un pedido.
 const TN_STORE_ID = process.env.TN_STORE_ID ?? ''
@@ -537,23 +542,44 @@ async function identificarModeloEnFoto(
 ): Promise<{ indice: number | null; descripcion: string; titulo: string | null } | null> {
   if (!ANTHROPIC_API_KEY || catalogo.length === 0) return null
   const lista = catalogo.map((m, i) => `${i}: ${m.marca} ${m.modelo}`).join('\n')
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const pedido = {
+    system: 'Sos el asistente de Right Botines, una tienda de botines de fútbol. Un cliente te manda por WhatsApp la foto de un botín que quiere. Tu trabajo es decir cuál de los modelos de la lista del catálogo es: mirá la marca, la línea (por ejemplo F50, Predator, Mercurial, Phantom, Copa) y el color. Elegí un índice de la lista solo si el botín de la foto coincide con esa línea y ese color; si es de otra marca, de una línea que no está o no se ve bien, devolvé indice null. Si la imagen no es un botín (comprobante, rótulo de envío, captura de chat, persona, etc.) devolvé es_botin false e indice null. Si en la imagen está escrito el nombre del producto (típico de una captura de la web de Right o de Instagram, donde se lee algo como "NIKE PHANTOM GX6 CELESTE ROSITA"), copialo tal cual en titulo_visible; si no hay un nombre escrito, null. El nombre escrito vale más que el color que creas ver. Si la captura muestra varios productos (un listado o un catálogo) y no uno solo, devolvé indice null y titulo_visible null. Ante la duda, null: es preferible no sugerir nada a sugerir un modelo equivocado. Además, en descripcion poné en una frase corta (máximo 100 caracteres) qué muestra la imagen, para que otra persona sepa de qué foto se habla sin verla: por ejemplo "botín Nike Mercurial naranja, taco de fútbol 11", "comprobante de transferencia", "captura de un chat", "rótulo de envío".',
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'url', url: mediaUrl } },
+        { type: 'text', text: `Catálogo:\n${lista}\n\n${caption ? `Texto que mandó el cliente con la foto: ${caption}\n\n` : ''}¿Cuál es el modelo de la foto?` },
+      ],
+    }],
+  }
+  const llamar = (extra: Record<string, unknown>, betas?: string) => fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      ...(betas ? { 'anthropic-beta': betas } : {}),
+    },
+    body: JSON.stringify({ ...pedido, ...extra }),
+  })
+  // Sonnet piensa antes de contestar (no se puede apagar): esfuerzo bajo para
+  // que sea rápido, y margen de tokens para que el pensamiento no corte la
+  // respuesta. "fallbacks": si se niega por seguridad, la API reintenta sola
+  // con otro modelo dentro del mismo pedido.
+  let res = await llamar({
+    model: ANTHROPIC_MODEL_FOTOS,
+    max_tokens: 4000,
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: FOTO_SCHEMA } },
+    fallbacks: 'default',
+  }, 'server-side-fallback-2026-07-01')
+  if (!res.ok) {
+    console.error('identificarModeloEnFoto: el modelo de fotos respondió', res.status, await res.text().catch(() => ''), '— reintento con', ANTHROPIC_MODEL)
+    res = await llamar({
       model: ANTHROPIC_MODEL,
       max_tokens: 300,
-      system: 'Sos el asistente de Right Botines, una tienda de botines de fútbol. Un cliente te manda por WhatsApp la foto de un botín que quiere. Tu trabajo es decir cuál de los modelos de la lista del catálogo es: mirá la marca, la línea (por ejemplo F50, Predator, Mercurial, Phantom, Copa) y el color. Elegí un índice de la lista solo si el botín de la foto coincide con esa línea y ese color; si es de otra marca, de una línea que no está o no se ve bien, devolvé indice null. Si la imagen no es un botín (comprobante, rótulo de envío, captura de chat, persona, etc.) devolvé es_botin false e indice null. Si en la imagen está escrito el nombre del producto (típico de una captura de la web de Right o de Instagram, donde se lee algo como "NIKE PHANTOM GX6 CELESTE ROSITA"), copialo tal cual en titulo_visible; si no hay un nombre escrito, null. El nombre escrito vale más que el color que creas ver. Si la captura muestra varios productos (un listado o un catálogo) y no uno solo, devolvé indice null y titulo_visible null. Ante la duda, null: es preferible no sugerir nada a sugerir un modelo equivocado. Además, en descripcion poné en una frase corta (máximo 100 caracteres) qué muestra la imagen, para que otra persona sepa de qué foto se habla sin verla: por ejemplo "botín Nike Mercurial naranja, taco de fútbol 11", "comprobante de transferencia", "captura de un chat", "rótulo de envío".',
       output_config: { format: { type: 'json_schema', schema: FOTO_SCHEMA } },
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'url', url: mediaUrl } },
-          { type: 'text', text: `Catálogo:\n${lista}\n\n${caption ? `Texto que mandó el cliente con la foto: ${caption}\n\n` : ''}¿Cuál es el modelo de la foto?` },
-        ],
-      }],
-    }),
-  })
+    })
+  }
   if (!res.ok) {
     console.error('identificarModeloEnFoto: Anthropic respondió', res.status, await res.text().catch(() => ''))
     return null
