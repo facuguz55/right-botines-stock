@@ -332,13 +332,19 @@ describe('coincidirTitulo (captura de la web con el nombre escrito)', () => {
   })
   it('no confunde un nombre más corto con uno más largo', () => {
     expect(coincidirTitulo('Adidas Predator Freak Negro Bot', cat)).toEqual([4])
-    expect(coincidirTitulo('Nike Phantom GX6 Rosa Blanco', cat)).toEqual([])
   })
   it('el mismo nombre cargado dos veces devuelve las dos', () => {
     expect(coincidirTitulo('Nike Phantom GX6 Gris Naranja', cat)).toEqual([5, 6])
   })
   it('el prefijo Mixto- de la marca no cuenta', () => {
     expect(coincidirTitulo('Nike Phantom GX6 Rosa Blanco Semibot', cat)).toEqual([0])
+  })
+  it('si al nombre leído le falta una palabra y hay un solo modelo así, lo encuentra', () => {
+    expect(coincidirTitulo('Adidas Predator Freak Negro Con Cordones', cat)).toEqual([3])
+  })
+  it('si le falta una palabra y hay dos modelos distintos posibles, no elige', () => {
+    const dos = [...cat, { marca: 'Nike', modelo: 'Phantom GX6 Rosa Blanco Bot' }, { marca: 'Nike', modelo: 'Phantom GX6 Rosa Blanco Sem' }]
+    expect(coincidirTitulo('Nike Phantom GX6 Rosa Blanco', dos)).toEqual([])
   })
   it('sin título o con muy pocas palabras no adivina', () => {
     expect(coincidirTitulo(null, cat)).toEqual([])

@@ -1110,3 +1110,15 @@
   border-radius: var(--radius-md);
   background: #000;
 }
+
+/* Debajo de la foto del cliente: qué entendió el bot (para darse cuenta rápido si se equivocó) */
+.chat-panel-msg-bot-ve {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  max-width: 240px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}

@@ -77,6 +77,8 @@ export interface WspMensaje {
   wa_estado?: 'sent' | 'delivered' | 'read' | 'failed' | null
   wa_estado_at?: string | null
   wa_error?: string | null
+  // Qué muestra la foto del cliente, según la IA al recibirla (migración 064).
+  imagen_descripcion?: string | null
   // 'bienvenida' | 'ausencia' si lo mandó el CRM solo (no una persona).
   automatico?: string | null
   enviado_por: string | null

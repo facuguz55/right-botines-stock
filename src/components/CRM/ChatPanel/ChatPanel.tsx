@@ -575,6 +575,12 @@ export default function ChatPanel({
                       loading="lazy"
                     />
                   )}
+                  {msg.tipo === 'image' && msg.direccion === 'in' && (sug?.modelo_buscado || msg.imagen_descripcion) && (
+                    <div className="chat-panel-msg-bot-ve" title="Lo que entendió el bot de esta foto. Si está mal, ignorá la sugerencia.">
+                      <Bot size={11} />
+                      {sug?.modelo_buscado ? `Modelo: ${sug.modelo_buscado}` : msg.imagen_descripcion}
+                    </div>
+                  )}
                   {msg.tipo === 'video' && msg.media_url && (
                     <video className="chat-panel-msg-video" src={msg.media_url} controls preload="metadata" playsInline />
                   )}

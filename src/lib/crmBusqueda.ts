@@ -562,7 +562,22 @@ export function coincidirTitulo(titulo: string | null | undefined, catalogo: { m
   catalogo.forEach((m, i) => {
     if ([...palabrasDeNombre(`${m.marca} ${m.modelo}`)].sort().join(' ') === clave) idx.push(i)
   })
-  return idx
+  if (idx.length) return idx
+
+  // Segunda pasada: el nombre del catálogo tiene UNA palabra más que lo que se
+  // leyó ("Bot", "Sem", "F5"...). Solo vale si todos los que cumplen son el
+  // mismo modelo; si hay dos distintos (Rosa Blanco Bot / Rosa Blanco Sem), no
+  // se elige ninguno.
+  const casi: number[] = []
+  const nombres = new Set<string>()
+  catalogo.forEach((m, i) => {
+    const pal = palabrasDeNombre(`${m.marca} ${m.modelo}`)
+    if (pal.length === buscado.length + 1 && buscado.every(t => pal.includes(t))) {
+      casi.push(i)
+      nombres.add([...pal].sort().join(' '))
+    }
+  })
+  return nombres.size === 1 ? casi : []
 }
 
 // Mensajes que se refieren a "la foto" sin nombrar el modelo.
