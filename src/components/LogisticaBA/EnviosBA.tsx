@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone } from 'lucide-react'
-import { fetchEnviosBA, AccesoDenegado, type EnvioBA } from '../../services/logisticaBA'
+import { fetchEnviosBA, marcarEnvioBA, AccesoDenegado, type EnvioBA, type AccesoLogistica } from '../../services/logisticaBA'
 import './LogisticaBA.css'
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -20,9 +20,12 @@ function wa(tel: string) {
   return d ? `https://wa.me/${d}` : null
 }
 
-function Tarjeta({ e }: { e: EnvioBA }) {
+function Tarjeta({ e, onMarcar, marcando }: { e: EnvioBA; onMarcar: (e: EnvioBA, accion: 'armado' | 'despachado') => void; marcando: boolean }) {
   const est = ESTADO[e.estado] ?? { texto: e.estado, clase: e.despachado ? 'enviado' : 'pendiente' }
   const link = wa(e.telefono)
+  const quien = e.marcado
+    ? `${e.marcado.accion === 'despachado' ? 'Despachado' : 'Armado'} por ${e.marcado.origen === 'logistica' ? 'logística Bs As' : 'Right'} · ${fecha(e.marcado.created_at)}`
+    : null
   return (
     <article className={`lba-card${e.despachado ? ' hecho' : ''}`}>
       <header className="lba-card-head">
@@ -60,12 +63,24 @@ function Tarjeta({ e }: { e: EnvioBA }) {
         )}
         {e.nota && <div><dt>Nota</dt><dd>{e.nota}</dd></div>}
       </dl>
+
+      {quien && <p className="lba-quien">{quien}</p>}
+      {!e.despachado && (
+        <div className="lba-acciones">
+          {e.estado === 'UNPACKED' && (
+            <button className="btn btn-secondary btn-sm" disabled={marcando} onClick={() => onMarcar(e, 'armado')}>Armado</button>
+          )}
+          <button className="btn btn-primary btn-sm" disabled={marcando} onClick={() => onMarcar(e, 'despachado')}>
+            {marcando ? 'Guardando…' : 'Despachado'}
+          </button>
+        </div>
+      )}
     </article>
   )
 }
 
 interface Props {
-  acceso: { pin: string } | { dispositivo: string | null }
+  acceso: AccesoLogistica
   onSinAcceso?: (mensaje: string) => void
 }
 
@@ -76,6 +91,7 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [actualizado, setActualizado] = useState<Date | null>(null)
+  const [marcando, setMarcando] = useState<number | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -100,6 +116,26 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
     return () => clearInterval(t)
   }, [cargar])
 
+  const marcar = async (e: EnvioBA, accion: 'armado' | 'despachado') => {
+    if (accion === 'despachado') {
+      const aviso = [
+        `¿Marcar el pedido #${e.numero} como despachado?`,
+        `TiendaNube le avisa al cliente${e.codigoSeguimiento ? ` con el seguimiento ${e.codigoSeguimiento}` : ' (todavía no tiene código de seguimiento)'}.`,
+        e.envioDudoso ? `\nOJO: el envío es "${e.envio}", que es de Santa Fe. ¿Lo consultaste con Right?` : '',
+      ].filter(Boolean).join('\n')
+      if (!window.confirm(aviso)) return
+    }
+    setMarcando(e.numero)
+    try {
+      await marcarEnvioBA(acceso, e.orderId, accion)
+      await cargar()
+    } catch (err) {
+      window.alert(`No se pudo marcar el pedido #${e.numero}: ${(err as Error).message}`)
+    } finally {
+      setMarcando(null)
+    }
+  }
+
   const pendientes = envios?.filter(e => !e.despachado) ?? []
   const enviados = envios?.filter(e => e.despachado) ?? []
 
@@ -119,12 +155,12 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
         <>
           <h2 className="lba-titulo">Para mandar ({pendientes.length})</h2>
           {pendientes.length === 0 ? <p className="lba-vacio">No hay envíos pendientes.</p> : (
-            <div className="lba-lista">{pendientes.map(e => <Tarjeta key={e.numero} e={e} />)}</div>
+            <div className="lba-lista">{pendientes.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} marcando={marcando === e.numero} />)}</div>
           )}
           {enviados.length > 0 && (
             <>
               <h2 className="lba-titulo">Enviados, última semana ({enviados.length})</h2>
-              <div className="lba-lista">{enviados.map(e => <Tarjeta key={e.numero} e={e} />)}</div>
+              <div className="lba-lista">{enviados.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} marcando={false} />)}</div>
             </>
           )}
         </>

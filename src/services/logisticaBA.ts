@@ -5,6 +5,7 @@ const URL_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/logistica-ba`
 
 export interface ProductoEnvio { nombre: string; talle: string; cantidad: number; foto: string | null }
 export interface EnvioBA {
+  orderId: number
   numero: number
   fecha: string
   estado: string
@@ -19,15 +20,36 @@ export interface EnvioBA {
   codigoSeguimiento: string | null
   nota: string | null
   productos: ProductoEnvio[]
+  // Última marca hecha desde la vista de logística (quién y cuándo).
+  marcado: { accion: string; origen: string; created_at: string } | null
 }
 
 export class AccesoDenegado extends Error {}
 
-export async function fetchEnviosBA(acceso: { pin: string } | { dispositivo: string | null }): Promise<EnvioBA[]> {
+export type AccesoLogistica = { pin: string } | { dispositivo: string | null }
+
+function headersAcceso(acceso: AccesoLogistica): Record<string, string> {
   const headers: Record<string, string> = { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string }
   if ('pin' in acceso) headers['x-logistica-pin'] = acceso.pin
   else if (acceso.dispositivo) headers['x-device-token'] = acceso.dispositivo
-  const res = await fetch(URL_FN, { headers })
+  return headers
+}
+
+// Marca el envío en TiendaNube. "despachado" le avisa al cliente con el
+// seguimiento (lo hace TiendaNube).
+export async function marcarEnvioBA(acceso: AccesoLogistica, orderId: number, accion: 'armado' | 'despachado'): Promise<void> {
+  const res = await fetch(URL_FN, {
+    method: 'POST',
+    headers: { ...headersAcceso(acceso), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderId, accion }),
+  })
+  const body = await res.json().catch(() => ({})) as { error?: string }
+  if (res.status === 401) throw new AccesoDenegado(body.error ?? 'Sin acceso')
+  if (!res.ok) throw new Error(body.error ?? `Error ${res.status}`)
+}
+
+export async function fetchEnviosBA(acceso: AccesoLogistica): Promise<EnvioBA[]> {
+  const res = await fetch(URL_FN, { headers: headersAcceso(acceso) })
   const body = await res.json().catch(() => ({})) as { ordenes?: EnvioBA[]; error?: string }
   if (res.status === 401) throw new AccesoDenegado(body.error ?? 'Sin acceso')
   if (!res.ok || !body.ordenes) throw new Error(body.error ?? `Error ${res.status}`)

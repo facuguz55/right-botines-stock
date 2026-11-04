@@ -21,7 +21,7 @@ const CORS = {
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: CORS });
 
 type Producto = { product_id: number; variant_id: number; name: string; quantity: number | string; variant_values?: string[]; image?: { src?: string } };
-type Despacho = { status: string; assigned_location?: { name?: string; location_id?: string }; tracking_info?: { url?: string; code?: string } };
+type Despacho = { id?: string; status: string; shipping?: { type?: string }; assigned_location?: { name?: string; location_id?: string }; tracking_info?: { url?: string; code?: string } };
 type Orden = {
   id: number; number: number; created_at: string; status: string; payment_status: string;
   contact_name?: string; contact_phone?: string; note?: string | null; shipping_option?: string;
@@ -29,13 +29,40 @@ type Orden = {
   products: Producto[]; fulfillments?: Despacho[];
 };
 type LineaFO = { quantity: number; variant?: { variant_id?: string } };
-type FO = { assigned_location?: { name?: string }; line_items?: LineaFO[] };
+type FO = { id?: string; status?: string; assigned_location?: { name?: string }; tracking_info?: { url?: string; code?: string }; line_items?: LineaFO[] };
 
 async function tn(token: string, path: string) {
   const r = await fetch(`${TN}${path}`, { headers: { Authentication: `bearer ${token}`, "User-Agent": UA } });
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`TiendaNube ${r.status}`);
   return await r.json();
+}
+
+// Marca el despacho de CABA de una orden como armado o despachado en
+// TiendaNube. Al despachar, TiendaNube le avisa al cliente con el seguimiento.
+// Se vuelve a leer la orden para no tocar nada que no sea un despacho de CABA.
+async function marcar(token: string, orderId: number, accion: "armado" | "despachado") {
+  // En la orden suelta "fulfillments" trae solo ids: el detalle (ubicación,
+  // estado, seguimiento) está en fulfillment-orders.
+  const o = (await tn(token, `/orders/${orderId}`)) as Orden | null;
+  if (!o) return { ok: false, detalle: "No encontré la orden", numero: 0 };
+  const fos = ((await tn(token, `/orders/${orderId}/fulfillment-orders`)) ?? []) as FO[];
+  const desp = fos.find((f) => CABA.test(f.assigned_location?.name ?? ""));
+  if (!desp?.id) return { ok: false, detalle: "La orden no sale del depósito de Buenos Aires", numero: o.number };
+  if (o.status !== "open" || !["paid", "authorized"].includes(o.payment_status)) {
+    return { ok: false, detalle: "La orden no está paga o está cancelada", numero: o.number };
+  }
+  if (DESPACHADO.has(desp.status ?? "")) return { ok: true, detalle: "Ya estaba despachada", numero: o.number };
+  const body = accion === "despachado"
+    ? { status: "DISPATCHED", tracking_info: { code: desp.tracking_info?.code ?? "", url: desp.tracking_info?.url ?? "", notify_customer: true } }
+    : { status: "PACKED" };
+  const r = await fetch(`${TN}/orders/${orderId}/fulfillment-orders/${desp.id}`, {
+    method: "PATCH",
+    headers: { Authentication: `bearer ${token}`, "User-Agent": UA, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) return { ok: false, detalle: `TiendaNube ${r.status}: ${(await r.text()).slice(0, 200)}`, numero: o.number };
+  return { ok: true, detalle: null, numero: o.number };
 }
 
 Deno.serve(async (req) => {
@@ -57,6 +84,16 @@ Deno.serve(async (req) => {
   try {
     const { data: token } = await db.rpc("logistica_token_tn");
     if (!token) return json({ error: "Falta el token de TiendaNube" }, 500);
+
+    if (req.method === "POST") {
+      const { orderId, accion } = await req.json().catch(() => ({})) as { orderId?: number; accion?: string };
+      if (!orderId || (accion !== "armado" && accion !== "despachado")) return json({ error: "Pedido inválido" }, 400);
+      const res = await marcar(token, orderId, accion);
+      await db.from("logistica_acciones").insert({
+        orden_numero: res.numero, tn_order_id: orderId, accion, origen: pin ? "logistica" : "right", ok: res.ok, detalle: res.detalle,
+      });
+      return res.ok ? json({ ok: true, detalle: res.detalle }) : json({ error: res.detalle }, 409);
+    }
 
     // Últimos 30 días, abiertas (no canceladas).
     const desde = new Date(Date.now() - 30 * 86400_000).toISOString();
@@ -101,6 +138,7 @@ Deno.serve(async (req) => {
 
       const a = o.shipping_address ?? {};
       resultado.push({
+        orderId: o.id,
         numero: o.number,
         fecha: o.created_at,
         estado: desp.status,
@@ -119,7 +157,17 @@ Deno.serve(async (req) => {
       });
     }
     resultado.sort((x, y) => Number(x.despachado) - Number(y.despachado) || x.fecha.localeCompare(y.fecha));
-    return json({ ok: true, ordenes: resultado, actualizado: new Date().toISOString() });
+
+    // Quién marcó cada orden desde acá (la última acción que salió bien).
+    const ids = resultado.map((r) => r.orderId);
+    const marcas = new Map<number, { accion: string; origen: string; created_at: string }>();
+    if (ids.length) {
+      const { data } = await db.from("logistica_acciones").select("tn_order_id, accion, origen, created_at")
+        .in("tn_order_id", ids).eq("ok", true).order("created_at", { ascending: true });
+      for (const m of data ?? []) marcas.set(Number(m.tn_order_id), m);
+    }
+    const conMarca = resultado.map((r) => ({ ...r, marcado: marcas.get(r.orderId) ?? null }));
+    return json({ ok: true, ordenes: conMarca, actualizado: new Date().toISOString() });
   } catch (e) {
     console.error("logistica-ba:", e);
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
