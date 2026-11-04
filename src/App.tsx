@@ -15,7 +15,7 @@ import { IngresoPage } from './components/IngresoPage/IngresoPage'
 import { DeleteConfirm } from './components/DeleteConfirm/DeleteConfirm'
 import { PriceHistoryModal } from './components/PriceHistoryModal/PriceHistoryModal'
 import { ReponerStock } from './components/ReponerStock/ReponerStock'
-import { StockBuenosAires } from './components/StockBuenosAires/StockBuenosAires'
+import { StockBuenosAiresPagina } from './components/StockBuenosAires/StockBuenosAiresPagina'
 import { useStockBAVinculado } from './hooks/useStockBAVinculado'
 import { PhotoSearch } from './components/PhotoSearch/PhotoSearch'
 import { TiendaNubeImport } from './components/TiendaNubeImport/TiendaNubeImport'
@@ -347,7 +347,7 @@ export function App() {
         </div>
       )}
 
-      {activePage === 'stock_ba' && <StockBuenosAires role={role} empleadoId={empleadoId} modelosLocales={modelos} />}
+      {activePage === 'stock_ba' && <StockBuenosAiresPagina role={role} empleadoId={empleadoId} modelosLocales={modelos} />}
       {activePage === 'carpetas' && <Carpetas modelos={modelos} />}
       {activePage === 'clientes_locales' && (
         <ClientesLocales

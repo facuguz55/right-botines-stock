@@ -11,7 +11,8 @@ import { AltaModeloBA } from './AltaModeloBA'
 import { HistorialBA } from './HistorialBA'
 import './StockBuenosAires.css'
 
-interface Props { role: Role; empleadoId: string | null; modelosLocales: Modelo[] }
+// embebido: va adentro de la pestaña "Pedidos de la proveedora" (sin título propio).
+interface Props { role: Role; empleadoId: string | null; modelosLocales: Modelo[]; embebido?: boolean }
 
 type Orden = 'pares_desc' | 'pares_asc' | 'nombre' | 'nuevo'
 const ORDENES: { v: Orden; t: string }[] = [
@@ -27,7 +28,7 @@ const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 0 
 
 interface PedidoEnCola { archivo: string; pedido: PedidoLeido | null; yaCargado: boolean; error: string | null }
 
-export function StockBuenosAires({ role, empleadoId, modelosLocales }: Props) {
+export function StockBuenosAires({ role, empleadoId, modelosLocales, embebido = false }: Props) {
   const [modelos, setModelos] = useState<ModeloBA[]>([])
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
@@ -152,10 +153,12 @@ export function StockBuenosAires({ role, empleadoId, modelosLocales }: Props) {
   return (
     <div className="sba">
       <div className="page-header">
-        <div>
-          <h1 className="page-title">Stock Buenos Aires</h1>
-          <p className="sba-sub"><Truck size={14} /> Está en el depósito de la proveedora. Se vende solo por envío, no se retira en el showroom.</p>
-        </div>
+        {!embebido && (
+          <div>
+            <h1 className="page-title">Stock Buenos Aires</h1>
+            <p className="sba-sub"><Truck size={14} /> Está en el depósito de la proveedora. Se vende solo por envío, no se retira en el showroom.</p>
+          </div>
+        )}
         <div className="sba-acciones">
           <button className="btn btn-secondary" onClick={() => setAltaAbierta(true)}><Plus size={15} /> Agregar modelo</button>
           <button className="btn btn-secondary" onClick={() => setHistorialAbierto(true)}><History size={15} /> Historial</button>
