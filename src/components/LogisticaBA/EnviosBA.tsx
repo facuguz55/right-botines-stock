@@ -3,6 +3,7 @@ import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone, Clock, ClipboardL
 import { fetchEnviosBA, marcarEnvioBA, avisarProblemaBA, subirRotulosBA, borrarRotuloBA, rotuloDescargadoBA, AccesoDenegado, type EnvioBA, type RotuloBA, type AccesoLogistica } from '../../services/logisticaBA'
 import { HabilitarDispositivoModal } from '../DispositivoBanner/HabilitarDispositivoModal'
 import { marcarDespachosVistos } from '../../hooks/useDespachosNuevos'
+import { estaAtrasado } from '../../lib/plazoDespacho'
 import './LogisticaBA.css'
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -17,13 +18,14 @@ function fecha(iso: string) {
   return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })
 }
 
-// Un pedido sin despachar con más de 24 h se marca como atrasado.
-const HORAS_ATRASO = 24
+// Un pedido sin despachar pasados 2 días hábiles se marca como atrasado
+// (lib/plazoDespacho.ts).
 function horasDesde(iso: string) {
   return (Date.now() - Date.parse(iso)) / 3600_000
 }
 function atraso(horas: number) {
-  return horas < 48 ? `${Math.floor(horas)} h` : `${Math.floor(horas / 24)} días`
+  const dias = Math.floor(horas / 24)
+  return dias === 1 ? '1 día' : `${dias} días`
 }
 
 const MOTIVOS = ['No tengo el talle', 'El par está fallado', 'Me falta el rótulo', 'Dirección incompleta o rara']
@@ -184,7 +186,7 @@ function Tarjeta({ e, onMarcar, onProblema, onImprimir, marcando }: { e: EnvioBA
     ? `${e.marcado.accion === 'despachado' ? 'Despachado' : 'Armado'} por ${e.marcado.origen === 'logistica' ? 'logística Bs As' : 'Right'} · ${fecha(e.marcado.created_at)}`
     : null
   const horas = horasDesde(e.fecha)
-  const atrasado = !e.despachado && horas >= HORAS_ATRASO
+  const atrasado = !e.despachado && estaAtrasado(e.fecha)
   return (
     <article className={`lba-card${e.despachado ? ' hecho' : ''}${atrasado ? ' atrasado' : ''}`}>
       <header className="lba-card-head">
@@ -356,7 +358,7 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
   }
 
   const pendientes = envios?.filter(e => !e.despachado) ?? []
-  const atrasados = pendientes.filter(e => horasDesde(e.fecha) >= HORAS_ATRASO).length
+  const atrasados = pendientes.filter(e => estaAtrasado(e.fecha)).length
   const sinRotulo = pendientes.filter(e => !e.rotulo).length
   // Despachados hoy (hora de Argentina) desde el panel.
   const dia = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
