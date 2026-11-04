@@ -99,3 +99,9 @@
 .lba-rotulo-meta .pend { color: #f59e0b; }
 .lba-rotulo-borrar { background: none; border: 0; color: var(--text-muted); cursor: pointer; padding: 4px; }
 .lba-rotulo-borrar:hover { color: #ef4444; }
+
+/* Rótulo por pedido */
+.lba-imprimir { align-self: flex-start; display: inline-flex; align-items: center; gap: .35rem; }
+.lba-sin-rotulo { display: flex; align-items: center; gap: .35rem; margin: 0; font-size: .75rem; color: #f59e0b; }
+.lba-sinrot { color: #f59e0b; font-weight: 700; }
+.lba-rotulo-raro { display: flex; gap: .3rem; align-items: flex-start; margin: 4px 0 0; font-size: .75rem; color: #fbbf24; }

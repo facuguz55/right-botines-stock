@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone, Clock, ClipboardList, ChevronDown, FileDown, Upload, Trash2, CheckCircle2 } from 'lucide-react'
+import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone, Clock, ClipboardList, ChevronDown, FileDown, Upload, Trash2, CheckCircle2, Printer } from 'lucide-react'
 import { fetchEnviosBA, marcarEnvioBA, avisarProblemaBA, subirRotulosBA, borrarRotuloBA, rotuloDescargadoBA, AccesoDenegado, type EnvioBA, type RotuloBA, type AccesoLogistica } from '../../services/logisticaBA'
 import './LogisticaBA.css'
 
@@ -105,7 +105,7 @@ function ListaSeparar({ pendientes }: { pendientes: EnvioBA[] }) {
 // Rótulos del día: Right sube el PDF de Andreani y la logística lo descarga.
 function Rotulos({ rotulos, esRight, onSubir, onBorrar, onDescargar }: {
   rotulos: RotuloBA[]; esRight: boolean
-  onSubir: (f: File) => Promise<void>; onBorrar: (r: RotuloBA) => void; onDescargar: (r: RotuloBA) => void
+  onSubir: (f: File) => Promise<void>; onBorrar: (r: RotuloBA) => void; onDescargar: (rotuloId: string) => void
 }) {
   const [subiendo, setSubiendo] = useState(false)
   const input = useRef<HTMLInputElement>(null)
@@ -143,14 +143,20 @@ function Rotulos({ rotulos, esRight, onSubir, onBorrar, onDescargar }: {
               <div className="lba-rotulo-info">
                 <p className="lba-rotulo-nombre">{r.nombre}</p>
                 <p className="lba-rotulo-meta">
+                  {r.etiquetas > 0 && <>{r.etiquetas} {r.etiquetas === 1 ? 'rótulo' : 'rótulos'} · </>}
                   Subido {fecha(r.subido)} · {r.descargado
                     ? <span className="ok"><CheckCircle2 size={11} /> Descargado {fecha(r.descargado)}</span>
                     : <span className="pend">Sin descargar</span>}
                 </p>
+                {r.sinPedido.length > 0 && (
+                  <p className="lba-rotulo-raro">
+                    <AlertTriangle size={12} /> {r.sinPedido.map(n => `#${n}`).join(', ')}: {r.sinPedido.length === 1 ? 'no figura' : 'no figuran'} entre los pedidos pagos que salen de Buenos Aires (¿cancelado o sale del local?). No {r.sinPedido.length === 1 ? 'lo' : 'los'} mandes sin consultar.
+                  </p>
+                )}
               </div>
               {r.url && (
-                <a className="btn btn-secondary btn-sm" href={r.url} target="_blank" rel="noreferrer" onClick={() => onDescargar(r)}>
-                  <FileDown size={13} /> Descargar
+                <a className="btn btn-secondary btn-sm" href={r.url} target="_blank" rel="noreferrer" onClick={() => onDescargar(r.id)}>
+                  <FileDown size={13} /> {r.etiquetas > 0 ? 'Todos' : 'Descargar'}
                 </a>
               )}
               {esRight && (
@@ -169,7 +175,7 @@ function wa(tel: string) {
   return d ? `https://wa.me/${d}` : null
 }
 
-function Tarjeta({ e, onMarcar, onProblema, marcando }: { e: EnvioBA; onMarcar: (e: EnvioBA, accion: 'armado' | 'despachado') => void; onProblema: OnProblema; marcando: boolean }) {
+function Tarjeta({ e, onMarcar, onProblema, onImprimir, marcando }: { e: EnvioBA; onMarcar: (e: EnvioBA, accion: 'armado' | 'despachado') => void; onProblema: OnProblema; onImprimir: (rotuloId: string) => void; marcando: boolean }) {
   const est = ESTADO[e.estado] ?? { texto: e.estado, clase: e.despachado ? 'enviado' : 'pendiente' }
   const link = wa(e.telefono)
   const quien = e.marcado
@@ -200,6 +206,16 @@ function Tarjeta({ e, onMarcar, onProblema, marcando }: { e: EnvioBA; onMarcar: 
 
       {e.envioDudoso && (
         <p className="lba-alerta"><AlertTriangle size={14} /> Envío "{e.envio}": es de Santa Fe, no sale desde Buenos Aires. Consultar con Right antes de mandar.</p>
+      )}
+      {!e.despachado && (e.rotulo?.url ? (
+        <a className="btn btn-secondary btn-sm lba-imprimir" href={e.rotulo.url} target="_blank" rel="noreferrer" onClick={() => onImprimir(e.rotulo!.rotuloId)}>
+          <Printer size={13} /> Imprimir rótulo
+        </a>
+      ) : (
+        <p className="lba-sin-rotulo"><FileDown size={13} /> Todavía no tiene rótulo. Right lo sube con el PDF del día.</p>
+      ))}
+      {e.rotulo && !e.rotulo.coincide && (
+        <p className="lba-alerta"><AlertTriangle size={14} /> El seguimiento del rótulo ({e.rotulo.seguimiento}) no es el de TiendaNube ({e.codigoSeguimiento}). Consultar con Right antes de mandar.</p>
       )}
       {e.dividida && <p className="lba-info">Orden dividida: acá figura solo lo que sale de Buenos Aires. El resto lo manda el local.</p>}
 
@@ -312,8 +328,9 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
   const subir = async (f: File) => {
     if (f.size > 20 * 1024 * 1024) { window.alert('El PDF pesa más de 20 MB.'); return }
     try {
-      await subirRotulosBA(acceso, f)
+      const n = await subirRotulosBA(acceso, f)
       await cargar()
+      if (n === 0) window.alert('Se subió el PDF, pero no encontré rótulos de Andreani adentro (número de pedido "#1234-…"). La logística lo puede descargar entero.')
     } catch (err) {
       window.alert(`No se pudo subir el PDF: ${(err as Error).message}`)
     }
@@ -327,19 +344,20 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
       window.alert(`No se pudo borrar: ${(err as Error).message}`)
     }
   }
-  const descargar = (r: RotuloBA) => {
-    if (esRight || r.descargado) return
-    rotuloDescargadoBA(acceso, r.id).then(cargar).catch(() => { /* noop */ })
+  const descargar = (rotuloId: string) => {
+    if (esRight || rotulos.find(r => r.id === rotuloId)?.descargado) return
+    rotuloDescargadoBA(acceso, rotuloId).then(cargar).catch(() => { /* noop */ })
   }
 
   const pendientes = envios?.filter(e => !e.despachado) ?? []
   const atrasados = pendientes.filter(e => horasDesde(e.fecha) >= HORAS_ATRASO).length
+  const sinRotulo = pendientes.filter(e => !e.rotulo).length
   const enviados = envios?.filter(e => e.despachado) ?? []
 
   return (
     <div className="lba">
       <div className="lba-barra">
-        <p className="lba-resumen"><Truck size={15} /> {envios === null ? 'Buscando envíos…' : <><b>{pendientes.length}</b> para mandar desde Buenos Aires{atrasados > 0 && <span className="lba-atrasados"> · {atrasados} {atrasados === 1 ? 'atrasado' : 'atrasados'}</span>}</>}</p>
+        <p className="lba-resumen"><Truck size={15} /> {envios === null ? 'Buscando envíos…' : <><b>{pendientes.length}</b> para mandar desde Buenos Aires{atrasados > 0 && <span className="lba-atrasados"> · {atrasados} {atrasados === 1 ? 'atrasado' : 'atrasados'}</span>}{envios && envios.length > 0 && sinRotulo > 0 && <span className="lba-sinrot"> · {sinRotulo} sin rótulo</span>}</>}</p>
         <button className="btn btn-secondary btn-sm" onClick={cargar} disabled={cargando}>
           <RefreshCw size={13} /> {cargando ? 'Actualizando…' : 'Actualizar'}
         </button>
@@ -354,12 +372,12 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
           <ListaSeparar pendientes={pendientes} />
           <h2 className="lba-titulo">Para mandar ({pendientes.length})</h2>
           {pendientes.length === 0 ? <p className="lba-vacio">No hay envíos pendientes.</p> : (
-            <div className="lba-lista">{pendientes.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} onProblema={problema} marcando={marcando === e.numero} />)}</div>
+            <div className="lba-lista">{pendientes.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} onProblema={problema} onImprimir={descargar} marcando={marcando === e.numero} />)}</div>
           )}
           {enviados.length > 0 && (
             <>
               <h2 className="lba-titulo">Enviados, última semana ({enviados.length})</h2>
-              <div className="lba-lista">{enviados.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} onProblema={problema} marcando={false} />)}</div>
+              <div className="lba-lista">{enviados.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} onProblema={problema} onImprimir={descargar} marcando={false} />)}</div>
             </>
           )}
         </>

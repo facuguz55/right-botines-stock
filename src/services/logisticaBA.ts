@@ -24,6 +24,8 @@ export interface EnvioBA {
   marcado: { accion: string; origen: string; created_at: string } | null
   // Último problema avisado con "Hay un problema" (le llega a Right en la campanita).
   problema: { detalle: string | null; origen: string; created_at: string } | null
+  // Rótulo de Andreani de este pedido, sacado del último PDF subido.
+  rotulo: { rotuloId: string; url: string | null; seguimiento: string | null; coincide: boolean } | null
 }
 
 export class AccesoDenegado extends Error {}
@@ -60,7 +62,11 @@ async function enviar(acceso: AccesoLogistica, cuerpo: Record<string, unknown>):
 }
 
 // PDF con los rótulos de Andreani que Right le sube a la logística.
-export interface RotuloBA { id: string; nombre: string; subido: string; descargado: string | null; url: string | null }
+export interface RotuloBA {
+  id: string; nombre: string; subido: string; descargado: string | null; url: string | null
+  etiquetas: number // rótulos que se separaron del PDF
+  sinPedido: number[] // pedidos con rótulo que no figuran entre los pagos de Buenos Aires
+}
 
 export async function fetchEnviosBA(acceso: AccesoLogistica): Promise<{ envios: EnvioBA[]; rotulos: RotuloBA[] }> {
   const res = await fetch(URL_FN, { headers: headersAcceso(acceso) })
@@ -70,11 +76,25 @@ export async function fetchEnviosBA(acceso: AccesoLogistica): Promise<{ envios: 
   return { envios: body.ordenes, rotulos: body.rotulos ?? [] }
 }
 
-export async function subirRotulosBA(acceso: AccesoLogistica, archivo: File): Promise<void> {
-  const buf = new Uint8Array(await archivo.arrayBuffer())
+function aBase64(buf: Uint8Array): string {
   let bin = ''
   for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
-  await enviar(acceso, { accion: 'subir_rotulos', nombre: archivo.name, pdf: btoa(bin) })
+  return btoa(bin)
+}
+
+// Sube el PDF de rótulos y, separado acá mismo, un PDF por pedido. Devuelve
+// cuántos rótulos se encontraron.
+export async function subirRotulosBA(acceso: AccesoLogistica, archivo: File): Promise<number> {
+  const buf = new Uint8Array(await archivo.arrayBuffer())
+  const { leerRotulos, separarRotulos } = await import('../lib/rotulosPdf')
+  const separados = await separarRotulos(buf, await leerRotulos(buf))
+  await enviar(acceso, {
+    accion: 'subir_rotulos',
+    nombre: archivo.name,
+    pdf: aBase64(buf),
+    etiquetas: separados.map(e => ({ numero: e.numero, seguimiento: e.seguimiento, pdf: aBase64(e.pdf) })),
+  })
+  return separados.length
 }
 
 export async function borrarRotuloBA(acceso: AccesoLogistica, id: string): Promise<void> {

@@ -86,30 +86,50 @@ Deno.serve(async (req) => {
     if (!token) return json({ error: "Falta el token de TiendaNube" }, 500);
 
     if (req.method === "POST") {
-      const { orderId, accion, motivo, id, nombre, pdf } = await req.json().catch(() => ({})) as {
+      const { orderId, accion, motivo, id, nombre, pdf, etiquetas } = await req.json().catch(() => ({})) as {
         orderId?: number; accion?: string; motivo?: string; id?: string; nombre?: string; pdf?: string;
+        etiquetas?: { numero?: number; seguimiento?: string | null; pdf?: string }[];
       };
 
       // ── Rótulos del día (PDF) ──
       // Subir y borrar: solo Right (dispositivo habilitado).
       if (accion === "subir_rotulos") {
         if (pin) return json({ error: "Solo Right puede subir rótulos" }, 403);
+        const pdfBytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const esPdf = (b: Uint8Array) => new TextDecoder().decode(b.slice(0, 5)) === "%PDF-";
         if (!pdf) return json({ error: "Falta el PDF" }, 400);
-        const bytes = Uint8Array.from(atob(pdf), (c) => c.charCodeAt(0));
+        const bytes = pdfBytes(pdf);
         if (bytes.length > 20 * 1024 * 1024) return json({ error: "El PDF pesa más de 20 MB" }, 400);
-        if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") return json({ error: "El archivo no es un PDF" }, 400);
+        if (!esPdf(bytes)) return json({ error: "El archivo no es un PDF" }, 400);
+        const lista = (Array.isArray(etiquetas) ? etiquetas : []).slice(0, 300);
         const limpio = String(nombre ?? "rotulos.pdf").replace(/[^\w.\- ]+/g, "").slice(0, 80) || "rotulos.pdf";
-        const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.pdf`;
+        const rid = crypto.randomUUID();
+        const dir = `${new Date().toISOString().slice(0, 10)}/${rid}`;
+        const path = `${dir}/completo.pdf`;
         const { error: e1 } = await db.storage.from("rotulos").upload(path, bytes, { contentType: "application/pdf" });
         if (e1) return json({ error: `No se pudo guardar: ${e1.message}` }, 500);
-        await db.from("logistica_rotulos").insert({ path, nombre: limpio });
-        return json({ ok: true });
+        const { error: e2 } = await db.from("logistica_rotulos").insert({ id: rid, path, nombre: limpio });
+        if (e2) return json({ error: `No se pudo guardar: ${e2.message}` }, 500);
+        // Un PDF por pedido (separado en el navegador de quien lo sube).
+        const filas = [];
+        for (const et of lista) {
+          const numero = Number(et?.numero);
+          if (!Number.isInteger(numero) || numero <= 0 || !et?.pdf) continue;
+          const b = pdfBytes(et.pdf);
+          if (!esPdf(b) || b.length > 5 * 1024 * 1024) continue;
+          const p = `${dir}/${numero}.pdf`;
+          const { error } = await db.storage.from("rotulos").upload(p, b, { contentType: "application/pdf", upsert: true });
+          if (!error) filas.push({ rotulo_id: rid, orden_numero: numero, seguimiento: et.seguimiento ? String(et.seguimiento).slice(0, 40) : null, path: p });
+        }
+        if (filas.length) await db.from("logistica_rotulos_pedidos").insert(filas);
+        return json({ ok: true, separados: filas.length });
       }
       if (accion === "borrar_rotulo") {
         if (pin) return json({ error: "Solo Right puede borrar rótulos" }, 403);
         const { data: r } = await db.from("logistica_rotulos").select("path").eq("id", id ?? "").maybeSingle();
         if (!r) return json({ error: "No encontré el rótulo" }, 404);
-        await db.storage.from("rotulos").remove([r.path]);
+        const { data: partes } = await db.from("logistica_rotulos_pedidos").select("path").eq("rotulo_id", id);
+        await db.storage.from("rotulos").remove([r.path, ...(partes ?? []).map((x) => x.path)]);
         await db.from("logistica_rotulos").delete().eq("id", id);
         return json({ ok: true });
       }
@@ -218,15 +238,52 @@ Deno.serve(async (req) => {
     }
     const conMarca = resultado.map((r) => ({ ...r, marcado: marcas.get(r.orderId) ?? null, problema: problemas.get(r.orderId) ?? null }));
 
-    // Rótulos de la última semana, con link de descarga (vale 1 hora).
+    // Rótulo de cada pedido (el último que se subió), con link que vale 1 hora.
+    const firmar = async (path: string, nombre: string) =>
+      (await db.storage.from("rotulos").createSignedUrl(path, 3600, { download: nombre })).data?.signedUrl ?? null;
+    const numeros = resultado.map((r) => r.numero);
+    const porPedido = new Map<number, { rotulo_id: string; seguimiento: string | null; path: string }>();
+    if (numeros.length) {
+      const { data } = await db.from("logistica_rotulos_pedidos").select("rotulo_id, orden_numero, seguimiento, path")
+        .in("orden_numero", numeros).order("created_at", { ascending: false });
+      for (const f of data ?? []) if (!porPedido.has(f.orden_numero)) porPedido.set(f.orden_numero, f);
+    }
+    const conRotulo = [];
+    for (const r of conMarca) {
+      const f = porPedido.get(r.numero);
+      conRotulo.push({
+        ...r,
+        rotulo: f ? {
+          rotuloId: f.rotulo_id,
+          url: await firmar(f.path, `rotulo-${r.numero}.pdf`),
+          seguimiento: f.seguimiento,
+          // Si TiendaNube ya tiene seguimiento, tiene que ser el mismo del rótulo.
+          coincide: !f.seguimiento || !r.codigoSeguimiento || f.seguimiento === r.codigoSeguimiento,
+        } : null,
+      });
+    }
+
+    // PDFs de la última semana; avisa los rótulos de pedidos que no están
+    // entre los pagos que salen de Buenos Aires (cancelados, del local, etc.).
     const { data: filas } = await db.from("logistica_rotulos").select("id, path, nombre, created_at, descargado_at")
       .gte("created_at", new Date(Date.now() - 7 * 86400_000).toISOString()).order("created_at", { ascending: false });
+    const partes = new Map<string, number[]>();
+    if (filas?.length) {
+      const { data } = await db.from("logistica_rotulos_pedidos").select("rotulo_id, orden_numero").in("rotulo_id", filas.map((f) => f.id));
+      for (const p of data ?? []) partes.set(p.rotulo_id, [...(partes.get(p.rotulo_id) ?? []), p.orden_numero]);
+    }
+    const conocidos = new Set(numeros);
     const rotulos = [];
     for (const f of filas ?? []) {
-      const { data: s } = await db.storage.from("rotulos").createSignedUrl(f.path, 3600, { download: f.nombre });
-      rotulos.push({ id: f.id, nombre: f.nombre, subido: f.created_at, descargado: f.descargado_at, url: s?.signedUrl ?? null });
+      const ns = partes.get(f.id) ?? [];
+      rotulos.push({
+        id: f.id, nombre: f.nombre, subido: f.created_at, descargado: f.descargado_at,
+        url: await firmar(f.path, f.nombre),
+        etiquetas: ns.length,
+        sinPedido: ns.filter((n) => !conocidos.has(n)).sort((a, b) => a - b),
+      });
     }
-    return json({ ok: true, ordenes: conMarca, rotulos, actualizado: new Date().toISOString() });
+    return json({ ok: true, ordenes: conRotulo, rotulos, actualizado: new Date().toISOString() });
   } catch (e) {
     console.error("logistica-ba:", e);
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
