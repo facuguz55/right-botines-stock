@@ -36,7 +36,9 @@ export async function estadoPush(): Promise<EstadoPush> {
   }
 }
 
-export async function activarPush(nombre?: string | null): Promise<EstadoPush> {
+// despachos: true/false prende o apaga en este celu el aviso cuando la
+// logística de Bs As despacha (sin tocar el aviso del CRM).
+export async function activarPush(nombre?: string | null, despachos?: boolean): Promise<EstadoPush> {
   const permiso = await Notification.requestPermission()
   if (permiso !== 'granted') return permiso === 'denied' ? 'denegado' : 'inactivo'
   const reg = await navigator.serviceWorker.ready
@@ -45,7 +47,7 @@ export async function activarPush(nombre?: string | null): Promise<EstadoPush> {
   const res = await fetch('/api/push-subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription: sub.toJSON(), nombre: nombre ?? null }),
+    body: JSON.stringify({ subscription: sub.toJSON(), nombre: nombre === undefined ? undefined : nombre, ...(despachos === undefined ? {} : { despachos }) }),
   })
   if (!res.ok) throw new Error('No se pudo guardar la suscripción')
   return 'activo'

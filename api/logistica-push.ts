@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' }
 import { sbFetch } from '../src/lib/supabaseRest'
 import { enviarPush } from '../src/lib/webpush'
 
-// Notificación al celu cuando la logística de Buenos Aires despacha un pedido.
+// Notificación al celu (solo los que la activaron en Depósito CABA) cuando la logística de Buenos Aires despacha un pedido.
 // La llama la Edge Function logistica-ba con el id de la acción recién
 // guardada. No hace falta clave: solo avisa por un despacho real, de los
 // últimos 2 minutos, y una sola vez (se marca "notificado").
@@ -35,6 +35,7 @@ export default async function handler(req: Request): Promise<Response> {
       url: '/',
       tag: `despacho-${filas[0].orden_numero}`,
     },
+    '&avisos_despacho=eq.true',
   )
   return Response.json({ ok: true, enviados })
 }

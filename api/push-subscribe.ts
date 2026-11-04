@@ -23,7 +23,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!origin || !ALLOWED_ORIGINS.includes(origin)) return json({ error: 'Origen no permitido' }, 403)
   if (!SB_URL || !SB_KEY) return json({ error: 'Falta configuración' }, 503)
 
-  let body: { subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } }; nombre?: string }
+  let body: { subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } }; nombre?: string; despachos?: boolean }
   try { body = await req.json() } catch { return json({ error: 'JSON inválido' }, 400) }
 
   const sub = body.subscription
@@ -42,8 +42,10 @@ export default async function handler(req: Request): Promise<Response> {
     },
     body: JSON.stringify({
       endpoint, p256dh, auth,
-      nombre: body.nombre?.slice(0, 60) ?? null,
+      ...(body.nombre !== undefined ? { nombre: body.nombre?.slice(0, 60) ?? null } : {}),
       user_agent: req.headers.get('user-agent')?.slice(0, 200) ?? null,
+      // Solo se toca si viene: al reactivar el CRM no se pierde el aviso de despachos.
+      ...(typeof body.despachos === 'boolean' ? { avisos_despacho: body.despachos } : {}),
     }),
   })
   if (!res.ok) return json({ error: 'No se pudo guardar' }, 502)

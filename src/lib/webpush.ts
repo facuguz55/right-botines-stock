@@ -25,14 +25,16 @@ interface FilaSuscripcion { id: string; endpoint: string; p256dh: string; auth: 
 
 // Devuelve a cuántos dispositivos se les mandó. Si falta alguna clave no hace
 // nada (así el webhook sigue andando aunque todavía no estén cargadas).
-export async function enviarPush(cfg: PushConfig, msg: PushMensaje): Promise<number> {
+// filtro: condición extra de PostgREST sobre push_subscriptions (ej. solo los
+// celus con avisos_despacho).
+export async function enviarPush(cfg: PushConfig, msg: PushMensaje, filtro = ''): Promise<number> {
   if (!cfg.vapidPublic || !cfg.vapidPrivate || !cfg.supabaseUrl || !cfg.supabaseKey) return 0
   // Sin esto la librería falla con «Illegal invocation» en Vercel (ver base64Js.ts).
   instalarBase64Js()
   const headers = { apikey: cfg.supabaseKey, Authorization: `Bearer ${cfg.supabaseKey}` }
   const base = cfg.supabaseUrl.replace(/\/$/, '')
 
-  const res = await fetch(`${base}/rest/v1/push_subscriptions?select=id,endpoint,p256dh,auth`, { headers })
+  const res = await fetch(`${base}/rest/v1/push_subscriptions?select=id,endpoint,p256dh,auth${filtro}`, { headers })
   if (!res.ok) return 0
   const subs = (await res.json()) as FilaSuscripcion[]
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { TNOrdenes } from '../TNOrdenes/TNOrdenes'
 import { EnviosBA } from './EnviosBA'
+import { AvisoDespachos } from './AvisoDespachos'
 import { getDeviceToken } from '../../lib/dispositivo'
 import './LogisticaBA.css'
 
@@ -23,6 +24,7 @@ export function OrdenesPagina({ empleadoId }: { empleadoId: string | null }) {
               <p className="page-subtitle">Lo mismo que ve la logística de la proveedora</p>
             </div>
           </div>
+          <AvisoDespachos />
           <EnviosBA acceso={{ dispositivo: getDeviceToken() }} />
         </div>
       )}
