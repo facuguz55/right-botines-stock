@@ -246,16 +246,9 @@ export async function resolveTNVariantId(modelo: Modelo, talle: ModeloTalle): Pr
 
 // ── Stock local → TiendaNube ─────────────────────────────────────────────────
 
-export async function pushStockToTN(modelo: Modelo, talleArg: number, nuevaCantidad: number): Promise<void> {
-  if (!modelo.tn_product_id) return
-  const talle = modelo.modelo_talles.find(t => Number(t.talle_arg) === Number(talleArg))
-  if (!talle) return
-
-  const variantId = await resolveTNVariantId(modelo, talle)
-  if (!variantId) return
-
-  const { storeId, token } = getTNCredentials()
-  await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, { stock: Math.max(0, nuevaCantidad) })
+export async function pushStockToTN(_modelo: Modelo, _talleArg: number, _nuevaCantidad: number): Promise<void> {
+  // Lo hace el servidor por ubicación (ver reflejarStockEnTN en stockTN.ts):
+  // el cambio en la base ya quedó en la cola.
 }
 
 // Precio promocional y medidas del paquete del modelo, para cada variante.
@@ -331,12 +324,13 @@ export async function pushTalleUpdateToTN(
     await pushTalleCreateToTN(modelo, talle)
     return
   }
+  // El stock lo manda el servidor por ubicación (ver stockTN.ts): acá solo
+  // el nombre del talle, si cambió.
+  if (!opts.labelChanged) return
   const { storeId, token } = getTNCredentials()
-  const data: { stock: number; values?: { es: string }[] } = { stock: Math.max(0, talle.cantidad) }
-  if (opts.labelChanged) {
-    data.values = [{ es: etiquetaVarianteTN(talle.talle_arg, talle.talle_us) }]
-  }
-  await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, data)
+  await updateTNVariant(storeId, token, modelo.tn_product_id, variantId, {
+    values: [{ es: etiquetaVarianteTN(talle.talle_arg, talle.talle_us) }],
+  })
 }
 
 // ── Modelo nuevo local → TiendaNube ──────────────────────────────────────────

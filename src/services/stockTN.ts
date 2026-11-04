@@ -1,37 +1,13 @@
-import { supabase } from '../lib/supabase'
-import type { Modelo } from '../types'
-import { pushStockToTN } from './tnSync'
 
-// Lleva a TiendaNube el stock de los talles que tocó una operación (venta,
-// ingreso, cambio o devolución) y devuelve un aviso si alguno no se pudo.
-//
-// Por qué importa: si TiendaNube se queda con el stock viejo, la siguiente
-// sincronización (TiendaNube → app) pisa `cantidad` y deshace la operación
-// (pasó el 07/10 con un cambio de talle). Se lee el stock ya actualizado de
-// la base, no el de la pantalla: con varios dispositivos usando la app a la
-// vez, el que tiene el dispositivo puede estar viejo.
-export async function reflejarStockEnTN(talleIds: string[]): Promise<string | null> {
-  const ids = [...new Set(talleIds.filter(Boolean))]
-  if (!ids.length) return null
-  const { data: talles, error } = await supabase
-    .from('modelo_talles').select('id, modelo_id, talle_arg, cantidad').in('id', ids)
-  if (error || !talles) return 'no se pudo leer el stock actualizado'
-
-  const fallas: string[] = []
-  for (const t of talles) {
-    let nombre = `talle ${t.talle_arg}`
-    try {
-      const { data: modelo, error: errModelo } = await supabase
-        .from('modelos').select('*, modelo_talles(*)').eq('id', t.modelo_id).single()
-      if (errModelo || !modelo) throw errModelo ?? new Error('modelo no encontrado')
-      nombre = `${modelo.marca} ${modelo.modelo} talle ${t.talle_arg} (debería quedar en ${t.cantidad})`
-      await pushStockToTN(modelo as Modelo, Number(t.talle_arg), t.cantidad)
-    } catch (e) {
-      console.error('No se pudo actualizar el stock en TiendaNube:', e)
-      fallas.push(nombre)
-    }
-  }
-  return fallas.length ? `no se pudo actualizar ${fallas.join(', ')}` : null
+// El stock a TiendaNube ya no lo manda el dispositivo: lo manda el servidor
+// (cola privado.tn_stock_cola + Edge Function tn-stock, en menos de un minuto
+// y con reintentos), que además sabe en qué ubicación va (Showroom = local,
+// Deposito CABA = Buenos Aires). Desde acá se mandaba el total en "stock" y
+// TiendaNube lo cargaba en la ubicación principal, que ahora es el depósito
+// de CABA: las ventas del local se podían descontar de Buenos Aires.
+// Se deja la función para no tocar a quienes la llaman; no hay nada que avisar.
+export async function reflejarStockEnTN(_talleIds: string[]): Promise<string | null> {
+  return null
 }
 
 // El envío desde el dispositivo es solo para que la web se actualice al
