@@ -1,3 +1,4 @@
+import { getDeviceToken } from '../lib/dispositivo'
 // Envíos que salen del depósito de Buenos Aires (Edge Function logistica-ba).
 // Acceso con el PIN de logística (link /logistica) o con un dispositivo de
 // Right habilitado (pestaña "Depósito CABA" en Órdenes).
@@ -35,7 +36,11 @@ export type AccesoLogistica = { pin: string } | { dispositivo: string | null }
 function headersAcceso(acceso: AccesoLogistica): Record<string, string> {
   const headers: Record<string, string> = { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string }
   if ('pin' in acceso) headers['x-logistica-pin'] = acceso.pin
-  else if (acceso.dispositivo) headers['x-device-token'] = acceso.dispositivo
+  else {
+    // Se lee en el momento: si se habilitó recién, el permiso nuevo ya vale.
+    const t = getDeviceToken() ?? acceso.dispositivo
+    if (t) headers['x-device-token'] = t
+  }
   return headers
 }
 

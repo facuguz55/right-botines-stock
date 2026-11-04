@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone, Clock, ClipboardList, ChevronDown, FileDown, Upload, Trash2, CheckCircle2, Printer } from 'lucide-react'
 import { fetchEnviosBA, marcarEnvioBA, avisarProblemaBA, subirRotulosBA, borrarRotuloBA, rotuloDescargadoBA, AccesoDenegado, type EnvioBA, type RotuloBA, type AccesoLogistica } from '../../services/logisticaBA'
+import { HabilitarDispositivoModal } from '../DispositivoBanner/HabilitarDispositivoModal'
 import './LogisticaBA.css'
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -263,6 +264,8 @@ interface Props {
 export function EnviosBA({ acceso, onSinAcceso }: Props) {
   const [envios, setEnvios] = useState<EnvioBA[] | null>(null)
   const [rotulos, setRotulos] = useState<RotuloBA[]>([])
+  const [noHabilitado, setNoHabilitado] = useState(false)
+  const [habilitando, setHabilitando] = useState(false)
   const esRight = !('pin' in acceso)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
@@ -275,13 +278,13 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
       const r = await fetchEnviosBA(acceso)
       setEnvios(r.envios)
       setRotulos(r.rotulos)
+      setNoHabilitado(false)
       setError(null)
       setActualizado(new Date())
     } catch (e) {
       if (e instanceof AccesoDenegado && onSinAcceso) onSinAcceso(e.message)
-      else setError(e instanceof AccesoDenegado
-        ? 'Este dispositivo no está habilitado para ver los envíos. Habilitalo con el PIN del dueño (botón "Habilitar" del cartel amarillo).'
-        : (e as Error).message)
+      else if (e instanceof AccesoDenegado) setNoHabilitado(true)
+      else setError((e as Error).message)
     } finally {
       setCargando(false)
     }
@@ -364,7 +367,14 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
       </div>
       {actualizado && <p className="lba-hora">Actualizado {actualizado.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} · se actualiza solo</p>}
       {error && <p className="lba-error">{error}</p>}
-      {envios === null && !error && <p className="lba-vacio">Cargando envíos…</p>}
+      {noHabilitado && (
+        <div className="lba-habilitar">
+          <p>Esta compu o celu todavía no está habilitado para ver los envíos. Lo habilita el dueño, una sola vez, con su PIN.</p>
+          <button className="btn btn-primary btn-sm" onClick={() => setHabilitando(true)}>Habilitar este dispositivo</button>
+          <HabilitarDispositivoModal isOpen={habilitando} onClose={() => setHabilitando(false)} onHabilitado={() => { setHabilitando(false); cargar() }} />
+        </div>
+      )}
+      {envios === null && !error && !noHabilitado && <p className="lba-vacio">Cargando envíos…</p>}
 
       {envios && (
         <>
