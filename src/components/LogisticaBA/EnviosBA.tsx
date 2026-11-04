@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone } from 'lucide-react'
-import { fetchEnviosBA, marcarEnvioBA, AccesoDenegado, type EnvioBA, type AccesoLogistica } from '../../services/logisticaBA'
+import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone, Clock, ClipboardList, ChevronDown } from 'lucide-react'
+import { fetchEnviosBA, marcarEnvioBA, avisarProblemaBA, AccesoDenegado, type EnvioBA, type AccesoLogistica } from '../../services/logisticaBA'
 import './LogisticaBA.css'
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -15,22 +15,112 @@ function fecha(iso: string) {
   return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })
 }
 
+// Un pedido sin despachar con más de 24 h se marca como atrasado.
+const HORAS_ATRASO = 24
+function horasDesde(iso: string) {
+  return (Date.now() - Date.parse(iso)) / 3600_000
+}
+function atraso(horas: number) {
+  return horas < 48 ? `${Math.floor(horas)} h` : `${Math.floor(horas / 24)} días`
+}
+
+const MOTIVOS = ['No tengo el talle', 'El par está fallado', 'Me falta el rótulo', 'Dirección incompleta o rara']
+
+type OnProblema = (e: EnvioBA, motivo: string) => Promise<boolean>
+
+function Problema({ e, onProblema }: { e: EnvioBA; onProblema: OnProblema }) {
+  const [abierto, setAbierto] = useState(false)
+  const [motivo, setMotivo] = useState<string | null>(null)
+  const [texto, setTexto] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  if (!abierto) {
+    return <button className="lba-problema-btn" onClick={() => setAbierto(true)}>Hay un problema</button>
+  }
+  const mensaje = [motivo, texto.trim()].filter(Boolean).join(' — ')
+  const cerrar = () => { setAbierto(false); setMotivo(null); setTexto('') }
+  return (
+    <div className="lba-problema-form">
+      <p className="lba-problema-titulo">¿Qué pasa con el pedido #{e.numero}?</p>
+      <div className="lba-motivos">
+        {MOTIVOS.map(m => (
+          <button key={m} className={`lba-motivo${motivo === m ? ' on' : ''}`} onClick={() => setMotivo(motivo === m ? null : m)}>{m}</button>
+        ))}
+      </div>
+      <textarea rows={2} maxLength={300} placeholder="Contá qué pasa (opcional si elegiste un motivo)" value={texto} onChange={ev => setTexto(ev.target.value)} />
+      <div className="lba-acciones">
+        <button className="btn btn-secondary btn-sm" disabled={enviando} onClick={cerrar}>Cancelar</button>
+        <button className="btn btn-primary btn-sm" disabled={!mensaje || enviando} onClick={async () => {
+          setEnviando(true)
+          const ok = await onProblema(e, mensaje)
+          setEnviando(false)
+          if (ok) cerrar()
+        }}>{enviando ? 'Enviando…' : 'Avisar a Right'}</button>
+      </div>
+    </div>
+  )
+}
+
+// Todos los pares de los pedidos pendientes, agrupados por modelo y talle,
+// para juntarlos de una vez antes de empaquetar.
+function ListaSeparar({ pendientes }: { pendientes: EnvioBA[] }) {
+  const [abierta, setAbierta] = useState(false)
+  const grupos = new Map<string, { nombre: string; talle: string; foto: string | null; pares: number; pedidos: number[] }>()
+  for (const e of pendientes) {
+    for (const p of e.productos) {
+      const k = `${p.nombre}|${p.talle}`
+      const g = grupos.get(k) ?? { nombre: p.nombre, talle: p.talle, foto: p.foto, pares: 0, pedidos: [] }
+      g.pares += p.cantidad
+      if (!g.pedidos.includes(e.numero)) g.pedidos.push(e.numero)
+      grupos.set(k, g)
+    }
+  }
+  const lista = [...grupos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre) || a.talle.localeCompare(b.talle, 'es', { numeric: true }))
+  const total = lista.reduce((s, g) => s + g.pares, 0)
+  if (total === 0) return null
+  return (
+    <div className="lba-separar">
+      <button className="lba-separar-head" onClick={() => setAbierta(!abierta)} aria-expanded={abierta}>
+        <ClipboardList size={15} /> Lista para separar · <b>{total}</b> {total === 1 ? 'par' : 'pares'}
+        <ChevronDown size={15} className={`lba-chevron${abierta ? ' on' : ''}`} />
+      </button>
+      {abierta && (
+        <ul className="lba-separar-lista">
+          {lista.map(g => (
+            <li key={`${g.nombre}|${g.talle}`}>
+              {g.foto ? <img src={g.foto} alt="" loading="lazy" /> : <span className="lba-sinfoto" />}
+              <div>
+                <p className="lba-prod-nombre">{g.nombre}</p>
+                <p className="lba-prod-talle">Talle {g.talle}</p>
+                <p className="lba-separar-pedidos">Pedidos {g.pedidos.map(n => `#${n}`).join(', ')}</p>
+              </div>
+              <span className="lba-separar-cant">×{g.pares}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function wa(tel: string) {
   const d = tel.replace(/\D/g, '')
   return d ? `https://wa.me/${d}` : null
 }
 
-function Tarjeta({ e, onMarcar, marcando }: { e: EnvioBA; onMarcar: (e: EnvioBA, accion: 'armado' | 'despachado') => void; marcando: boolean }) {
+function Tarjeta({ e, onMarcar, onProblema, marcando }: { e: EnvioBA; onMarcar: (e: EnvioBA, accion: 'armado' | 'despachado') => void; onProblema: OnProblema; marcando: boolean }) {
   const est = ESTADO[e.estado] ?? { texto: e.estado, clase: e.despachado ? 'enviado' : 'pendiente' }
   const link = wa(e.telefono)
   const quien = e.marcado
     ? `${e.marcado.accion === 'despachado' ? 'Despachado' : 'Armado'} por ${e.marcado.origen === 'logistica' ? 'logística Bs As' : 'Right'} · ${fecha(e.marcado.created_at)}`
     : null
+  const horas = horasDesde(e.fecha)
+  const atrasado = !e.despachado && horas >= HORAS_ATRASO
   return (
-    <article className={`lba-card${e.despachado ? ' hecho' : ''}`}>
+    <article className={`lba-card${e.despachado ? ' hecho' : ''}${atrasado ? ' atrasado' : ''}`}>
       <header className="lba-card-head">
         <span className="lba-num">#{e.numero}</span>
         <span className="lba-fecha">{fecha(e.fecha)}</span>
+        {atrasado && <span className="lba-atraso"><Clock size={11} /> Atrasado · {atraso(horas)}</span>}
         <span className={`lba-estado ${est.clase}`}>{est.texto}</span>
       </header>
 
@@ -65,6 +155,12 @@ function Tarjeta({ e, onMarcar, marcando }: { e: EnvioBA; onMarcar: (e: EnvioBA,
       </dl>
 
       {quien && <p className="lba-quien">{quien}</p>}
+      {e.problema && (
+        <p className="lba-problema-aviso">
+          <AlertTriangle size={14} /> Problema avisado por {e.problema.origen === 'logistica' ? 'logística Bs As' : 'Right'} · {fecha(e.problema.created_at)}: {e.problema.detalle}
+        </p>
+      )}
+      {!e.despachado && <Problema e={e} onProblema={onProblema} />}
       {!e.despachado && (
         <div className="lba-acciones">
           {e.estado === 'UNPACKED' && (
@@ -136,13 +232,25 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
     }
   }
 
+  const problema: OnProblema = async (e, motivo) => {
+    try {
+      await avisarProblemaBA(acceso, e.orderId, motivo)
+      await cargar()
+      return true
+    } catch (err) {
+      window.alert(`No se pudo avisar el problema del pedido #${e.numero}: ${(err as Error).message}`)
+      return false
+    }
+  }
+
   const pendientes = envios?.filter(e => !e.despachado) ?? []
+  const atrasados = pendientes.filter(e => horasDesde(e.fecha) >= HORAS_ATRASO).length
   const enviados = envios?.filter(e => e.despachado) ?? []
 
   return (
     <div className="lba">
       <div className="lba-barra">
-        <p className="lba-resumen"><Truck size={15} /> {envios === null ? 'Buscando envíos…' : <><b>{pendientes.length}</b> para mandar desde Buenos Aires</>}</p>
+        <p className="lba-resumen"><Truck size={15} /> {envios === null ? 'Buscando envíos…' : <><b>{pendientes.length}</b> para mandar desde Buenos Aires{atrasados > 0 && <span className="lba-atrasados"> · {atrasados} {atrasados === 1 ? 'atrasado' : 'atrasados'}</span>}</>}</p>
         <button className="btn btn-secondary btn-sm" onClick={cargar} disabled={cargando}>
           <RefreshCw size={13} /> {cargando ? 'Actualizando…' : 'Actualizar'}
         </button>
@@ -153,14 +261,15 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
 
       {envios && (
         <>
+          <ListaSeparar pendientes={pendientes} />
           <h2 className="lba-titulo">Para mandar ({pendientes.length})</h2>
           {pendientes.length === 0 ? <p className="lba-vacio">No hay envíos pendientes.</p> : (
-            <div className="lba-lista">{pendientes.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} marcando={marcando === e.numero} />)}</div>
+            <div className="lba-lista">{pendientes.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} onProblema={problema} marcando={marcando === e.numero} />)}</div>
           )}
           {enviados.length > 0 && (
             <>
               <h2 className="lba-titulo">Enviados, última semana ({enviados.length})</h2>
-              <div className="lba-lista">{enviados.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} marcando={false} />)}</div>
+              <div className="lba-lista">{enviados.map(e => <Tarjeta key={e.numero} e={e} onMarcar={marcar} onProblema={problema} marcando={false} />)}</div>
             </>
           )}
         </>

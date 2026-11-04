@@ -55,14 +55,14 @@ export function DevolucionesAlerts() {
 
   return (
     <div className="access-alerts" ref={boxRef}>
-      <button className={`access-alerts-btn${noVistos.length > 0 ? ' alert' : ''}`} onClick={toggle} title="Problemas con ventas, ingresos, cambios y devoluciones">
+      <button className={`access-alerts-btn${noVistos.length > 0 ? ' alert' : ''}`} onClick={toggle} title="Problemas con ventas, ingresos, cambios, devoluciones y envíos de Bs As">
         <AlertOctagon size={16} />
         {noVistos.length > 0 && <span className="access-alerts-badge">{noVistos.length}</span>}
       </button>
 
       {open && (
         <div className="access-alerts-panel" style={{ width: 300 }}>
-          <p className="access-alerts-title">Problemas con ventas, ingresos, cambios y devoluciones</p>
+          <p className="access-alerts-title">Problemas con ventas, ingresos, cambios, devoluciones y envíos de Bs As</p>
           {historial.length === 0 ? (
             <p className="access-alerts-empty">Sin fallos registrados.</p>
           ) : (

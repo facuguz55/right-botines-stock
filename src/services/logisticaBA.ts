@@ -22,6 +22,8 @@ export interface EnvioBA {
   productos: ProductoEnvio[]
   // Última marca hecha desde la vista de logística (quién y cuándo).
   marcado: { accion: string; origen: string; created_at: string } | null
+  // Último problema avisado con "Hay un problema" (le llega a Right en la campanita).
+  problema: { detalle: string | null; origen: string; created_at: string } | null
 }
 
 export class AccesoDenegado extends Error {}
@@ -38,10 +40,19 @@ function headersAcceso(acceso: AccesoLogistica): Record<string, string> {
 // Marca el envío en TiendaNube. "despachado" le avisa al cliente con el
 // seguimiento (lo hace TiendaNube).
 export async function marcarEnvioBA(acceso: AccesoLogistica, orderId: number, accion: 'armado' | 'despachado'): Promise<void> {
+  await enviar(acceso, { orderId, accion })
+}
+
+// Avisa a Right que hay un problema con el pedido (no toca TiendaNube).
+export async function avisarProblemaBA(acceso: AccesoLogistica, orderId: number, motivo: string): Promise<void> {
+  await enviar(acceso, { orderId, accion: 'problema', motivo })
+}
+
+async function enviar(acceso: AccesoLogistica, cuerpo: Record<string, unknown>): Promise<void> {
   const res = await fetch(URL_FN, {
     method: 'POST',
     headers: { ...headersAcceso(acceso), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ orderId, accion }),
+    body: JSON.stringify(cuerpo),
   })
   const body = await res.json().catch(() => ({})) as { error?: string }
   if (res.status === 401) throw new AccesoDenegado(body.error ?? 'Sin acceso')

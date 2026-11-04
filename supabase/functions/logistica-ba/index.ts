@@ -86,7 +86,23 @@ Deno.serve(async (req) => {
     if (!token) return json({ error: "Falta el token de TiendaNube" }, 500);
 
     if (req.method === "POST") {
-      const { orderId, accion } = await req.json().catch(() => ({})) as { orderId?: number; accion?: string };
+      const { orderId, accion, motivo } = await req.json().catch(() => ({})) as { orderId?: number; accion?: string; motivo?: string };
+
+      // "Hay un problema": no toca TiendaNube, queda registrado y le llega a
+      // Right en la campanita.
+      if (accion === "problema") {
+        const texto = String(motivo ?? "").trim().slice(0, 400);
+        if (!orderId || !texto) return json({ error: "Falta el motivo" }, 400);
+        const o = (await tn(token, `/orders/${orderId}`)) as Orden | null;
+        if (!o) return json({ error: "No encontré la orden" }, 404);
+        const quien = pin ? "Logística Bs As" : "Right";
+        await db.from("logistica_acciones").insert({
+          orden_numero: o.number, tn_order_id: orderId, accion: "problema", origen: pin ? "logistica" : "right", ok: true, detalle: texto,
+        });
+        await db.from("devoluciones_cambios_fallos").insert({ empleado_id: null, mensaje: `${quien} · pedido #${o.number}: ${texto}` });
+        return json({ ok: true });
+      }
+
       if (!orderId || (accion !== "armado" && accion !== "despachado")) return json({ error: "Pedido inválido" }, 400);
       const res = await marcar(token, orderId, accion);
       await db.from("logistica_acciones").insert({
@@ -160,13 +176,16 @@ Deno.serve(async (req) => {
 
     // Quién marcó cada orden desde acá (la última acción que salió bien).
     const ids = resultado.map((r) => r.orderId);
-    const marcas = new Map<number, { accion: string; origen: string; created_at: string }>();
+    // Y el último problema avisado, aparte.
+    type Marca = { accion: string; origen: string; created_at: string; detalle: string | null };
+    const marcas = new Map<number, Marca>();
+    const problemas = new Map<number, Marca>();
     if (ids.length) {
-      const { data } = await db.from("logistica_acciones").select("tn_order_id, accion, origen, created_at")
+      const { data } = await db.from("logistica_acciones").select("tn_order_id, accion, origen, created_at, detalle")
         .in("tn_order_id", ids).eq("ok", true).order("created_at", { ascending: true });
-      for (const m of data ?? []) marcas.set(Number(m.tn_order_id), m);
+      for (const m of data ?? []) (m.accion === "problema" ? problemas : marcas).set(Number(m.tn_order_id), m);
     }
-    const conMarca = resultado.map((r) => ({ ...r, marcado: marcas.get(r.orderId) ?? null }));
+    const conMarca = resultado.map((r) => ({ ...r, marcado: marcas.get(r.orderId) ?? null, problema: problemas.get(r.orderId) ?? null }));
     return json({ ok: true, ordenes: conMarca, actualizado: new Date().toISOString() });
   } catch (e) {
     console.error("logistica-ba:", e);
