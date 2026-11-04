@@ -357,7 +357,7 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
   return (
     <div className="lba">
       <div className="lba-barra">
-        <p className="lba-resumen"><Truck size={15} /> {envios === null ? 'Buscando envíos…' : <><b>{pendientes.length}</b> para mandar desde Buenos Aires{atrasados > 0 && <span className="lba-atrasados"> · {atrasados} {atrasados === 1 ? 'atrasado' : 'atrasados'}</span>}{envios && envios.length > 0 && sinRotulo > 0 && <span className="lba-sinrot"> · {sinRotulo} sin rótulo</span>}</>}</p>
+        <p className="lba-resumen"><Truck size={15} /> {envios === null ? 'Buscando envíos…' : <span><b>{pendientes.length}</b> para mandar desde Buenos Aires{atrasados > 0 && <span className="lba-atrasados"> · {atrasados} {atrasados === 1 ? 'atrasado' : 'atrasados'}</span>}{envios && envios.length > 0 && sinRotulo > 0 && <span className="lba-sinrot"> · {sinRotulo} sin rótulo</span>}</span>}</p>
         <button className="btn btn-secondary btn-sm" onClick={cargar} disabled={cargando}>
           <RefreshCw size={13} /> {cargando ? 'Actualizando…' : 'Actualizar'}
         </button>
