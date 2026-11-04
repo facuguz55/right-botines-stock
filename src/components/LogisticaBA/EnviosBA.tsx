@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone, Clock, ClipboardList, ChevronDown, FileDown, Upload, Trash2, CheckCircle2, Printer } from 'lucide-react'
 import { fetchEnviosBA, marcarEnvioBA, avisarProblemaBA, subirRotulosBA, borrarRotuloBA, rotuloDescargadoBA, AccesoDenegado, type EnvioBA, type RotuloBA, type AccesoLogistica } from '../../services/logisticaBA'
 import { HabilitarDispositivoModal } from '../DispositivoBanner/HabilitarDispositivoModal'
+import { marcarDespachosVistos } from '../../hooks/useDespachosNuevos'
 import './LogisticaBA.css'
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -279,6 +280,8 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
       setEnvios(r.envios)
       setRotulos(r.rotulos)
       setNoHabilitado(false)
+      // Right vio los despachos: se apaga el número del menú.
+      if (!('pin' in acceso)) marcarDespachosVistos()
       setError(null)
       setActualizado(new Date())
     } catch (e) {
@@ -355,12 +358,16 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
   const pendientes = envios?.filter(e => !e.despachado) ?? []
   const atrasados = pendientes.filter(e => horasDesde(e.fecha) >= HORAS_ATRASO).length
   const sinRotulo = pendientes.filter(e => !e.rotulo).length
+  // Despachados hoy (hora de Argentina) desde el panel.
+  const dia = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
+  const hoy = dia(new Date().toISOString())
+  const salieronHoy = (envios ?? []).filter(e => e.despachado && e.marcado?.accion === 'despachado' && dia(e.marcado.created_at) === hoy).length
   const enviados = envios?.filter(e => e.despachado) ?? []
 
   return (
     <div className="lba">
       <div className="lba-barra">
-        <p className="lba-resumen"><Truck size={15} /> {envios === null ? 'Buscando envíos…' : <span><b>{pendientes.length}</b> para mandar desde Buenos Aires{atrasados > 0 && <span className="lba-atrasados"> · {atrasados} {atrasados === 1 ? 'atrasado' : 'atrasados'}</span>}{envios && envios.length > 0 && sinRotulo > 0 && <span className="lba-sinrot"> · {sinRotulo} sin rótulo</span>}</span>}</p>
+        <p className="lba-resumen"><Truck size={15} /> {envios === null ? 'Buscando envíos…' : <span>{salieronHoy > 0 && <><b className="lba-hoy">{salieronHoy}</b> {salieronHoy === 1 ? 'salió' : 'salieron'} hoy · </>}<b>{pendientes.length}</b> para mandar desde Buenos Aires{atrasados > 0 && <span className="lba-atrasados"> · {atrasados} {atrasados === 1 ? 'atrasado' : 'atrasados'}</span>}{envios && envios.length > 0 && sinRotulo > 0 && <span className="lba-sinrot"> · {sinRotulo} sin rótulo</span>}</span>}</p>
         <button className="btn btn-secondary btn-sm" onClick={cargar} disabled={cargando}>
           <RefreshCw size={13} /> {cargando ? 'Actualizando…' : 'Actualizar'}
         </button>

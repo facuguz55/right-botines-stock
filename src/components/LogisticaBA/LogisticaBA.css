@@ -108,3 +108,4 @@
 
 .lba-habilitar { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; padding: .75rem 1rem; border: 1px solid rgba(245,158,11,.45); background: rgba(245,158,11,.1); border-radius: var(--radius-md); }
 .lba-habilitar p { margin: 0; font-size: .875rem; color: #fbbf24; }
+.lba-resumen b.lba-hoy { color: #10b981; }

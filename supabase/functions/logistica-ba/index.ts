@@ -11,6 +11,7 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const TN = "https://api.tiendanube.com/v1/7648870";
 const UA = "RightBotinesStock (contacto@rightbotines.com)";
 const CABA = /caba|buenos aires|deposito/i;
+const AVISO_URL = "https://right-botines-stock.vercel.app/api/logistica-push";
 const DESPACHADO = new Set(["DISPATCHED", "DELIVERED", "RECEIVED_BY_POST_OFFICE", "IN_TRANSIT", "DELIVERED_TO_RECIPIENT"]);
 
 const CORS = {
@@ -156,9 +157,15 @@ Deno.serve(async (req) => {
 
       if (!orderId || (accion !== "armado" && accion !== "despachado")) return json({ error: "Pedido inválido" }, 400);
       const res = await marcar(token, orderId, accion);
-      await db.from("logistica_acciones").insert({
+      const { data: fila } = await db.from("logistica_acciones").insert({
         orden_numero: res.numero, tn_order_id: orderId, accion, origen: pin ? "logistica" : "right", ok: res.ok, detalle: res.detalle,
-      });
+      }).select("id").single();
+      // Despacho de la logística: aviso al celu de Right (api/logistica-push).
+      // Si falla, el despacho ya quedó hecho igual.
+      if (res.ok && pin && accion === "despachado" && fila?.id && res.detalle !== "Ya estaba despachada") {
+        await fetch(AVISO_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: fila.id }) })
+          .catch((e) => console.error("logistica-ba aviso:", e));
+      }
       return res.ok ? json({ ok: true, detalle: res.detalle }) : json({ error: res.detalle }, 409);
     }
 

@@ -10,6 +10,7 @@ import { DispositivoBanner } from '../DispositivoBanner/DispositivoBanner'
 import { DevolucionesAlerts } from '../DevolucionesAlerts/DevolucionesAlerts'
 import { FichajeWidget } from '../FichajeWidget/FichajeWidget'
 import type { useFichajeActual } from '../../hooks/useFichajeActual'
+import { useDespachosNuevos } from '../../hooks/useDespachosNuevos'
 import './Layout.css'
 
 interface LayoutProps {
@@ -29,7 +30,7 @@ export const SOLO_DUENO: ActivePage[] = [
 
 type NavItem = { page: ActivePage; label: string; Icon: React.FC<{ size?: number }> }
 
-function NavBtn({ item, active, onClick }: { item: NavItem; active: boolean; onClick: () => void }) {
+function NavBtn({ item, active, onClick, badge, badgeTitle }: { item: NavItem; active: boolean; onClick: () => void; badge?: number; badgeTitle?: string }) {
   return (
     <button
       className={`nav-item${active ? ' active' : ''}`}
@@ -37,6 +38,7 @@ function NavBtn({ item, active, onClick }: { item: NavItem; active: boolean; onC
     >
       <item.Icon size={15} />
       <span>{item.label}</span>
+      {!!badge && <span className="nav-badge" title={badgeTitle}>{badge}</span>}
     </button>
   )
 }
@@ -74,6 +76,8 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
   const nav = (page: ActivePage) => ALL_NAV.find(n => n.page === page)!
   const esDueno = role === 'dueno'
   const esAtencion = role === 'atencion'
+  // Número al lado de "Órdenes": despachos nuevos de la logística de Bs As.
+  const despachosNuevos = useDespachosNuevos(esDueno)
   const quienSoy = esDueno ? 'Dueño' : (empleadoNombre ?? 'Empleado')
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -146,7 +150,9 @@ export function Layout({ activePage, onNavigate, role, empleadoNombre, onLogout,
 
       <p className="nav-group-label">Gestión</p>
       {(['tn_ordenes', 'tn_clientes', 'tn_cupones'] as ActivePage[]).map(p => (
-        <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)} />
+        <NavBtn key={p} item={nav(p)} active={activePage === p} onClick={() => onNav(p)}
+          badge={p === 'tn_ordenes' ? despachosNuevos : undefined}
+          badgeTitle={`${despachosNuevos} ${despachosNuevos === 1 ? 'pedido despachado' : 'pedidos despachados'} desde Buenos Aires (ver en Depósito CABA)`} />
       ))}
 
       <p className="nav-group-label">Mensajes</p>
