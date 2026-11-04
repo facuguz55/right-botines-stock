@@ -86,7 +86,38 @@ Deno.serve(async (req) => {
     if (!token) return json({ error: "Falta el token de TiendaNube" }, 500);
 
     if (req.method === "POST") {
-      const { orderId, accion, motivo } = await req.json().catch(() => ({})) as { orderId?: number; accion?: string; motivo?: string };
+      const { orderId, accion, motivo, id, nombre, pdf } = await req.json().catch(() => ({})) as {
+        orderId?: number; accion?: string; motivo?: string; id?: string; nombre?: string; pdf?: string;
+      };
+
+      // ── Rótulos del día (PDF) ──
+      // Subir y borrar: solo Right (dispositivo habilitado).
+      if (accion === "subir_rotulos") {
+        if (pin) return json({ error: "Solo Right puede subir rótulos" }, 403);
+        if (!pdf) return json({ error: "Falta el PDF" }, 400);
+        const bytes = Uint8Array.from(atob(pdf), (c) => c.charCodeAt(0));
+        if (bytes.length > 20 * 1024 * 1024) return json({ error: "El PDF pesa más de 20 MB" }, 400);
+        if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") return json({ error: "El archivo no es un PDF" }, 400);
+        const limpio = String(nombre ?? "rotulos.pdf").replace(/[^\w.\- ]+/g, "").slice(0, 80) || "rotulos.pdf";
+        const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.pdf`;
+        const { error: e1 } = await db.storage.from("rotulos").upload(path, bytes, { contentType: "application/pdf" });
+        if (e1) return json({ error: `No se pudo guardar: ${e1.message}` }, 500);
+        await db.from("logistica_rotulos").insert({ path, nombre: limpio });
+        return json({ ok: true });
+      }
+      if (accion === "borrar_rotulo") {
+        if (pin) return json({ error: "Solo Right puede borrar rótulos" }, 403);
+        const { data: r } = await db.from("logistica_rotulos").select("path").eq("id", id ?? "").maybeSingle();
+        if (!r) return json({ error: "No encontré el rótulo" }, 404);
+        await db.storage.from("rotulos").remove([r.path]);
+        await db.from("logistica_rotulos").delete().eq("id", id);
+        return json({ ok: true });
+      }
+      // Descargado: se marca solo cuando lo baja la logística.
+      if (accion === "rotulo_descargado") {
+        if (pin) await db.from("logistica_rotulos").update({ descargado_at: new Date().toISOString() }).eq("id", id ?? "").is("descargado_at", null);
+        return json({ ok: true });
+      }
 
       // "Hay un problema": no toca TiendaNube, queda registrado y le llega a
       // Right en la campanita.
@@ -186,7 +217,16 @@ Deno.serve(async (req) => {
       for (const m of data ?? []) (m.accion === "problema" ? problemas : marcas).set(Number(m.tn_order_id), m);
     }
     const conMarca = resultado.map((r) => ({ ...r, marcado: marcas.get(r.orderId) ?? null, problema: problemas.get(r.orderId) ?? null }));
-    return json({ ok: true, ordenes: conMarca, actualizado: new Date().toISOString() });
+
+    // Rótulos de la última semana, con link de descarga (vale 1 hora).
+    const { data: filas } = await db.from("logistica_rotulos").select("id, path, nombre, created_at, descargado_at")
+      .gte("created_at", new Date(Date.now() - 7 * 86400_000).toISOString()).order("created_at", { ascending: false });
+    const rotulos = [];
+    for (const f of filas ?? []) {
+      const { data: s } = await db.storage.from("rotulos").createSignedUrl(f.path, 3600, { download: f.nombre });
+      rotulos.push({ id: f.id, nombre: f.nombre, subido: f.created_at, descargado: f.descargado_at, url: s?.signedUrl ?? null });
+    }
+    return json({ ok: true, ordenes: conMarca, rotulos, actualizado: new Date().toISOString() });
   } catch (e) {
     console.error("logistica-ba:", e);
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

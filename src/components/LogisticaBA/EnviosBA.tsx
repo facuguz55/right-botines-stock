@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone, Clock, ClipboardList, ChevronDown } from 'lucide-react'
-import { fetchEnviosBA, marcarEnvioBA, avisarProblemaBA, AccesoDenegado, type EnvioBA, type AccesoLogistica } from '../../services/logisticaBA'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { RefreshCw, AlertTriangle, Truck, ExternalLink, Phone, Clock, ClipboardList, ChevronDown, FileDown, Upload, Trash2, CheckCircle2 } from 'lucide-react'
+import { fetchEnviosBA, marcarEnvioBA, avisarProblemaBA, subirRotulosBA, borrarRotuloBA, rotuloDescargadoBA, AccesoDenegado, type EnvioBA, type RotuloBA, type AccesoLogistica } from '../../services/logisticaBA'
 import './LogisticaBA.css'
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -102,6 +102,68 @@ function ListaSeparar({ pendientes }: { pendientes: EnvioBA[] }) {
   )
 }
 
+// Rótulos del día: Right sube el PDF de Andreani y la logística lo descarga.
+function Rotulos({ rotulos, esRight, onSubir, onBorrar, onDescargar }: {
+  rotulos: RotuloBA[]; esRight: boolean
+  onSubir: (f: File) => Promise<void>; onBorrar: (r: RotuloBA) => void; onDescargar: (r: RotuloBA) => void
+}) {
+  const [subiendo, setSubiendo] = useState(false)
+  const input = useRef<HTMLInputElement>(null)
+  const sinBajar = rotulos.filter(r => !r.descargado).length
+  if (!esRight && rotulos.length === 0) return null
+  return (
+    <div className="lba-rotulos">
+      <div className="lba-rotulos-head">
+        <p className="lba-rotulos-titulo">
+          <FileDown size={15} /> Rótulos
+          {sinBajar > 0 && <span className="lba-rotulos-nuevos">{sinBajar} sin descargar</span>}
+        </p>
+        {esRight && (
+          <>
+            <input ref={input} type="file" accept="application/pdf,.pdf" hidden onChange={async ev => {
+              const f = ev.target.files?.[0]
+              ev.target.value = ''
+              if (!f) return
+              setSubiendo(true)
+              await onSubir(f)
+              setSubiendo(false)
+            }} />
+            <button className="btn btn-primary btn-sm" disabled={subiendo} onClick={() => input.current?.click()}>
+              <Upload size={13} /> {subiendo ? 'Subiendo…' : 'Subir rótulos del día'}
+            </button>
+          </>
+        )}
+      </div>
+      {rotulos.length === 0 ? (
+        <p className="lba-vacio">Todavía no subiste rótulos esta semana.</p>
+      ) : (
+        <ul className="lba-rotulos-lista">
+          {rotulos.map(r => (
+            <li key={r.id}>
+              <div className="lba-rotulo-info">
+                <p className="lba-rotulo-nombre">{r.nombre}</p>
+                <p className="lba-rotulo-meta">
+                  Subido {fecha(r.subido)} · {r.descargado
+                    ? <span className="ok"><CheckCircle2 size={11} /> Descargado {fecha(r.descargado)}</span>
+                    : <span className="pend">Sin descargar</span>}
+                </p>
+              </div>
+              {r.url && (
+                <a className="btn btn-secondary btn-sm" href={r.url} target="_blank" rel="noreferrer" onClick={() => onDescargar(r)}>
+                  <FileDown size={13} /> Descargar
+                </a>
+              )}
+              {esRight && (
+                <button className="lba-rotulo-borrar" title="Borrar" onClick={() => onBorrar(r)}><Trash2 size={14} /></button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function wa(tel: string) {
   const d = tel.replace(/\D/g, '')
   return d ? `https://wa.me/${d}` : null
@@ -184,6 +246,8 @@ interface Props {
 // enviados de la última semana. Se actualiza sola cada 2 minutos.
 export function EnviosBA({ acceso, onSinAcceso }: Props) {
   const [envios, setEnvios] = useState<EnvioBA[] | null>(null)
+  const [rotulos, setRotulos] = useState<RotuloBA[]>([])
+  const esRight = !('pin' in acceso)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [actualizado, setActualizado] = useState<Date | null>(null)
@@ -192,7 +256,9 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
   const cargar = useCallback(async () => {
     setCargando(true)
     try {
-      setEnvios(await fetchEnviosBA(acceso))
+      const r = await fetchEnviosBA(acceso)
+      setEnvios(r.envios)
+      setRotulos(r.rotulos)
       setError(null)
       setActualizado(new Date())
     } catch (e) {
@@ -243,6 +309,29 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
     }
   }
 
+  const subir = async (f: File) => {
+    if (f.size > 20 * 1024 * 1024) { window.alert('El PDF pesa más de 20 MB.'); return }
+    try {
+      await subirRotulosBA(acceso, f)
+      await cargar()
+    } catch (err) {
+      window.alert(`No se pudo subir el PDF: ${(err as Error).message}`)
+    }
+  }
+  const borrar = async (r: RotuloBA) => {
+    if (!window.confirm(`¿Borrar "${r.nombre}"? La logística ya no lo va a poder descargar.`)) return
+    try {
+      await borrarRotuloBA(acceso, r.id)
+      await cargar()
+    } catch (err) {
+      window.alert(`No se pudo borrar: ${(err as Error).message}`)
+    }
+  }
+  const descargar = (r: RotuloBA) => {
+    if (esRight || r.descargado) return
+    rotuloDescargadoBA(acceso, r.id).then(cargar).catch(() => { /* noop */ })
+  }
+
   const pendientes = envios?.filter(e => !e.despachado) ?? []
   const atrasados = pendientes.filter(e => horasDesde(e.fecha) >= HORAS_ATRASO).length
   const enviados = envios?.filter(e => e.despachado) ?? []
@@ -261,6 +350,7 @@ export function EnviosBA({ acceso, onSinAcceso }: Props) {
 
       {envios && (
         <>
+          <Rotulos rotulos={rotulos} esRight={esRight} onSubir={subir} onBorrar={borrar} onDescargar={descargar} />
           <ListaSeparar pendientes={pendientes} />
           <h2 className="lba-titulo">Para mandar ({pendientes.length})</h2>
           {pendientes.length === 0 ? <p className="lba-vacio">No hay envíos pendientes.</p> : (

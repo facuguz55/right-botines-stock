@@ -59,10 +59,28 @@ async function enviar(acceso: AccesoLogistica, cuerpo: Record<string, unknown>):
   if (!res.ok) throw new Error(body.error ?? `Error ${res.status}`)
 }
 
-export async function fetchEnviosBA(acceso: AccesoLogistica): Promise<EnvioBA[]> {
+// PDF con los rótulos de Andreani que Right le sube a la logística.
+export interface RotuloBA { id: string; nombre: string; subido: string; descargado: string | null; url: string | null }
+
+export async function fetchEnviosBA(acceso: AccesoLogistica): Promise<{ envios: EnvioBA[]; rotulos: RotuloBA[] }> {
   const res = await fetch(URL_FN, { headers: headersAcceso(acceso) })
-  const body = await res.json().catch(() => ({})) as { ordenes?: EnvioBA[]; error?: string }
+  const body = await res.json().catch(() => ({})) as { ordenes?: EnvioBA[]; rotulos?: RotuloBA[]; error?: string }
   if (res.status === 401) throw new AccesoDenegado(body.error ?? 'Sin acceso')
   if (!res.ok || !body.ordenes) throw new Error(body.error ?? `Error ${res.status}`)
-  return body.ordenes
+  return { envios: body.ordenes, rotulos: body.rotulos ?? [] }
+}
+
+export async function subirRotulosBA(acceso: AccesoLogistica, archivo: File): Promise<void> {
+  const buf = new Uint8Array(await archivo.arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+  await enviar(acceso, { accion: 'subir_rotulos', nombre: archivo.name, pdf: btoa(bin) })
+}
+
+export async function borrarRotuloBA(acceso: AccesoLogistica, id: string): Promise<void> {
+  await enviar(acceso, { accion: 'borrar_rotulo', id })
+}
+
+export async function rotuloDescargadoBA(acceso: AccesoLogistica, id: string): Promise<void> {
+  await enviar(acceso, { accion: 'rotulo_descargado', id })
 }
