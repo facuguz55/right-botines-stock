@@ -109,13 +109,38 @@ async function sbFetch(path: string, options: RequestInit = {}) {
   return res
 }
 
+// Copia de src/lib/tnUbicaciones.ts (este archivo no puede importar módulos
+// relativos, ver arriba): pares fuera del local (Deposito CABA) por talle.
+let cacheUbicacionLocal: { id: string | null; ts: number } | null = null
+async function idUbicacionLocal(storeId: string, token: string): Promise<string | null> {
+  if (cacheUbicacionLocal && Date.now() - cacheUbicacionLocal.ts < 10 * 60 * 1000) return cacheUbicacionLocal.id
+  try {
+    const res = await fetch(`https://api.tiendanube.com/v1/${storeId}/locations`, {
+      headers: { Authentication: `bearer ${token}`, 'User-Agent': 'RightBotinesStock (contacto@rightbotines.com)' },
+    })
+    if (!res.ok) return cacheUbicacionLocal?.id ?? null
+    const ubicaciones = await res.json() as { id: string; name?: Record<string, string> }[]
+    const id = ubicaciones.find(u => Object.values(u.name ?? {}).some(n => /showroom/i.test(n)))?.id ?? null
+    cacheUbicacionLocal = { id, ts: Date.now() }
+    return id
+  } catch {
+    return cacheUbicacionLocal?.id ?? null
+  }
+}
+function stockFueraDelLocal(niveles: { location_id?: string; stock?: number | null }[] | undefined, idLocal: string | null): number {
+  if (!niveles?.length || !idLocal) return 0
+  return niveles
+    .filter(n => n.location_id && n.location_id !== idLocal)
+    .reduce((s, n) => s + Math.max(0, n.stock ?? 0), 0)
+}
+
 // Copia de insertarTalleSinDuplicar de api/tn-webhook.ts (este archivo no
 // puede importar de otros módulos de api/): si otro proceso insertó el mismo
 // talle antes, el índice único (migración 047) responde 409 y se actualiza esa
 // fila en vez de duplicar.
 async function insertarTalleSinDuplicar(row: {
   modelo_id: string; talle_us: number; talle_arg: number; cantidad: number
-  stock_minimo: number; tn_variant_id: number
+  cantidad_ba?: number; stock_minimo: number; tn_variant_id: number
 }) {
   try {
     await sbFetch('modelo_talles', { method: 'POST', body: JSON.stringify(row) })
@@ -124,7 +149,7 @@ async function insertarTalleSinDuplicar(row: {
     if (!msg.includes('→ 409') && !msg.includes('23505')) throw e
     await sbFetch(`modelo_talles?modelo_id=eq.${row.modelo_id}&talle_arg=eq.${row.talle_arg}`, {
       method: 'PATCH',
-      body: JSON.stringify({ talle_us: row.talle_us, cantidad: row.cantidad, tn_variant_id: row.tn_variant_id }),
+      body: JSON.stringify({ talle_us: row.talle_us, cantidad: row.cantidad, cantidad_ba: row.cantidad_ba ?? 0, tn_variant_id: row.tn_variant_id }),
     })
   }
 }
@@ -141,6 +166,7 @@ interface TNRawProductMinimal {
     promotional_price: string | null
     stock: number | null
     values: { es?: string; en?: string; [k: string]: string | undefined }[]
+    inventory_levels?: { location_id?: string; stock?: number | null }[]
   }[]
   images: { src: string }[]
 }
@@ -234,11 +260,17 @@ async function upsertModeloFromTNProductREST(
   const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, tiers, recargoPct)
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
+  // Pares en el depósito de Buenos Aires (ubicaciones de TiendaNube); el
+  // total (stock) los incluye.
+  const idLocal = await idUbicacionLocal(EXPECTED_STORE, TN_TOKEN)
   const variantTalles = prod.variants
     .map(v => {
       const talle_arg = parseTalleArg(variantLabel(v))
       return talle_arg !== null
-        ? { talle_arg, talle_us: usDeVariante(variantLabel(v), talle_arg), stock: v.stock ?? 0, variantId: v.id }
+        ? {
+            talle_arg, talle_us: usDeVariante(variantLabel(v), talle_arg), stock: v.stock ?? 0, variantId: v.id,
+            ba: Math.min(v.stock ?? 0, stockFueraDelLocal(v.inventory_levels, idLocal)),
+          }
         : null
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -300,12 +332,12 @@ async function upsertModeloFromTNProductREST(
     if (existingTalle) {
       talleWrites.push(sbFetch(`modelo_talles?id=eq.${existingTalle.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ talle_us: vt.talle_us, talle_arg: vt.talle_arg, cantidad: vt.stock, tn_variant_id: vt.variantId }),
+        body: JSON.stringify({ talle_us: vt.talle_us, talle_arg: vt.talle_arg, cantidad: vt.stock, cantidad_ba: vt.ba, tn_variant_id: vt.variantId }),
       }))
     } else {
       talleWrites.push(insertarTalleSinDuplicar({
         modelo_id: modeloId, talle_us: vt.talle_us, talle_arg: vt.talle_arg,
-        cantidad: vt.stock, stock_minimo: 1, tn_variant_id: vt.variantId,
+        cantidad: vt.stock, cantidad_ba: vt.ba, stock_minimo: 1, tn_variant_id: vt.variantId,
       }))
     }
   }

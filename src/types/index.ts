@@ -17,6 +17,9 @@ export interface ModeloTalle {
   // Opcional porque tiene default 0 en la base: los talles se crean sin
   // saber nada de esto (TN sync, import de Excel, alta manual).
   cantidad_local?: number
+  // Cuánto de "cantidad" está en el Deposito CABA de TiendaNube (proveedora
+  // de Buenos Aires, solo envío). Lo escribe la sincronización con TiendaNube.
+  cantidad_ba?: number
   stock_minimo: number
   tn_variant_id?: number | null
 }

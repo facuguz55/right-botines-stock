@@ -3,6 +3,7 @@ import { textoUs } from '../../lib/talles'
 import type { Modelo, ModeloTalle } from '../../types'
 import { Modal } from '../Modal/Modal'
 import { getPrecioReal } from '../../utils/precios'
+import { paresBA, paresLocal } from '../../lib/stockUbicacion'
 import './SellModal.css'
 
 interface SellModalProps {
@@ -74,7 +75,8 @@ export function SellModal({ modelo, onClose, onAdd }: SellModalProps) {
               >
                 <span className="talle-btn-arg">{t.talle_arg}</span>
                 <span className="talle-btn-us">{textoUs(t.talle_us)}</span>
-                <span className="talle-btn-stock">×{t.cantidad}</span>
+                <span className="talle-btn-stock">×{paresLocal(t)}</span>
+                {paresBA(t) > 0 && <span className="talle-btn-ba" title="En el depósito de Buenos Aires (solo envío)">+{paresBA(t)} BA</span>}
               </button>
             ))}
           </div>
@@ -126,10 +128,15 @@ export function SellModal({ modelo, onClose, onAdd }: SellModalProps) {
             </div>
             <div className="sell-stat">
               <span>En el local (después)</span>
-              <span className={`sell-stat-val ${Math.max(0, (selectedTalle.cantidad_local ?? 0) - cantidad) <= 0 ? 'danger' : ''}`}>
-                {Math.max(0, (selectedTalle.cantidad_local ?? 0) - cantidad)} pares
+              <span className={`sell-stat-val ${paresLocal(selectedTalle) - cantidad <= 0 ? 'danger' : ''}`}>
+                {Math.max(0, paresLocal(selectedTalle) - cantidad)} pares
               </span>
             </div>
+            {cantidad > paresLocal(selectedTalle) && (
+              <p className="sell-ba-aviso">
+                {cantidad - paresLocal(selectedTalle) === 1 ? 'Este par sale' : `${cantidad - paresLocal(selectedTalle)} pares salen`} del depósito de Buenos Aires: solo por envío.
+              </p>
+            )}
           </div>
         )}
 

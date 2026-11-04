@@ -100,6 +100,11 @@ Deno.serve(async (req) => {
           const total = v.inventory_levels?.reduce((s, n) => s + (n.stock ?? 0), 0) ?? v.stock ?? null;
           ok = total === Math.max(0, p.cantidad);
           if (!ok) detalle = `TiendaNube quedó en ${total} y la app tiene ${p.cantidad}`;
+          // Pares que quedaron en Buenos Aires (lo que la app muestra aparte).
+          const enBA = (v.inventory_levels ?? niveles)
+            .filter((n) => n.location_id !== local)
+            .reduce((s, n) => s + Math.max(0, n.stock ?? 0), 0);
+          await db.from("modelo_talles").update({ cantidad_ba: enBA }).eq("id", p.talle_id);
         } else {
           detalle = `TiendaNube PUT ${r.status}: ${(await r.text()).slice(0, 200)}`;
           frenado = r.status === 429;

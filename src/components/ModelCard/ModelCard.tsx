@@ -5,6 +5,7 @@ import type { Modelo } from '../../types'
 import type { TalleBAVista } from '../../services/stockBA'
 import { getPrecioReal } from '../../utils/precios'
 import { ImageLightbox } from '../ImageLightbox/ImageLightbox'
+import { paresBA, paresLocal } from '../../lib/stockUbicacion'
 import './ModelCard.css'
 
 interface ModelCardProps {
@@ -24,6 +25,11 @@ interface ModelCardProps {
 
 export const ModelCard = memo(function ModelCard({ modelo, stockBA, onSell, soloVenta, puedeVender, motivoBloqueoVenta, onEdit, onDelete, onIngreso, onReponer, onPriceHistory }: ModelCardProps) {
   const totalPares = modelo.modelo_talles.reduce((s, t) => s + t.cantidad, 0)
+  // Talles en el depósito de Buenos Aires: los de TiendaNube (ubicación
+  // Deposito CABA) y, si no hay, los del modelo vinculado en Stock Bs As.
+  const tallesBA = modelo.modelo_talles.some(t => paresBA(t) > 0)
+    ? modelo.modelo_talles.filter(t => paresBA(t) > 0).map(t => ({ talle: t.talle_arg, cantidad: paresBA(t) }))
+    : (stockBA ?? [])
   const agotado = totalPares === 0
   const ultimoPar = !agotado && totalPares === 1
   const mainFoto = modelo.modelo_fotos[0]?.foto_url ?? null
@@ -74,23 +80,27 @@ export const ModelCard = memo(function ModelCard({ modelo, stockBA, onSell, solo
           {modelo.modelo_talles.length === 0 ? (
             <span className="talles-empty">Sin talles cargados</span>
           ) : (
-            modelo.modelo_talles.map(t => (
-              <span
-                key={t.id}
-                className={`talle-chip ${t.cantidad === 0 ? 'agotado' : t.cantidad === 1 ? 'ultimo' : t.cantidad <= t.stock_minimo ? 'bajo' : ''}`}
-                title={`Talle ${etiquetaVarianteTN(t.talle_arg, t.talle_us)} — ${t.cantidad_local ?? 0} en el local de ${t.cantidad} en total`}
-              >
-                {t.talle_arg}×{t.cantidad_local ?? 0}/{t.cantidad}
-              </span>
-            ))
+            modelo.modelo_talles.map(t => {
+              // En el local; lo de Buenos Aires va en el recuadro de abajo.
+              const local = paresLocal(t)
+              return (
+                <span
+                  key={t.id}
+                  className={`talle-chip ${local === 0 ? 'agotado' : local === 1 ? 'ultimo' : local <= t.stock_minimo ? 'bajo' : ''}`}
+                  title={`Talle ${etiquetaVarianteTN(t.talle_arg, t.talle_us)} — ${local} en el local${paresBA(t) ? ` · ${paresBA(t)} en Buenos Aires (solo envío)` : ''}`}
+                >
+                  {t.talle_arg}×{local}
+                </span>
+              )
+            })
           )}
         </div>
 
-        {stockBA && stockBA.length > 0 && (
+        {tallesBA.length > 0 && (
           <div className="card-ba" title="Están en el depósito de Buenos Aires. Solo se mandan por envío, no se retiran en el local.">
             <span className="card-ba-label"><Truck size={11} /> Bs As · solo envío</span>
             <div className="card-ba-talles">
-              {stockBA.map(t => <span key={t.talle} className="card-ba-chip">{t.talle}×{t.cantidad}</span>)}
+              {tallesBA.map(t => <span key={t.talle} className="card-ba-chip">{t.talle}×{t.cantidad}</span>)}
             </div>
           </div>
         )}

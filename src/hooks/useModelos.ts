@@ -121,7 +121,7 @@ export function useModelos() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'modelo_talles' }, payload => {
         if (payload.eventType === 'UPDATE') {
           const t = payload.new as ModeloTalle
-          pendientes.set(t.id, { cantidad: t.cantidad, cantidad_local: t.cantidad_local, stock_minimo: t.stock_minimo, tn_variant_id: t.tn_variant_id })
+          pendientes.set(t.id, { cantidad: t.cantidad, cantidad_local: t.cantidad_local, cantidad_ba: t.cantidad_ba, stock_minimo: t.stock_minimo, tn_variant_id: t.tn_variant_id })
           if (!timer) timer = setTimeout(aplicar, 300)
         } else {
           recargar()

@@ -4,6 +4,7 @@ import {
   parseTalleArg, usDeVariante, detectCategoria, detectGama, extractMarcaModelo, variantLabel,
   computePrecioEfectivo,
 } from '../src/lib/tnMapping'
+import { idUbicacionLocal, stockFueraDelLocal } from '../src/lib/tnUbicaciones'
 
 // SUPABASE_URL/SUPABASE_ANON_KEY (o SUPABASE_SERVICE_ROLE_KEY si se agrega
 // más adelante) para escrituras server-side — no confundir con las VITE_*
@@ -38,7 +39,7 @@ export async function sbFetch(path: string, options: RequestInit = {}) {
 // actualiza esa fila en vez de fallar o duplicar.
 export async function insertarTalleSinDuplicar(row: {
   modelo_id: string; talle_us: number; talle_arg: number; cantidad: number
-  stock_minimo: number; tn_variant_id: number
+  cantidad_ba?: number; stock_minimo: number; tn_variant_id: number
 }) {
   try {
     await sbFetch('modelo_talles', { method: 'POST', body: JSON.stringify(row) })
@@ -47,7 +48,7 @@ export async function insertarTalleSinDuplicar(row: {
     if (!msg.includes('→ 409') && !msg.includes('23505')) throw e
     await sbFetch(`modelo_talles?modelo_id=eq.${row.modelo_id}&talle_arg=eq.${row.talle_arg}`, {
       method: 'PATCH',
-      body: JSON.stringify({ talle_us: row.talle_us, cantidad: row.cantidad, tn_variant_id: row.tn_variant_id }),
+      body: JSON.stringify({ talle_us: row.talle_us, cantidad: row.cantidad, cantidad_ba: row.cantidad_ba ?? 0, tn_variant_id: row.tn_variant_id }),
     })
   }
 }
@@ -79,6 +80,7 @@ export interface TNRawProductMinimal {
     promotional_price: string | null
     stock: number | null
     values: { es?: string; en?: string; [k: string]: string | undefined }[]
+    inventory_levels?: { location_id?: string; stock?: number | null }[]
   }[]
   images: { src: string }[]
 }
@@ -137,11 +139,17 @@ export async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): 
   const precio_efectivo = computePrecioEfectivo(precio_promocional ?? precio_venta, tiers, recargoPct)
   const tn_category_id = prod.categories?.[0]?.id ?? null
 
+  // Pares en el depósito de Buenos Aires (ubicaciones de TiendaNube); el
+  // total (stock) los incluye.
+  const idLocal = await idUbicacionLocal(EXPECTED_STORE, TN_TOKEN)
   const variantTalles = prod.variants
     .map(v => {
       const talle_arg = parseTalleArg(variantLabel(v))
       return talle_arg !== null
-        ? { talle_arg, talle_us: usDeVariante(variantLabel(v), talle_arg), stock: v.stock ?? 0, variantId: v.id }
+        ? {
+            talle_arg, talle_us: usDeVariante(variantLabel(v), talle_arg), stock: v.stock ?? 0, variantId: v.id,
+            ba: Math.min(v.stock ?? 0, stockFueraDelLocal(v.inventory_levels, idLocal)),
+          }
         : null
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -209,12 +217,12 @@ export async function upsertModeloFromTNProductREST(prod: TNRawProductMinimal): 
     if (existingTalle) {
       await sbFetch(`modelo_talles?id=eq.${existingTalle.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ talle_us: vt.talle_us, talle_arg: vt.talle_arg, cantidad: vt.stock, tn_variant_id: vt.variantId }),
+        body: JSON.stringify({ talle_us: vt.talle_us, talle_arg: vt.talle_arg, cantidad: vt.stock, cantidad_ba: vt.ba, tn_variant_id: vt.variantId }),
       })
     } else {
       await insertarTalleSinDuplicar({
         modelo_id: modeloId, talle_us: vt.talle_us, talle_arg: vt.talle_arg,
-        cantidad: vt.stock, stock_minimo: 1, tn_variant_id: vt.variantId,
+        cantidad: vt.stock, cantidad_ba: vt.ba, stock_minimo: 1, tn_variant_id: vt.variantId,
       })
     }
   }
