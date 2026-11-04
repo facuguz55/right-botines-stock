@@ -7,6 +7,7 @@ import { initPwaUpdate } from './pwaUpdate'
 import { CreatorLockPanel } from './components/CreatorLockPanel/CreatorLockPanel'
 import { AppBlocked } from './components/AppBlocked/AppBlocked'
 import { getAppLockStatus } from './services/creatorLock'
+import { LogisticaPagina } from './components/LogisticaBA/LogisticaPagina'
 
 initPwaUpdate()
 
@@ -22,6 +23,7 @@ document.addEventListener('touchmove', e => {
 // /crm es una app instalable aparte (ícono y nombre propios, abre directo en
 // los mensajes). El manifest se cambia antes de que el navegador ofrezca
 // instalar, para que "Añadir a pantalla de inicio" use el del CRM.
+if (window.location.pathname.startsWith('/logistica')) document.title = 'Envíos Right · Buenos Aires'
 if (window.location.pathname.startsWith('/crm')) {
   document.title = 'Right CRM'
   document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/manifest-crm.webmanifest')
@@ -53,6 +55,9 @@ function Root() {
   if (isCreatorPanel) return <CreatorLockPanel />
   if (!checked) return null
   if (blocked) return <AppBlocked mensaje={mensaje} />
+  // Link de la logística de la proveedora de Buenos Aires: solo sus envíos,
+  // con su propio PIN, sin el resto de la app.
+  if (window.location.pathname.startsWith('/logistica')) return <LogisticaPagina />
   return <App />
 }
 

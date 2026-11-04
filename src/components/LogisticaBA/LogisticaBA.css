@@ -1,0 +1,54 @@
+.lba { display: flex; flex-direction: column; gap: .75rem; }
+.lba-barra { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.lba-resumen { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: .9375rem; color: var(--text-secondary); }
+.lba-resumen b { color: #60a5fa; font-size: 1.125rem; }
+.lba-hora { margin: -.25rem 0 0; font-size: .75rem; color: var(--text-muted); }
+.lba-titulo { margin: .75rem 0 0; font-size: .8125rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); }
+.lba-vacio { color: var(--text-secondary); font-size: .875rem; }
+.lba-error { color: var(--danger, #ef4444); font-size: .8125rem; margin: 0; }
+.lba-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: .75rem; }
+
+.lba-card { background: var(--bg-surface); border: 1px solid var(--border); border-left: 3px solid #60a5fa; border-radius: var(--radius-md); padding: .875rem 1rem; display: flex; flex-direction: column; gap: .625rem; }
+.lba-card.hecho { border-left-color: #10b981; opacity: .75; }
+.lba-card-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.lba-num { font-family: var(--font-display); font-size: 1.0625rem; font-weight: 800; color: var(--text-primary); }
+.lba-fecha { font-size: .75rem; color: var(--text-muted); }
+.lba-estado { margin-left: auto; font-size: .6875rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid; }
+.lba-estado.pendiente { color: #f59e0b; border-color: rgba(245,158,11,.5); background: rgba(245,158,11,.1); }
+.lba-estado.armado { color: #60a5fa; border-color: rgba(96,165,250,.5); background: rgba(96,165,250,.1); }
+.lba-estado.enviado { color: #10b981; border-color: rgba(16,185,129,.5); background: rgba(16,185,129,.1); }
+
+.lba-productos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.lba-productos li { display: flex; align-items: center; gap: .625rem; }
+.lba-productos img, .lba-sinfoto { width: 52px; height: 52px; border-radius: var(--radius-sm); object-fit: cover; background: var(--bg-surface-2, #1a2230); flex-shrink: 0; }
+.lba-prod-nombre { margin: 0; font-size: .875rem; font-weight: 700; color: var(--text-primary); }
+.lba-prod-talle { margin: 2px 0 0; font-size: .8125rem; color: #93c5fd; font-weight: 600; }
+
+.lba-alerta { display: flex; gap: .4rem; align-items: flex-start; margin: 0; padding: .5rem .625rem; border-radius: var(--radius-sm); background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.45); color: #fbbf24; font-size: .8125rem; }
+.lba-info { margin: 0; font-size: .75rem; color: var(--text-secondary); }
+
+.lba-datos { margin: 0; display: flex; flex-direction: column; gap: .3rem; }
+.lba-datos div { display: grid; grid-template-columns: 84px 1fr; gap: .5rem; font-size: .8125rem; }
+.lba-datos dt { color: var(--text-muted); }
+.lba-datos dd { margin: 0; color: var(--text-primary); word-break: break-word; }
+.lba-datos a { color: #60a5fa; display: inline-flex; align-items: center; gap: 3px; }
+
+/* Link /logistica */
+.lba-pagina { min-height: 100vh; padding: 1.25rem 1rem 2rem; max-width: 1100px; margin: 0 auto; background: var(--bg-primary); }
+.lba-pagina-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; gap: .75rem; }
+.lba-pagina-head .page-title { font-size: 1.375rem; margin: 0; }
+.lba-salir { background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: .8125rem; text-decoration: underline; }
+.lba-gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; background: var(--bg-primary); }
+.lba-gate-card { width: min(360px, 100%); background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem 1.5rem; display: flex; flex-direction: column; gap: .75rem; text-align: center; }
+.lba-gate-icon { color: #60a5fa; margin: 0 auto; }
+.lba-gate-card h1 { margin: 0; font-size: 1.125rem; color: var(--text-primary); }
+.lba-gate-card p { margin: 0; font-size: .875rem; color: var(--text-secondary); }
+.lba-gate-card input { padding: .625rem .75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-surface-3, #111827); color: var(--text-primary); font-size: 1.125rem; text-align: center; letter-spacing: .3em; }
+
+@media (max-width: 600px) {
+  .lba-lista { grid-template-columns: 1fr; }
+}
+
+.lba-pestanas { display: flex; gap: .375rem; margin-bottom: .75rem; flex-wrap: wrap; }
+.lba-pestana { padding: .4rem .875rem; font-size: .8125rem; font-weight: 600; color: var(--text-secondary); background: var(--bg-surface); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; }
+.lba-pestana.on { color: #60a5fa; border-color: #60a5fa; background: rgba(96,165,250,.1); }

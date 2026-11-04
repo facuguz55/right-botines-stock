@@ -30,7 +30,7 @@ import { Seguimientos } from './components/Seguimientos/Seguimientos'
 import { TNDashboard } from './components/TNDashboard/TNDashboard'
 import { TNAnalytics } from './components/TNAnalytics/TNAnalytics'
 import { TNTrafico } from './components/TNTrafico/TNTrafico'
-import { TNOrdenes } from './components/TNOrdenes/TNOrdenes'
+import { OrdenesPagina } from './components/LogisticaBA/OrdenesPagina'
 import { TNPreventa } from './components/TNPreventa/TNPreventa'
 import { TNClientes } from './components/TNClientes/TNClientes'
 import { TNCupones } from './components/TNCupones/TNCupones'
@@ -392,7 +392,7 @@ export function App() {
       {activePage === 'tn_dashboard' && <TNDashboard />}
       {activePage === 'tn_analytics' && <TNAnalytics />}
       {activePage === 'tn_trafico' && role === 'dueno' && <TNTrafico modelos={modelos} />}
-      {activePage === 'tn_ordenes'   && <TNOrdenes empleadoId={empleadoId} />}
+      {activePage === 'tn_ordenes'   && <OrdenesPagina empleadoId={empleadoId} />}
       {activePage === 'tn_preventa'  && <TNPreventa onOpenInCrm={handleOpenInCrm} />}
       {activePage === 'tn_clientes'  && <TNClientes />}
       {activePage === 'tn_cupones'   && <TNCupones />}
