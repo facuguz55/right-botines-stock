@@ -7,6 +7,7 @@ import { CATEGORIA_COLORS } from '../../../types/crm'
 import type { CrmCategoria, CrmStatsData } from '../../../types/crm'
 import { DIAS } from '../../../lib/crmStatsCalc'
 import { toISOLocal } from '../../../utils/fecha'
+import { mesDelRango, nombreMesLargo, presetsCrm, rangoDeMes, ultimosMeses } from '../../../lib/crmRango'
 import './CrmDashboard.css'
 
 const INTENCION_LABEL: Record<string, string> = {
@@ -58,17 +59,10 @@ export function CrmDashboard() {
     }
   }
 
-  const presets = useMemo(() => {
-    const hoy = toISOLocal(new Date())
-    const atras = (n: number) => toISOLocal(new Date(Date.now() - n * 86400000))
-    return [
-      { label: 'Hoy', start: hoy, end: hoy },
-      { label: '7 días', start: atras(6), end: hoy },
-      { label: '30 días', start: atras(29), end: hoy },
-      { label: 'Este mes', start: `${hoy.slice(0, 8)}01`, end: hoy },
-      { label: 'Todo', start: '2020-01-01', end: hoy },
-    ]
-  }, [])
+  const hoy = useMemo(() => toISOLocal(new Date()), [])
+  const presets = useMemo(() => presetsCrm(hoy), [hoy])
+  const meses = useMemo(() => ultimosMeses(hoy, 12), [hoy])
+  const mesElegido = mesDelRango(range, hoy)
 
   function exportExcel() {
     if (!stats) return
@@ -117,6 +111,16 @@ export function CrmDashboard() {
       </div>
 
       <div className="crm-dash-range">
+        <label className="crm-dash-mes">
+          Mes
+          <select
+            value={mesElegido ?? ''}
+            onChange={e => { if (e.target.value) setRange(rangoDeMes(e.target.value, hoy)) }}
+          >
+            {!mesElegido && <option value="">Elegir mes…</option>}
+            {meses.map(m => <option key={m} value={m}>{nombreMesLargo(m)}</option>)}
+          </select>
+        </label>
         <div className="crm-dash-presets">
           {presets.map(p => (
             <button

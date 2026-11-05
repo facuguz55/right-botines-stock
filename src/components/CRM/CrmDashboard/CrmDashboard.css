@@ -75,6 +75,21 @@
   font-weight: 600;
 }
 
+.crm-dash-range select {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  outline: none;
+  text-transform: none;
+  letter-spacing: 0;
+  color-scheme: dark;
+}
+
 .crm-dash-range input[type="date"] {
   background: var(--bg-surface-2);
   border: 1px solid var(--border);

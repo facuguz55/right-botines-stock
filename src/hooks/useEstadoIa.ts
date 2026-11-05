@@ -36,10 +36,10 @@ export function textoAvisoIa(e: EstadoIa | null): string | null {
   if (e.ok_at && new Date(e.ok_at).getTime() >= new Date(e.error_at).getTime()) return null
   switch (e.ultimo_error) {
     case 'sin_credito':
-      return 'El bot no está sugiriendo respuestas: se terminó el saldo de la IA (Anthropic). Hay que cargar crédito en console.anthropic.com → Billing.'
+      return 'El bot no está sugiriendo respuestas: se terminó el saldo de la IA (Anthropic). Hay que cargar crédito en console.anthropic.com → Billing. Mandale una captura de este aviso a Nova.'
     case 'clave':
-      return 'El bot no está sugiriendo respuestas: la clave de la IA (Anthropic) no es válida.'
+      return 'El bot no está sugiriendo respuestas: la clave de la IA (Anthropic) no es válida. Mandale una captura de este aviso a Nova.'
     default:
-      return 'El bot no está sugiriendo respuestas: la IA (Anthropic) está fallando. Si sigue así, avisale a Mauri.'
+      return 'El bot no está sugiriendo respuestas: la IA (Anthropic) está fallando. Si sigue así, mandale una captura de este aviso a Nova.'
   }
 }
