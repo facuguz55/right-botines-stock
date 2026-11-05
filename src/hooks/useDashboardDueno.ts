@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { computeRentabilidadMes } from '../services/rentabilidadService'
 import { fetchAnalisisProductos, type AnalisisProductos } from '../services/trafico'
 import { hoyLocal } from '../utils/fecha'
 import type { RentabilidadMes } from '../types'
+import { mesAnteriorISO, mesDelRango, type RangoCrm } from '../lib/crmRango'
+import { rangoAnterior, resumirPeriodo, type ParVendido, type ResumenPeriodo } from '../lib/dashboardPeriodo'
 
 // Dashboard del dueño: no solo qué pasó, sino qué hacer (qué comprar, qué
 // liquidar, qué empujar). Junta ventas del local (`ventas`) y de la web
@@ -23,24 +25,19 @@ export interface Reponer extends FotoModelo {
 
 export interface Parado extends FotoModelo { pares: number; capital: number | null; ultimaVenta: string | null; precio: number }
 
-export interface RankingModelo extends FotoModelo { pares: number; facturado: number; ganancia: number | null; margen: number | null }
-
 export interface Empujar extends FotoModelo { pares: number; margen: number; motivo: string }
 
 export interface ClienteVolver { nombre: string; contacto: string | null; compras: number; gastado: number; ultima: string; canal: 'Local' | 'Web' }
 
 export interface DashboardDueno {
-  mes: RentabilidadMes | null
-  mesAnterior: RentabilidadMes | null
-  proyeccion: number | null
-  paresMes: { local: number; web: number }
-  modelosSinCosto: { cantidad: number; facturado: number; ejemplos: string[] }
+  // Todo lo que depende del período elegido (hoy, ayer, semana, mes...) se
+  // calcula aparte, a partir de `pares` (ver `PeriodoDashboard`).
+  pares: ParVendido[]
   reponer: Reponer[]
   demandaSinStock: { nombre: string; talle: string; busquedas: number }[]
   curvaTalles: { talle: number; pares: number }[]
   parados: Parado[]
   capitalParado: number
-  ranking: RankingModelo[]
   empujar: Empujar[]
   loMiranNoLoCompran: { nombre: string; vistas: number; carritos: number; ordenes: number }[]
   clientes: { conCompra: number; repiten: number; volver: ClienteVolver[] }
@@ -67,10 +64,9 @@ async function todas<T>(armar: (desde: number) => PromiseLike<{ data: any; error
   }
 }
 
-const mesStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 const lunesDe = (d: Date) => { const x = new Date(d); const dia = x.getDay(); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - (dia === 0 ? 6 : dia - 1)); return x }
 
-export function useDashboardDueno() {
+export function useDashboardDueno(rango: RangoCrm) {
   const [data, setData] = useState<DashboardDueno | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -83,9 +79,8 @@ export function useDashboardDueno() {
         const desde180 = new Date(Date.now() - 180 * DIA).toISOString()
         const hoy = hoyLocal()
         const hace30 = new Date(Date.now() - 30 * DIA).toISOString().slice(0, 10)
-        const anterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1)
 
-        const [modelos, ventas, ordenes, mes, mesAnt, analisis] = await Promise.all([
+        const [modelos, ventas, ordenes, analisis] = await Promise.all([
           todas<ModeloRow>((d) => supabase.from('modelos')
             .select('id, marca, modelo, codigo_base, precio_costo, precio_venta, tn_product_id, created_at, modelo_talles(talle_arg, cantidad, tn_variant_id), modelo_fotos(foto_url, orden)')
             .order('id').range(d, d + 999)),
@@ -96,8 +91,6 @@ export function useDashboardDueno() {
             .select('tn_created_at, total, customer_email, customer_name, contact_phone, products')
             .in('payment_status', ['paid', 'authorized']).neq('status', 'cancelled')
             .gte('tn_created_at', desde180).order('tn_created_at').range(d, d + 999)),
-          computeRentabilidadMes(mesStr(ahora)).catch(() => null),
-          computeRentabilidadMes(mesStr(anterior)).catch(() => null),
           fetchAnalisisProductos(hace30, hoy).catch(() => null as AnalisisProductos | null),
         ])
 
@@ -132,20 +125,8 @@ export function useDashboardDueno() {
           }
         }
 
-        const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1).getTime()
         const corteVentana = Date.now() - VENTANA * DIA
-        const delMes = pares.filter((p) => Date.parse(p.fecha) >= inicioMes)
         const recientes = pares.filter((p) => Date.parse(p.fecha) >= corteVentana)
-
-        // ── Modelos vendidos este mes sin costo cargado (la ganancia no es real) ──
-        const sinCosto = new Map<string, { nombre: string; facturado: number }>()
-        for (const p of delMes) {
-          if (!p.modelo || costo(p.modelo) != null) continue
-          const f = sinCosto.get(p.modelo.id) ?? { nombre: `${p.modelo.marca} ${p.modelo.modelo}`, facturado: 0 }
-          f.facturado += p.precio
-          sinCosto.set(p.modelo.id, f)
-        }
-        const sinCostoLista = [...sinCosto.values()].sort((a, b) => b.facturado - a.facturado)
 
         // ── Qué comprar: talles que se venden y se están por acabar ──
         const vendidosTalle = new Map<string, number>()
@@ -191,21 +172,6 @@ export function useDashboardDueno() {
         }
         parados.sort((a, b) => (b.capital ?? b.precio * b.pares * 0.6) - (a.capital ?? a.precio * a.pares * 0.6))
         const capitalParado = parados.reduce((s, p) => s + (p.capital ?? 0), 0)
-
-        // ── Qué deja más plata (últimos 30 días) ──
-        const corte30 = Date.now() - 30 * DIA
-        const rank = new Map<string, { m: ModeloRow; pares: number; facturado: number; ganancia: number; sinCosto: boolean }>()
-        for (const p of pares) {
-          if (!p.modelo || Date.parse(p.fecha) < corte30) continue
-          const f = rank.get(p.modelo.id) ?? { m: p.modelo, pares: 0, facturado: 0, ganancia: 0, sinCosto: false }
-          f.pares += 1; f.facturado += p.precio
-          if (p.ganancia == null) f.sinCosto = true; else f.ganancia += p.ganancia
-          rank.set(p.modelo.id, f)
-        }
-        const filas = [...rank.values()]
-        const ranking: RankingModelo[] = filas
-          .map((f) => ({ ...foto(f.m), pares: f.pares, facturado: f.facturado, ganancia: f.sinCosto ? null : f.ganancia, margen: f.sinCosto || !f.facturado ? null : (f.ganancia / f.facturado) * 100 }))
-          .sort((a, b) => (b.ganancia ?? -1) - (a.ganancia ?? -1) || b.facturado - a.facturado).slice(0, 8)
 
         // ── Qué empujar: mucho stock, buen margen y pocas ventas ──
         const margenes = modelos.filter((m) => costo(m) != null && Number(m.precio_venta) > 0).map((m) => (Number(m.precio_venta) - costo(m)!) / Number(m.precio_venta))
@@ -266,18 +232,15 @@ export function useDashboardDueno() {
           if (semanas[i]) semanas[i][p.canal] += 1
         }
 
-        const diaDelMes = ahora.getDate()
-        const diasMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0).getDate()
-        const proyeccion = mes && diaDelMes >= 3 ? (mes.total.facturado / diaDelMes) * diasMes : null
-
         if (!vivo) return
         setData({
-          mes, mesAnterior: mesAnt, proyeccion,
-          paresMes: { local: delMes.filter((p) => p.canal === 'local').length, web: delMes.filter((p) => p.canal === 'web').length },
-          modelosSinCosto: { cantidad: sinCostoLista.length, facturado: sinCostoLista.reduce((s, x) => s + x.facturado, 0), ejemplos: sinCostoLista.slice(0, 4).map((x) => x.nombre) },
+          pares: pares.map((p) => ({
+            fecha: p.fecha, precio: p.precio, ganancia: p.ganancia, canal: p.canal,
+            modelo: p.modelo ? foto(p.modelo) : null,
+          })),
           reponer: reponer.slice(0, 12), demandaSinStock, curvaTalles,
           parados: parados.slice(0, 10), capitalParado,
-          ranking, empujar, loMiranNoLoCompran,
+          empujar, loMiranNoLoCompran,
           clientes: { conCompra: listaCli.length, repiten: listaCli.filter((c) => c.compras.size >= 2).length, volver },
           semanas,
         })
@@ -291,5 +254,59 @@ export function useDashboardDueno() {
     return () => { vivo = false }
   }, [])
 
-  return { data, loading, error }
+  const periodo = usePeriodo(data?.pares ?? null, rango)
+  return { data, loading, error, periodo }
+}
+
+// ── Lo que depende del período elegido ──
+export interface PeriodoDashboard {
+  actual: ResumenPeriodo
+  anterior: ResumenPeriodo
+  // Rentabilidad real (con gastos y costos cargados): solo cuando el período es
+  // un mes. `null` mientras carga o si falló.
+  mes: RentabilidadMes | null
+  mesAnterior: RentabilidadMes | null
+  esMes: boolean
+  // A este ritmo cerrás el mes (solo en el mes en curso, con 3 días o más).
+  proyeccion: number | null
+}
+
+const rentabilidadCache = new Map<string, RentabilidadMes>()
+async function rentabilidad(mes: string): Promise<RentabilidadMes | null> {
+  const guardada = rentabilidadCache.get(mes)
+  if (guardada) return guardada
+  try {
+    const r = await computeRentabilidadMes(mes)
+    rentabilidadCache.set(mes, r)
+    return r
+  } catch { return null }
+}
+
+function usePeriodo(pares: ParVendido[] | null, rango: RangoCrm): PeriodoDashboard | null {
+  const hoy = hoyLocal()
+  const mesElegido = mesDelRango(rango, hoy)
+  const [rent, setRent] = useState<{ mes: string; actual: RentabilidadMes | null; anterior: RentabilidadMes | null } | null>(null)
+  const pedido = useRef(0)
+
+  useEffect(() => {
+    if (!mesElegido) return
+    const n = ++pedido.current
+    Promise.all([rentabilidad(mesElegido), rentabilidad(mesAnteriorISO(mesElegido))]).then(([actual, anterior]) => {
+      if (pedido.current === n) setRent({ mes: mesElegido, actual, anterior })
+    })
+  }, [mesElegido])
+
+  return useMemo(() => {
+    if (!pares) return null
+    const actual = resumirPeriodo(pares, rango)
+    const anterior = resumirPeriodo(pares, rangoAnterior(rango, hoy), 0)
+    const esMes = mesElegido != null
+    const r = esMes && rent?.mes === mesElegido ? rent : null
+    const diaDelMes = Number(hoy.slice(8, 10))
+    const diasMes = new Date(Number(hoy.slice(0, 4)), Number(hoy.slice(5, 7)), 0).getDate()
+    const proyeccion = esMes && mesElegido === hoy.slice(0, 7) && diaDelMes >= 3
+      ? (actual.facturado.total / diaDelMes) * diasMes
+      : null
+    return { actual, anterior, mes: r?.actual ?? null, mesAnterior: r?.anterior ?? null, esMes, proyeccion }
+  }, [pares, rango, hoy, mesElegido, rent])
 }
