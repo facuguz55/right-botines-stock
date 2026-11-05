@@ -10,8 +10,8 @@ const catalogo = {
 const horario = { pregunta: 'A qué hora abren el sábado', respuesta_aprobada: 'De 9 a 13 hs', origen: 'distinta' }
 
 describe('limpiarMensajes', () => {
-  it('humaniza, saca vacíos y deja como mucho 3', () => {
-    expect(limpiarMensajes(['¡Hola! 🤗', '  ', 'Dos', 'Tres', 'Cuatro'])).toEqual(['Hola!', 'Dos', 'Tres'])
+  it('humaniza, saca vacíos y deja como mucho 2', () => {
+    expect(limpiarMensajes(['¡Hola! 🤗', '  ', 'Dos', 'Tres', 'Cuatro'])).toEqual(['Hola!', 'Dos'])
     expect(limpiarMensajes(null)).toEqual([])
   })
 })

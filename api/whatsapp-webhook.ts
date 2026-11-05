@@ -393,8 +393,8 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const [mensajesRes, estadoRes, catalogoRes] = await Promise.all([
       // Con tipo y descripción de las fotos (migración 064); si esa columna
       // todavía no existe, se pide como antes.
-      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion,imagen_descripcion&order=timestamp.desc&limit=12`)
-        .catch(() => sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=12`)),
+      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion,imagen_descripcion&order=timestamp.desc&limit=30`)
+        .catch(() => sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=30`)),
       sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=*&limit=1`)
         .catch(err => { console.error('No se pudo leer la búsqueda guardada:', err); return null }),
       sbFetch('modelos?select=marca,modelo')
