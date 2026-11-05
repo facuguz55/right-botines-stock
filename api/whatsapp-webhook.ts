@@ -21,7 +21,7 @@ import {
   tipoDeCategoria,
 } from '../src/lib/crmBusqueda'
 import { cargarDatosNegocio, type ModeloCatalogo } from '../src/lib/botDatos'
-import { armarContexto, bloqueConAdjuntos, bloqueDeTextoDelCliente, mensajesConTexto, type FilaMensaje } from '../src/lib/botEntrada'
+import { armarContexto, bloqueConAdjuntos, bloqueDeTextoDelCliente, mensajesConTexto, sacarSaludoRepetido, ultimaRespuestaDelLocalMs, type FilaMensaje } from '../src/lib/botEntrada'
 import { AJUSTES_SUGERENCIAS, MODELO_SUGERENCIAS, llamarClasificadorIA, rankearAprendizajes, type FilaAprendizaje } from '../src/lib/botIa'
 import { humanizar } from '../src/lib/crmTexto'
 import { variantesWaId } from '../src/lib/crmWaId'
@@ -410,8 +410,8 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const [mensajesRes, estadoRes, catalogoRes] = await Promise.all([
       // Con tipo y descripción de las fotos (migración 064); si esa columna
       // todavía no existe, se pide como antes.
-      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion,imagen_descripcion&order=timestamp.desc&limit=20`)
-        .catch(() => sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion&order=timestamp.desc&limit=20`)),
+      sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion,imagen_descripcion,timestamp,automatico&order=timestamp.desc&limit=20`)
+        .catch(() => sbFetch(`wsp_mensajes?conversacion_id=eq.${conversacionId}&select=id,direccion,tipo,contenido,transcripcion,timestamp&order=timestamp.desc&limit=20`)),
       sbFetch(`wsp_conversaciones?id=eq.${conversacionId}&select=*&limit=1`)
         .catch(err => { console.error('No se pudo leer la búsqueda guardada:', err); return null }),
       sbFetch('modelos?select=marca,modelo')
@@ -546,6 +546,8 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // Pase lo que pase (IA o texto armado), al cliente no le llega nada con
     // pinta de IA: sin emojis, sin ¿ ¡, sin guiones largos ni viñetas.
     mensajes = mensajes.map(m => humanizar(m)).filter(Boolean)
+    // Si el local ya venía hablando, sin "Hola buenas, cómo estás?" de nuevo.
+    mensajes = sacarSaludoRepetido(mensajes, ultimaRespuestaDelLocalMs(filasMsgs, Date.now()))
     // El rescate genérico es solo para cuando la IA contestó pero vacío. Si la
     // IA está caída (sin saldo, etc.) no se sugiere nada: antes salía "Contame
     // en qué te puedo ayudar" en todos los chats y parecía que el bot se había

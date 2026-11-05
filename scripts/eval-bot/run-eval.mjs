@@ -164,6 +164,10 @@ const VARIANTES = {
   v2: { model: 'claude-haiku-5-5', ajustes: { effort: 'low', maxTokens: 4000 } },
   // v3: lo de producción desde el 05/11 (Haiku 5.5) + stock, precios, pedidos y compras del cliente.
   v3: { model: 'claude-haiku-5-5', ajustes: { effort: 'low', maxTokens: 4000 }, conDatos: true },
+  // v4: v3 + sin saludo repetido (por código) + regla del link en el prompt.
+  v4: { model: 'claude-haiku-5-5', ajustes: { effort: 'low', maxTokens: 4000 }, conDatos: true, limpieza: true },
+  // v5: v4 con Sonnet 5.5 para las sugerencias.
+  v5: { model: 'claude-sonnet-5-5', ajustes: { effort: 'low', maxTokens: 4000 }, conDatos: true, limpieza: true },
 };
 const JUEZ = 'claude-sonnet-5-5';
 
@@ -225,7 +229,7 @@ async function loadCases() {
     if (!a) throw new Error(`caso ${c.id} no está en crm_aprendizajes`);
     const [msg] = await sb(`wsp_mensajes?id=eq.${a.mensaje_cliente_id}&select=id,conversacion_id,timestamp,tipo,contenido,transcripcion`);
     if (!msg) throw new Error(`caso ${c.id}: no está el mensaje del cliente`);
-    const filasMsgs = (await sb(`wsp_mensajes?conversacion_id=eq.${msg.conversacion_id}&timestamp=lte.${encodeURIComponent(msg.timestamp)}&order=timestamp.desc&limit=20&select=id,direccion,tipo,contenido,transcripcion,imagen_descripcion`)).reverse();
+    const filasMsgs = (await sb(`wsp_mensajes?conversacion_id=eq.${msg.conversacion_id}&timestamp=lte.${encodeURIComponent(msg.timestamp)}&order=timestamp.desc&limit=20&select=id,direccion,tipo,contenido,transcripcion,imagen_descripcion,timestamp,automatico`)).reverse();
     const sugs = await sb(`wsp_ia_sugerencias?conversacion_id=eq.${msg.conversacion_id}&created_at=lt.${encodeURIComponent(msg.timestamp)}&order=created_at.desc&limit=10&select=created_at,talle_detectado,tipo_detectado,modelo_buscado`);
     const reciente = sugs.find(s => (s.talle_detectado || s.tipo_detectado || s.modelo_buscado)
       && Date.parse(msg.timestamp) - Date.parse(s.created_at) < 24 * 3600 * 1000);
@@ -250,6 +254,7 @@ async function loadCases() {
       },
       referencia,
       datosNegocio,
+      localHabloHaceMs: bot.ultimaRespuestaDelLocalMs(filasMsgs, Date.parse(msg.timestamp)),
     });
   }
   // Piloto: EVAL_CASOS=6 corre solo esa cantidad, repartida entre los tres tipos.
@@ -268,7 +273,20 @@ async function loadCases() {
   return out;
 }
 
+// Freno: la prueba usa la misma cuenta de Anthropic que el bot de producción.
+// Antes de cada caso se mira crm_estado_ia: si el bot real tuvo un error
+// después de que arrancó la prueba, se corta todo para no sacarle capacidad.
+const INICIO = new Date().toISOString();
+async function frenoProduccion() {
+  const [e] = await sb('crm_estado_ia?id=eq.1&select=ultimo_error,error_at,ok_at');
+  if (e?.error_at && e.error_at > INICIO && (!e.ok_at || e.error_at > e.ok_at)) {
+    eprint(`FRENO: el bot de producción tuvo un error (${e.ultimo_error}) durante la prueba. Se corta.`);
+    process.exit(3);
+  }
+}
+
 async function runCase(input, ctx) {
+  await frenoProduccion();
   const bot = await cargarBot();
   const v = VARIANTES[ctx.variant];
   if (!v) throw new Error(`variante sin configurar: ${ctx.variant}`);
@@ -282,7 +300,7 @@ async function runCase(input, ctx) {
     onErrorApi: (status, cuerpo) => { errApi = Object.assign(new Error(`Anthropic ${status}: ${cuerpo.slice(0, 300)}`), { status, failure_class: 'harness' }); },
   });
   if (errApi) throw errApi;
-  const mensajes = ia?.mensajes_sugeridos ?? [];
+  const mensajes = v.limpieza ? bot.sacarSaludoRepetido(ia?.mensajes_sugeridos ?? [], input.localHabloHaceMs) : (ia?.mensajes_sugeridos ?? []);
   const output = mensajes.join('\n\n');
   return {
     output, mensajes, intencion: ia?.intencion ?? null,

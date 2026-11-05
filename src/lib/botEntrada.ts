@@ -10,6 +10,8 @@ export interface FilaMensaje {
   contenido: string | null
   transcripcion: string | null
   imagen_descripcion?: string | null
+  timestamp?: string
+  automatico?: string | null
 }
 
 const textoDe = (m: FilaMensaje) => (m.contenido || m.transcripcion || '').trim()
@@ -58,4 +60,36 @@ export function bloqueConAdjuntos(filas: FilaMensaje[]): string[] {
     bloque.unshift([textoDe(m), adj].filter(Boolean).join(' '))
   }
   return bloque
+}
+
+// ── Saludo repetido ──
+// El modelo tiene la orden de no volver a saludar si la charla ya venía, y no
+// la cumple (en la prueba de 150 casos, 1 de cada 7 respuestas malas era por
+// esto). Se arregla por código: si el local (una persona, no un mensaje
+// automático) escribió en las últimas 3 horas, se saca el saludo del principio.
+
+// "Hola buenas! Cómo estás?", "Buen día!", "Buenas tardes, cómo andás?"…
+// No saca "Todo bien y vos?": eso es contestarle al cliente, no saludar.
+const SALUDO_INICIAL = /^\s*(?:hola+s?|holis|buenas+|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches)(?:[\s,]+(?:buenas+|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches))?[\s!.,]*(?:(?:c[oó]mo est[aá]s|c[oó]mo and[aá]s|c[oó]mo va|qu[eé] tal)\??[\s!.,]*)?/i
+
+export const VENTANA_SALUDO_MS = 3 * 60 * 60 * 1000
+
+// Cuánto hace que escribió el local por última vez (antes de `ahora`), o null.
+export function ultimaRespuestaDelLocalMs(filas: FilaMensaje[], ahora: number): number | null {
+  for (let i = filas.length - 1; i >= 0; i--) {
+    const m = filas[i]
+    if (m.direccion !== 'out' || m.automatico || !m.timestamp) continue
+    const t = Date.parse(m.timestamp)
+    if (Number.isFinite(t) && t <= ahora) return ahora - t
+  }
+  return null
+}
+
+export function sacarSaludoRepetido(mensajes: string[], localHabloHaceMs: number | null): string[] {
+  if (mensajes.length === 0 || localHabloHaceMs == null || localHabloHaceMs > VENTANA_SALUDO_MS) return mensajes
+  const [primero, ...resto] = mensajes
+  const sinSaludo = primero.replace(SALUDO_INICIAL, '').trim()
+  if (sinSaludo === primero.trim()) return mensajes
+  const nuevos = sinSaludo ? [sinSaludo.charAt(0).toUpperCase() + sinSaludo.slice(1), ...resto] : resto
+  return nuevos.length ? nuevos : mensajes
 }

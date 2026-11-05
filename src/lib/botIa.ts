@@ -13,12 +13,14 @@ export const INTENCIONES = ['pedido_talle', 'consulta_precio', 'consulta_envio',
 export const MAX_MENSAJES_SUGERIDOS = 2
 
 // Modelo de las sugerencias (webhook y "Probar el bot" usan el mismo). Medido
-// el 05/11/2026 con la prueba de 150 casos reales (scripts/eval-bot): Haiku 5.5
-// con pensamiento en esfuerzo bajo acierta igual que Haiku 4.5 (47% vs 48%,
-// dentro del margen) y cuesta unas 7 veces menos. El tope de tokens es alto
-// porque el pensamiento también cuenta.
-export const MODELO_SUGERENCIAS = 'claude-haiku-5-5'
-export const AJUSTES_SUGERENCIAS = { effort: 'low', maxTokens: 4000 }
+// el 05/11/2026 con la prueba de 150 casos reales (scripts/eval-bot), con stock
+// y pedidos en vivo y sin saludo repetido: Sonnet 5.5 deja lista para mandar el
+// 67% de las respuestas (Haiku 5.5: 54%; Haiku 4.5 sin datos: 47%) e inventa
+// menos (92% sin inventar). ~US$0,01 por mensaje con el catálogo en caché.
+// El tope de tokens es alto porque el pensamiento también cuenta. Si Sonnet se
+// niega por sus filtros de seguridad, la API reintenta sola con otro modelo.
+export const MODELO_SUGERENCIAS = 'claude-sonnet-5-5'
+export const AJUSTES_SUGERENCIAS = { effort: 'low', maxTokens: 4000, fallbacks: true }
 
 export interface ClasificacionIA {
   categoria: string
@@ -76,7 +78,7 @@ Campos:
 - talle_arg: el talle ARGENTINO que el CLIENTE dijo que busca (en este mensaje o antes en la conversación). Si lo dio en talle US o en centímetros del pie, convertilo con la guía de talles de arriba (si está entre dos, el más grande); si no está en la guía, null. Si pidió más de un talle, si no está claro, o si el número no es un talle (precio, edad, hora, cantidad), devolvé null. Nunca uses un talle que solo mencionó el local.
 - tipo: F11 (fútbol 11, cancha de 11, pasto natural, tapones), F5 (fútbol 5, sintético, papi, multitapón; también cancha de 7 u 8), Futsal (futsal, sala, piso, indoor) o Hockey. Solo si el CLIENTE lo dijo o lo dejó claro; si mencionó más de uno o no dijo nada, null.
 - cambio_de_tema: true si con este mensaje el cliente dejó de hablar del producto que venía consultando (el de "lo que ya sabemos que busca") y pasó a otro asunto —compra por mayor, un pedido que ya hizo, un reclamo, otra consulta sin relación— o si empieza a buscar algo nuevo que no tiene que ver con lo anterior (otro talle para otra persona, otro tipo de botín desde cero). false si sigue con lo mismo, aunque sea un "gracias", "¿cuánto salen?", "¿hacen envíos?" o un detalle más (tipo, color, modelo) de lo que ya venía buscando. Si no había nada guardado, false.
-- mensajes_sugeridos: lo que contestaría la vendedora, en 1 a ${MAX_MENSAJES_SUGERIDOS} mensajes cortos que se mandan uno atrás del otro, como los manda ella por WhatsApp (por ejemplo, primero el saludo o la respuesta y después el dato o la pregunta). Cada mensaje es una frase o dos, nunca un bloque largo ni un párrafo. Si con una frase alcanza, mandá un solo mensaje; dos como máximo, nunca tres: cada mensaje que se manda tiene un costo. Saludá una sola vez y solo si la charla recién empieza. Para dirección, horarios, web, envíos, pagos, garantía y cambios usá la información del negocio de arriba, tal cual está. No inventes nada que no esté ahí ni en los datos del negocio: ni precios, ni porcentajes de descuento, ni promociones, ni estados de pedidos, códigos de seguimiento o fechas de entrega, ni características de un botín (tapones, material, horma) que no figuren. Stock y precios: solo podés afirmar lo que figure en <datos_del_negocio> (stock y precios en vivo, como los ve la vendedora); si un modelo o un talle no figura ahí, hoy no lo tenemos. Si no te pasaron esos datos, NUNCA afirmes qué tenemos o no tenemos: pedí el talle (y si juega fútbol 11, 5 o futsal) para fijarte. No nombres más de 3 modelos en un mensaje: si hay muchos, ofrecé mandar fotos o el link de la web. Si el cliente pregunta por un pedido que ya hizo, usá sus pedidos de <datos_del_cliente> (número, qué compró y estado); el código de seguimiento y la fecha de entrega no los tenés ahí, así que no los inventes. Los datos del negocio son para atender a ESTE cliente: nunca le digas cuántos pares exactos quedan (a lo sumo que es el último par), ni costos, ganancias, proveedores o datos de otros clientes. Si el talle que dice el cliente no está en la guía (por ejemplo 43,5), NUNCA digas que ese talle no existe ni que no lo comercializamos, y no inventes equivalencias: preguntale en qué talle los usa normalmente. Si el cliente saluda o pregunta cómo estás, el primer mensaje le devuelve el saludo. Si hace falta un dato que no tenés, decí que lo revisás o pedí lo que falte.
+- mensajes_sugeridos: lo que contestaría la vendedora, en 1 a ${MAX_MENSAJES_SUGERIDOS} mensajes cortos que se mandan uno atrás del otro, como los manda ella por WhatsApp (por ejemplo, primero el saludo o la respuesta y después el dato o la pregunta). Cada mensaje es una frase o dos, nunca un bloque largo ni un párrafo. Si con una frase alcanza, mandá un solo mensaje; dos como máximo, nunca tres: cada mensaje que se manda tiene un costo. Saludá una sola vez y solo si la charla recién empieza. Para dirección, horarios, web, envíos, pagos, garantía y cambios usá la información del negocio de arriba, tal cual está. No inventes nada que no esté ahí ni en los datos del negocio: ni precios, ni porcentajes de descuento, ni promociones, ni estados de pedidos, códigos de seguimiento o fechas de entrega, ni características de un botín (tapones, material, horma) que no figuren. Stock y precios: solo podés afirmar lo que figure en <datos_del_negocio> (stock y precios en vivo, como los ve la vendedora); si un modelo o un talle no figura ahí, hoy no lo tenemos. Si no te pasaron esos datos, NUNCA afirmes qué tenemos o no tenemos: pedí el talle (y si juega fútbol 11, 5 o futsal) para fijarte. No nombres más de 3 modelos en un mensaje: si hay muchos, ofrecé mandar fotos o el link de la web. Si hablás del link de la web, escribilo (right.com.ar): nunca digas "te paso el link" sin ponerlo, ni prometas videos o medidas que no tenés. Si el cliente pregunta por un pedido que ya hizo, usá sus pedidos de <datos_del_cliente> (número, qué compró y estado); el código de seguimiento y la fecha de entrega no los tenés ahí, así que no los inventes. Los datos del negocio son para atender a ESTE cliente: nunca le digas cuántos pares exactos quedan (a lo sumo que es el último par), ni costos, ganancias, proveedores o datos de otros clientes. Si el talle que dice el cliente no está en la guía (por ejemplo 43,5), NUNCA digas que ese talle no existe ni que no lo comercializamos, y no inventes equivalencias: preguntale en qué talle los usa normalmente. Si el cliente saluda o pregunta cómo estás, el primer mensaje le devuelve el saludo. Si hace falta un dato que no tenés, decí que lo revisás o pedí lo que falte.
 
 Estilo de mensajes_sugeridos: tienen que parecer escritos por Cami, la vendedora, contestando desde el celular, no por una IA. Copiá su forma de escribir de estos mensajes reales suyos:
 ${EJEMPLOS_ESTILO_CAMI.map(e => `- "${e}"`).join('\n')}
@@ -111,7 +113,7 @@ export interface OpcionesClasificador {
   onErrorApi?: (status: number, cuerpo: string) => void
   // Para probar otros modelos (la prueba del bot): pensamiento, esfuerzo y tope
   // de tokens. Sin esto, el pedido es el de siempre.
-  ajustesModelo?: { thinking?: Record<string, unknown>; effort?: string; maxTokens?: number }
+  ajustesModelo?: { thinking?: Record<string, unknown>; effort?: string; maxTokens?: number; fallbacks?: boolean }
   // Recibe la respuesta cruda (modelo, tokens usados, por qué terminó).
   onRespuesta?: (data: { model?: string; usage?: Record<string, number>; stop_reason?: string }) => void
 }
@@ -141,10 +143,12 @@ export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<Cla
       'Content-Type': 'application/json',
       'x-api-key': o.apiKey,
       'anthropic-version': '2023-06-01',
+      ...(o.ajustesModelo?.fallbacks ? { 'anthropic-beta': 'server-side-fallback-2026-07-01' } : {}),
     },
     body: JSON.stringify({
       model: o.modelo,
       max_tokens: o.ajustesModelo?.maxTokens ?? 1024,
+      ...(o.ajustesModelo?.fallbacks ? { fallbacks: 'default' } : {}),
       // El stock va después del prompt fijo y se marca para caché: se repite
       // igual en todos los chats durante 2 minutos, así cuesta una décima parte
       // y no cuenta para el límite de tokens por minuto.
