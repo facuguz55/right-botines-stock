@@ -20,6 +20,7 @@ import {
   hablaDeLaFoto,
   tipoDeCategoria,
 } from '../src/lib/crmBusqueda'
+import { cargarDatosNegocio, type ModeloCatalogo } from '../src/lib/botDatos'
 import { armarContexto, bloqueConAdjuntos, bloqueDeTextoDelCliente, mensajesConTexto, type FilaMensaje } from '../src/lib/botEntrada'
 import { AJUSTES_SUGERENCIAS, MODELO_SUGERENCIAS, llamarClasificadorIA, rankearAprendizajes, type FilaAprendizaje } from '../src/lib/botIa'
 import { humanizar } from '../src/lib/crmTexto'
@@ -386,6 +387,21 @@ async function registrarEstadoIa(error: string | null) {
   }
 }
 
+// Catálogo con stock y precios para el bot (src/lib/botDatos.ts): se relee como
+// mucho cada 2 minutos por instancia, no con cada mensaje.
+let catalogoBot: { at: number; datos: ModeloCatalogo[] } | null = null
+async function catalogoParaBot(): Promise<ModeloCatalogo[] | undefined> {
+  if (catalogoBot && Date.now() - catalogoBot.at < 120_000) return catalogoBot.datos
+  try {
+    const datos = await (await sbFetch('modelos?select=marca,modelo,categoria,gama,precio_venta,precio_promocional,precio_efectivo,modelo_talles(talle_arg,cantidad)')).json() as ModeloCatalogo[]
+    catalogoBot = { at: Date.now(), datos }
+    return datos
+  } catch (err) {
+    console.error('No se pudo leer el catálogo para el bot:', err)
+    return undefined
+  }
+}
+
 async function classifyWithAI(text: string, conversacionId: string, messageId: string, adjunto?: AdjuntoFoto) {
   try {
     // Contexto: últimos mensajes de la charla, lo que ya se sabía que buscaba
@@ -436,6 +452,15 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // Si el mensaje parece hablar de un pedido ya hecho, se busca en paralelo
     // con la IA (para no sumar su demora a la de TiendaNube).
     const telefono = (estadoRow.telefono as string | undefined) || (estadoRow.wa_contact_id as string | undefined) || null
+    // Lo que ve Cami al atender: stock y precios en vivo, y los pedidos y
+    // compras de este cliente. Se carga en paralelo con lo demás.
+    const datosNegocioP = catalogoParaBot()
+      .then(catalogo => cargarDatosNegocio(
+        path => sbFetch(path).then(r => r.json()),
+        { telefono, crmClienteId: (estadoRow.crm_cliente_id as string | null | undefined) ?? null },
+        { catalogo },
+      ))
+      .catch(err => { console.error('No se pudieron cargar los datos del negocio para el bot:', err); return null })
     const numeroPedido = extraerNumeroPedido(text)
     let pedidoPromise: Promise<PedidoTN | null> | null = mencionaPedido(text)
       ? buscarPedidoDelCliente(telefono, numeroPedido)
@@ -451,6 +476,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     let errorIa: string | null = null
     const ia = await llamarClasificadorIA({
       apiKey: ANTHROPIC_API_KEY, modelo: MODELO_SUGERENCIAS, ajustesModelo: AJUSTES_SUGERENCIAS, contexto, busquedaGuardada: busquedaPrevia, text, aprendizajes,
+      ...await datosNegocioP.then(d => (d ? { datosStock: d.stock, datosCliente: d.cliente } : {})),
       bloque: bloqueAdj.length > 1 ? bloqueAdj : undefined,
       onErrorApi: (status, cuerpo) => { errorIa = tipoErrorIa(status, cuerpo) },
     }).catch(err => {

@@ -1,3 +1,4 @@
+import { cargarDatosNegocio } from '../src/lib/botDatos'
 import { AJUSTES_SUGERENCIAS, MODELO_SUGERENCIAS, elegirAprendizajes, formatearAprendizaje, llamarClasificadorIA, type FilaAprendizaje } from '../src/lib/botIa'
 
 export const config = { runtime: 'edge' }
@@ -60,11 +61,16 @@ export default async function handler(req: Request): Promise<Response> {
     const aprendizajes = [...(hipotetica ? [hipotetica] : []), ...elegidas].map(formatearAprendizaje).join('\n')
 
     const ultimo = cliente[cliente.length - 1]
+    // Stock y precios en vivo, como en un chat real (acá no hay cliente: sin pedidos ni compras).
+    const datosNegocio = await cargarDatosNegocio(
+      path => fetch(`${SB_URL}/rest/v1/${path}`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }).then(r => r.json()),
+      { telefono: null, crmClienteId: null },
+    ).catch(() => null)
     const contexto = cliente.slice(0, -1).map(t => `Cliente: ${t}`).join('\n')
     const ia = await llamarClasificadorIA({
       apiKey: ANTHROPIC_API_KEY, modelo: MODELO_SUGERENCIAS, ajustesModelo: AJUSTES_SUGERENCIAS, contexto,
       busquedaGuardada: { talle: null, tipo: null, modelo: null },
-      text: ultimo, bloque: cliente, aprendizajes,
+      text: ultimo, bloque: cliente, aprendizajes, ...(datosNegocio ? { datosStock: datosNegocio.stock } : {}),
     })
     if (!ia || ia.mensajes_sugeridos.length === 0) return json({ error: 'El bot no quiso o no pudo contestar ese mensaje. Probá con otra frase.' }, 502)
 

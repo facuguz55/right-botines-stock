@@ -149,6 +149,7 @@ const REF_EXTS = ['', '.html', '.txt', '.json'];
 //   baseline  claude-haiku-4-5 (el de producción hoy)
 //   v1        claude-haiku-5-5 sin pensamiento
 //   v2        claude-haiku-5-5 con pensamiento, esfuerzo bajo
+//   v3        v2 + datos del negocio en vivo (stock/precios de HOY: en casos viejos es una aproximación)
 //
 // Mide solo lo que redacta la IA: en producción, para talles/stock y pedidos
 // la respuesta a veces la arma el sistema con datos reales y pisa la de la IA.
@@ -161,6 +162,8 @@ const VARIANTES = {
   baseline: { model: 'claude-haiku-4-5', ajustes: {} },
   v1: { model: 'claude-haiku-5-5', ajustes: { thinking: { type: 'disabled' } } },
   v2: { model: 'claude-haiku-5-5', ajustes: { effort: 'low', maxTokens: 4000 } },
+  // v3: lo de producción desde el 05/11 (Haiku 5.5) + stock, precios, pedidos y compras del cliente.
+  v3: { model: 'claude-haiku-5-5', ajustes: { effort: 'low', maxTokens: 4000 }, conDatos: true },
 };
 const JUEZ = 'claude-sonnet-5-5';
 
@@ -190,7 +193,7 @@ async function cargarBot() {
   const esbuild = await import('esbuild');
   const out = await esbuild.build({
     stdin: {
-      contents: "export * from './src/lib/botIa'; export * from './src/lib/botEntrada'; export { INFO_NEGOCIO } from './src/lib/crmNegocio'; export { marcadorAdjunto } from './src/lib/crmSugerencia'",
+      contents: "export * from './src/lib/botIa'; export * from './src/lib/botEntrada'; export * from './src/lib/botDatos'; export { INFO_NEGOCIO } from './src/lib/crmNegocio'; export { marcadorAdjunto } from './src/lib/crmSugerencia'",
       resolveDir: REPO, loader: 'ts',
     },
     bundle: true, format: 'esm', platform: 'node', write: false, logLevel: 'silent',
@@ -213,6 +216,7 @@ async function loadCases() {
   const porId = new Map(filas.map(f => [f.id, f]));
   // Pozo de respuestas aprobadas (como producción: las 120 más recientes),
   // sin las de la MISMA charla del caso, para que no se copie su propia respuesta.
+  const catalogo = await sb('modelos?select=marca,modelo,categoria,gama,precio_venta,precio_promocional,precio_efectivo,modelo_talles(talle_arg,cantidad)');
   const pozo = await sb('crm_aprendizajes?estado=eq.aprobado&select=conversacion_id,pregunta,respuesta_aprobada,mensajes_aprobados,origen&order=revisado_en.desc&limit=400');
 
   const out = [];
@@ -230,6 +234,10 @@ async function loadCases() {
     const bloque = bot.bloqueConAdjuntos(filasMsgs);
     const pozoCaso = pozo.filter(f => f.conversacion_id !== msg.conversacion_id).slice(0, 120);
     const aprendizajes = bot.rankearAprendizajes(bloqueTexto.slice(-3).join('\n') || text, pozoCaso);
+    const [conv] = await sb(`wsp_conversaciones?id=eq.${msg.conversacion_id}&select=telefono,wa_contact_id,crm_cliente_id`);
+    const datosNegocio = await bot.cargarDatosNegocio(sb,
+      { telefono: conv?.telefono || conv?.wa_contact_id || null, crmClienteId: conv?.crm_cliente_id ?? null },
+      { hasta: msg.timestamp, catalogo });
     const referencia = (a.mensajes_aprobados?.length ? a.mensajes_aprobados : [a.respuesta_aprobada]).filter(Boolean);
     out.push({
       id: c.id,
@@ -241,6 +249,7 @@ async function loadCases() {
         text, bloque: bloque.length > 1 ? bloque : undefined, aprendizajes,
       },
       referencia,
+      datosNegocio,
     });
   }
   // Piloto: EVAL_CASOS=6 corre solo esa cantidad, repartida entre los tres tipos.
@@ -267,6 +276,7 @@ async function runCase(input, ctx) {
   let crudo = null, errApi = null;
   const ia = await bot.llamarClasificadorIA({
     apiKey: API_KEY, modelo: ctx.model, ...input.entrada,
+    ...(v.conDatos ? { datosStock: input.datosNegocio.stock, datosCliente: input.datosNegocio.cliente } : {}),
     ajustesModelo: v.ajustes,
     onRespuesta: d => { crudo = d; },
     onErrorApi: (status, cuerpo) => { errApi = Object.assign(new Error(`Anthropic ${status}: ${cuerpo.slice(0, 300)}`), { status, failure_class: 'harness' }); },
@@ -307,14 +317,22 @@ aceptable = true si Cami podría haber mandado la sugerencia tal cual o con un r
 4. Suena a una vendedora por WhatsApp (corto, voseo) y no vuelve a saludar si la charla ya venía.
 No exijas las mismas palabras ni el mismo largo que la referencia.
 
-inventa = true si afirma algún dato concreto que no sale de la charla ni de la información del negocio.
+inventa = true si afirma algún dato concreto que no sale de la charla, de la información del negocio ni de <stock_que_tenia_el_bot> o <datos_del_cliente_que_tenia_el_bot> (si te los paso: stock, precios y pedidos que el bot veía en vivo; lo que sale de ahí NO es inventado, aunque la referencia diga otra cosa porque el stock cambió). Para decidir si un modelo o talle estaba en stock, buscalo en <stock_que_tenia_el_bot>.
 motivo = una frase corta en castellano.`;
-  const user = `<charla>\n${input.entrada.contexto}\n</charla>\n\n<ultimo_del_cliente>\n${input.prompt}\n</ultimo_del_cliente>\n\n<referencia>\n${input.referencia.join('\n\n')}\n</referencia>\n\n<sugerencia_del_bot>\n${run.output}\n</sugerencia_del_bot>`;
+  const v = VARIANTES[ctx.variant];
+  // El stock completo va en el system con caché (igual para todos los casos);
+  // los pedidos/compras del cliente, con el caso.
+  const conDatos = v?.conDatos && input.datosNegocio;
+  const datos = conDatos ? `<datos_del_cliente_que_tenia_el_bot>\n${input.datosNegocio.cliente}\n</datos_del_cliente_que_tenia_el_bot>\n\n` : '';
+  const user = `${datos}<charla>\n${input.entrada.contexto}\n</charla>\n\n<ultimo_del_cliente>\n${input.prompt}\n</ultimo_del_cliente>\n\n<referencia>\n${input.referencia.join('\n\n')}\n</referencia>\n\n<sugerencia_del_bot>\n${run.output}\n</sugerencia_del_bot>`;
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: JUEZ, max_tokens: 4000, system,
+      model: JUEZ, max_tokens: 4000,
+      system: conDatos
+        ? [{ type: 'text', text: system }, { type: 'text', text: `<stock_que_tenia_el_bot>\n${input.datosNegocio.stock}\n</stock_que_tenia_el_bot>`, cache_control: { type: 'ephemeral' } }]
+        : system,
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: JUEZ_SCHEMA } },
       messages: [{ role: 'user', content: user }],
     }),
