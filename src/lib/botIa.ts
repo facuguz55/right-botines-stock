@@ -93,6 +93,9 @@ export interface OpcionesClasificador {
   bloque?: string[]
   // Respuestas que los dueños aprobaron para casos parecidos (ya formateadas).
   aprendizajes?: string
+  // Se llama si la API de Anthropic responde con error (sin saldo, clave
+  // inválida, caída…), para que el webhook pueda avisarlo en el CRM.
+  onErrorApi?: (status: number, cuerpo: string) => void
 }
 
 export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<ClasificacionIA | null> {
@@ -134,7 +137,9 @@ export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<Cla
   })
 
   if (!res.ok) {
-    console.error('classifyWithAI: Anthropic respondió', res.status, await res.text().catch(() => ''))
+    const cuerpo = await res.text().catch(() => '')
+    console.error('classifyWithAI: Anthropic respondió', res.status, cuerpo)
+    o.onErrorApi?.(res.status, cuerpo)
     return null
   }
   const data = await res.json() as { stop_reason?: string; content?: { type: string; text?: string }[] }

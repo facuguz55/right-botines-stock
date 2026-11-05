@@ -5,6 +5,7 @@ import { useMessages } from '../../../hooks/useMessages'
 import { registrarAprendizaje } from '../../../services/crmAprendizajes'
 import { prepararVideo } from '../../../lib/crmVideo'
 import { prepararFoto } from '../../../lib/crmImagen'
+import { useEstadoIa, textoAvisoIa } from '../../../hooks/useEstadoIa'
 import { useEtiquetas } from '../../../hooks/useEtiquetas'
 import { useCrmTema } from '../../../hooks/useCrmTema'
 import {
@@ -41,6 +42,7 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
   const [videoProgreso, setVideoProgreso] = useState<number | null>(null)
   const [mpLinkOpen, setMpLinkOpen] = useState(false)
   const { tema, alternar: alternarTema } = useCrmTema()
+  const estadoIa = useEstadoIa()
   const [etiquetaFilter, setEtiquetaFilter] = useState<string | undefined>(undefined)
   const { etiquetas, porConversacion, toggle: toggleEtiqueta, crear: crearEtiqueta, eliminar: eliminarEtiqueta } = useEtiquetas()
 
@@ -412,8 +414,11 @@ export default function CrmInbox({ empleadoId, onOpenPhotoSender, onCreateVenta,
     }
   }, [isMobile, selectedId])
 
+  const avisoIa = textoAvisoIa(estadoIa)
+
   return (
     <div className="crm-inbox">
+      {avisoIa && <div className="crm-inbox-aviso-ia" role="alert">{avisoIa}</div>}
       {videoProgreso !== null && (
         <div className="crm-inbox-video-progreso" role="status">Preparando el video para WhatsApp… {videoProgreso}%</div>
       )}

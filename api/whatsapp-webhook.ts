@@ -356,6 +356,35 @@ async function sbWriteConFallback(path: string, method: 'POST' | 'PATCH', body: 
 // la respuesta de stock (el cliente preguntó otra cosa antes de mandarla).
 interface AdjuntoFoto { modelo: string | null; tipo: TipoBotin | null }
 
+// ── Estado de la IA (aviso en el CRM) ──
+// Una fila en crm_estado_ia (migración 072). Se escribe el error cada vez que
+// falla, y el "volvió a andar" solo cuando esta instancia no sabía que andaba,
+// para no escribir en la base con cada mensaje.
+let estadoIaConocido: 'ok' | 'error' | null = null
+
+function tipoErrorIa(status: number, cuerpo: string): string {
+  if (/credit balance/i.test(cuerpo)) return 'sin_credito'
+  if (status === 401 || status === 403) return 'clave'
+  if (status === 429) return 'limite'
+  if (status >= 500) return 'caida'
+  return `http_${status}`
+}
+
+async function registrarEstadoIa(error: string | null) {
+  try {
+    if (!error && estadoIaConocido === 'ok') return
+    estadoIaConocido = error ? 'error' : 'ok'
+    const ahora = new Date().toISOString()
+    await sbFetch('crm_estado_ia?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(error ? { id: 1, ultimo_error: error, error_at: ahora } : { id: 1, ok_at: ahora }),
+    })
+  } catch (err) {
+    console.error('No se pudo guardar el estado de la IA (¿falta la migración 072?):', err)
+  }
+}
+
 async function classifyWithAI(text: string, conversacionId: string, messageId: string, adjunto?: AdjuntoFoto) {
   try {
     // Contexto: últimos mensajes de la charla, lo que ya se sabía que buscaba
@@ -442,13 +471,19 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
         : marcadorAdjunto(m.tipo ?? '')
       bloqueConAdjuntos.unshift([t, adj].filter(Boolean).join(' '))
     }
+    // Si la IA no responde (sin saldo, caída…) se anota para el aviso del CRM
+    // y NO se inventa una sugerencia genérica (ver más abajo).
+    let errorIa: string | null = null
     const ia = await llamarClasificadorIA({
       apiKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL, contexto, busquedaGuardada: busquedaPrevia, text, aprendizajes,
       bloque: bloqueConAdjuntos.length > 1 ? bloqueConAdjuntos : undefined,
+      onErrorApi: (status, cuerpo) => { errorIa = tipoErrorIa(status, cuerpo) },
     }).catch(err => {
       console.error('classifyWithAI: falló la llamada a Anthropic:', err)
+      errorIa = 'red'
       return null
     })
+    await registrarEstadoIa(ia ? null : errorIa)
 
     // Pregunta por el estado de un pedido: lo decide la IA; sin IA, solo
     // frases inequívocas ("cuándo me llega", "seguimiento").
@@ -510,7 +545,11 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // Pase lo que pase (IA o texto armado), al cliente no le llega nada con
     // pinta de IA: sin emojis, sin ¿ ¡, sin guiones largos ni viñetas.
     mensajes = mensajes.map(m => humanizar(m)).filter(Boolean)
-    if (mensajes.length === 0) mensajes = sugerenciaDeRescate(text).map(m => humanizar(m)).filter(Boolean)
+    // El rescate genérico es solo para cuando la IA contestó pero vacío. Si la
+    // IA está caída (sin saldo, etc.) no se sugiere nada: antes salía "Contame
+    // en qué te puedo ayudar" en todos los chats y parecía que el bot se había
+    // vuelto loco. El CRM muestra un aviso con el motivo.
+    if (mensajes.length === 0 && !errorIa) mensajes = sugerenciaDeRescate(text).map(m => humanizar(m)).filter(Boolean)
     const respuesta = mensajes.length ? mensajes.join('\n\n') : null
 
     const categoria = ia?.categoria ?? (aporto ? 'Pedido de talles' : null)
@@ -614,7 +653,9 @@ async function identificarModeloEnFoto(
     })
   }
   if (!res.ok) {
-    console.error('identificarModeloEnFoto: Anthropic respondió', res.status, await res.text().catch(() => ''))
+    const cuerpo = await res.text().catch(() => '')
+    console.error('identificarModeloEnFoto: Anthropic respondió', res.status, cuerpo)
+    await registrarEstadoIa(tipoErrorIa(res.status, cuerpo))
     return null
   }
   const data = await res.json() as { stop_reason?: string; content?: { type: string; text?: string }[] }

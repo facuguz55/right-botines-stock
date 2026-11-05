@@ -1,4 +1,5 @@
 .crm-inbox {
+  position: relative; /* para el aviso de la IA */
   display: flex;
   height: 100%;
   overflow: hidden;
@@ -81,4 +82,23 @@
   color: #fff;
   font-size: 13px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+
+/* Aviso arriba de todo cuando la IA del bot no funciona (sin saldo, etc.) */
+.crm-inbox-aviso-ia {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(640px, calc(100% - 16px));
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: #7F1D1D;
+  border: 1px solid #EF4444;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
 }
