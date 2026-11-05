@@ -9,7 +9,7 @@ export const config = { runtime: 'edge' }
 
 const SB_URL = process.env.SUPABASE_URL ?? ''
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY ?? ''
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? ''
 const ANTHROPIC_MODEL = 'claude-haiku-4-5'
 
 // Mismo criterio que api/whatsapp-send.ts: solo desde la propia app.

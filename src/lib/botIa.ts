@@ -100,7 +100,7 @@ export interface OpcionesClasificador {
 
 export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<ClasificacionIA | null> {
   if (!o.apiKey) {
-    console.error('classifyWithAI: falta ANTHROPIC_API_KEY / VITE_ANTHROPIC_API_KEY')
+    console.error('classifyWithAI: falta ANTHROPIC_API_KEY')
     return null
   }
   const b = o.busquedaGuardada

@@ -4,8 +4,8 @@ import { reflejarStockEnTN } from './stockTN'
 import { supabase } from '../lib/supabase'
 import { toISOLocal } from '../utils/fecha'
 
-const API_URL = 'https://api.anthropic.com/v1/messages'
-const MODEL = 'claude-haiku-4-5-20251001'
+// Pasa por el servidor (api/ai-chat.ts): la clave de Anthropic no está en la app.
+const API_URL = '/api/ai-chat'
 
 const SYSTEM = `Sos el asistente de gestion de Right Botines, una zapateria deportiva argentina.
 Vendemos botines de futbol F5, F11, Futsal y Hockey de marcas como Nike, Adidas, Puma, New Balance, Mizuno, Umbro, Under Armour, Joma.
@@ -158,23 +158,21 @@ export async function sendMessage(
   userText: string,
   onToolCall?: (name: string) => void
 ): Promise<{ response: string; newApiMessages: ChatMessage[]; dataChanged: boolean }> {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
   let dataChanged = false
   const messages: ChatMessage[] = [...history, { role: 'user', content: userText }]
 
   while (true) {
     const res = await fetch(API_URL, {
       method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1024, system: SYSTEM, tools: TOOLS, messages }),
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ system: SYSTEM, tools: TOOLS, messages }),
     })
 
-    if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`)
+    if (!res.ok) {
+      const txt = await res.text()
+      if (/credit balance/i.test(txt)) throw new Error('La cuenta de Anthropic de Right no tiene saldo. Hay que cargar créditos en platform.claude.com.')
+      throw new Error(`API error ${res.status}: ${txt}`)
+    }
 
     const data = await res.json()
     const assistantContent: ContentBlock[] = data.content

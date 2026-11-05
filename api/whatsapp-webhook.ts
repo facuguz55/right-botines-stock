@@ -53,7 +53,7 @@ const WA_APP_SECRET = process.env.WA_APP_SECRET ?? ''
 // Reutiliza la misma key de Anthropic que ya usa el asistente de stock
 // (src/services/aiChat.ts) — nunca se configuraron AI_API_KEY/AI_API_URL acá,
 // así que la clasificación automática de mensajes jamás se había ejecutado.
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY ?? ''
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? ''
 const ANTHROPIC_MODEL = 'claude-haiku-4-5'
 // Solo para reconocer qué botín hay en la foto del cliente: con el modelo
 // barato se confundía colores parecidos (un Phantom "celeste rosita" por uno
