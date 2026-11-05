@@ -1,0 +1,605 @@
+{
+ "nota": "Casos de la prueba del bot: solo ids de crm_aprendizajes (aprobados). Los mensajes se leen de la base al correr. Elegidos al azar (md5 con semilla eval-bot-v1) entre el 25/10 y el 05/11/2026, sin el corte de saldo del 04/11.",
+ "casos": [
+  {
+   "id": "96e04592-2612-403a-b7a6-0cd832338be0",
+   "origen": "distinta"
+  },
+  {
+   "id": "5d322443-06c6-4a88-9689-f9f6edaaee4d",
+   "origen": "distinta"
+  },
+  {
+   "id": "c63c2a0f-03ba-4db9-9acc-19c4424f7e55",
+   "origen": "distinta"
+  },
+  {
+   "id": "56af0314-d796-4e08-978b-f1f34ebc6325",
+   "origen": "distinta"
+  },
+  {
+   "id": "643447c9-2084-4292-9830-a5550fbf0ad6",
+   "origen": "distinta"
+  },
+  {
+   "id": "1d4c5126-98bc-4892-85a2-5a91d99f2ab6",
+   "origen": "distinta"
+  },
+  {
+   "id": "01be0fab-dc41-4c51-a893-dc93855547a6",
+   "origen": "distinta"
+  },
+  {
+   "id": "d2fb34d9-928c-4d70-b208-ba542cb6d81f",
+   "origen": "distinta"
+  },
+  {
+   "id": "991a74a2-91cc-4911-854e-a713f52b88f4",
+   "origen": "distinta"
+  },
+  {
+   "id": "704ceace-2441-4047-9b5d-c9c0c7246ebc",
+   "origen": "distinta"
+  },
+  {
+   "id": "716b2ef4-d811-4cfe-8d46-91108bd03d4a",
+   "origen": "distinta"
+  },
+  {
+   "id": "b9e8bcf7-85c4-4567-807b-f9c31b0c8b42",
+   "origen": "distinta"
+  },
+  {
+   "id": "7a9e4e75-6c64-4ae4-9a69-5bd232669143",
+   "origen": "distinta"
+  },
+  {
+   "id": "9feca11a-c580-4f02-b3bd-973d77523708",
+   "origen": "distinta"
+  },
+  {
+   "id": "4689e504-8db9-4951-8b3e-5e83ca051854",
+   "origen": "distinta"
+  },
+  {
+   "id": "f2fb5bb8-0f2e-42df-a541-d87f7276aaa5",
+   "origen": "distinta"
+  },
+  {
+   "id": "9cff3665-773f-4bd9-a5e9-2925087612e0",
+   "origen": "distinta"
+  },
+  {
+   "id": "a81e0375-42b0-48fe-a6e1-75d0df4c2465",
+   "origen": "distinta"
+  },
+  {
+   "id": "732db493-a0d0-4ca1-8a8a-adc1f564c3ae",
+   "origen": "distinta"
+  },
+  {
+   "id": "373ccf98-9094-48f9-b76e-64ea9d703f43",
+   "origen": "distinta"
+  },
+  {
+   "id": "f2a03ac8-78e9-4696-82a4-1d974118cd31",
+   "origen": "distinta"
+  },
+  {
+   "id": "ab609736-02c0-42d9-9d39-d520f0819d17",
+   "origen": "distinta"
+  },
+  {
+   "id": "c487bee8-0d5f-45c4-aecb-cf8668abe0d4",
+   "origen": "distinta"
+  },
+  {
+   "id": "2cd0cda9-3207-4584-81f9-4e67cf9308c7",
+   "origen": "distinta"
+  },
+  {
+   "id": "6ce83f6f-de3d-4e8a-94b1-d312cd1e59c1",
+   "origen": "distinta"
+  },
+  {
+   "id": "a0c20be7-054a-4d2c-b431-0b6763460da5",
+   "origen": "distinta"
+  },
+  {
+   "id": "24066d34-b84a-4601-8937-632b36244381",
+   "origen": "distinta"
+  },
+  {
+   "id": "fe85e2ae-0c92-48c7-8a1f-e6c234680865",
+   "origen": "distinta"
+  },
+  {
+   "id": "c3fbb3cd-d911-4624-b68e-7802f9265269",
+   "origen": "distinta"
+  },
+  {
+   "id": "debb7867-450a-4a5d-b810-37af2330f567",
+   "origen": "distinta"
+  },
+  {
+   "id": "4f8024c4-4861-4ac2-b7fb-204b9e72018f",
+   "origen": "distinta"
+  },
+  {
+   "id": "291c370b-7615-430a-af1c-6b682e184198",
+   "origen": "distinta"
+  },
+  {
+   "id": "47e62973-277b-48db-8d16-744773cb7ca3",
+   "origen": "distinta"
+  },
+  {
+   "id": "46f43dd0-d965-4752-a65b-75f6ffffecfe",
+   "origen": "distinta"
+  },
+  {
+   "id": "f354ff76-153b-4fcc-bcdc-bc5c5b05d23a",
+   "origen": "distinta"
+  },
+  {
+   "id": "1dd1f058-2ea1-4ddd-8db2-36ef1e8ff4dc",
+   "origen": "distinta"
+  },
+  {
+   "id": "02a7dca2-c5a2-4aa2-a8ab-68e3c1004e62",
+   "origen": "distinta"
+  },
+  {
+   "id": "2b04aa1d-b7b2-47d4-9a5e-e422f5659dd6",
+   "origen": "distinta"
+  },
+  {
+   "id": "2898120c-6fa0-42e1-98f2-b80c7fde78fd",
+   "origen": "distinta"
+  },
+  {
+   "id": "e167b49d-2783-43d6-b3fc-6ad92f931854",
+   "origen": "distinta"
+  },
+  {
+   "id": "03b636f5-d000-4520-8cb1-e98e4fd2fded",
+   "origen": "distinta"
+  },
+  {
+   "id": "9d479a8d-9567-4be8-b3f5-930cce802ef0",
+   "origen": "distinta"
+  },
+  {
+   "id": "abd4f224-3eb0-4b73-8c47-bb440ac47a6e",
+   "origen": "distinta"
+  },
+  {
+   "id": "ef586933-96c5-4338-ac28-253540bc41ad",
+   "origen": "distinta"
+  },
+  {
+   "id": "011c61a6-9332-4277-aa6e-b78034dfab84",
+   "origen": "distinta"
+  },
+  {
+   "id": "6b95ebcf-5909-4828-afe4-78e421e951be",
+   "origen": "distinta"
+  },
+  {
+   "id": "b89811f6-92c3-45db-8d15-1315523610c3",
+   "origen": "distinta"
+  },
+  {
+   "id": "bc5cd890-7fe9-4143-9490-c0fb57ed1a44",
+   "origen": "distinta"
+  },
+  {
+   "id": "cbf0235e-b030-44cb-b9e9-3462f0c3ad95",
+   "origen": "distinta"
+  },
+  {
+   "id": "75ac2f1f-809c-4947-85e7-1586a2adf4c5",
+   "origen": "distinta"
+  },
+  {
+   "id": "8c1f8a5b-cf0e-4704-83f2-7e45387af1ba",
+   "origen": "distinta"
+  },
+  {
+   "id": "e7091991-8dc5-4322-9710-831a815ab861",
+   "origen": "distinta"
+  },
+  {
+   "id": "3c770759-6a47-4f8b-a4de-c63bc5f4ac86",
+   "origen": "distinta"
+  },
+  {
+   "id": "29e4d645-1ac3-4752-b3c2-73be9c55308a",
+   "origen": "distinta"
+  },
+  {
+   "id": "47e8eb0c-fe2c-4f96-bda8-48f4000dc781",
+   "origen": "distinta"
+  },
+  {
+   "id": "3720d8e6-e609-4841-a7ec-27c802165adf",
+   "origen": "distinta"
+  },
+  {
+   "id": "29d9729f-3986-4055-bd02-4355e1b6713f",
+   "origen": "distinta"
+  },
+  {
+   "id": "3a1d4c97-3e50-4b6f-93ed-fb706d2b2ab9",
+   "origen": "distinta"
+  },
+  {
+   "id": "371b9eea-407f-423a-b631-6bd3529522af",
+   "origen": "distinta"
+  },
+  {
+   "id": "e0774506-174f-46ec-9618-66b083c522cc",
+   "origen": "distinta"
+  },
+  {
+   "id": "4f7605bc-916a-49ec-9c02-b05907f9d5d2",
+   "origen": "distinta"
+  },
+  {
+   "id": "72fc5049-7628-455e-a466-bdccb379fa6d",
+   "origen": "distinta"
+  },
+  {
+   "id": "7df79d0a-31e3-4bf3-858c-874293f2a748",
+   "origen": "distinta"
+  },
+  {
+   "id": "469037f3-9610-4134-8cdd-76abe32cf1a5",
+   "origen": "distinta"
+  },
+  {
+   "id": "9c0aff6d-2cd3-4840-8255-90a9c0d77e3c",
+   "origen": "distinta"
+  },
+  {
+   "id": "f7bbd61c-dee2-4757-b2a0-f66c32699d94",
+   "origen": "distinta"
+  },
+  {
+   "id": "bf74c17a-b324-4d75-8f44-43e6fd73b51e",
+   "origen": "distinta"
+  },
+  {
+   "id": "a86219f9-12d1-4876-8e3c-143441764446",
+   "origen": "distinta"
+  },
+  {
+   "id": "d4e6b59f-5d21-4ec1-bc64-f7f7b670a7b1",
+   "origen": "distinta"
+  },
+  {
+   "id": "af5123c9-8fda-4aa7-ba60-ce30283196c1",
+   "origen": "distinta"
+  },
+  {
+   "id": "51d0abbb-999d-453d-bcc0-9ac953edd4ae",
+   "origen": "distinta"
+  },
+  {
+   "id": "5f636120-f939-456a-9b86-3c1d0f674a43",
+   "origen": "distinta"
+  },
+  {
+   "id": "a8eea740-d7ed-4678-9612-6eb9a538b28c",
+   "origen": "distinta"
+  },
+  {
+   "id": "88e4922d-db7f-43b8-874e-fcc363c289d3",
+   "origen": "distinta"
+  },
+  {
+   "id": "d3eb29ce-cc7d-4e26-95e4-e6bb403b96a0",
+   "origen": "distinta"
+  },
+  {
+   "id": "f526914f-7555-4d9b-ae03-210f3fc17f45",
+   "origen": "distinta"
+  },
+  {
+   "id": "b367d78d-cb43-4d02-b703-52847f12d413",
+   "origen": "distinta"
+  },
+  {
+   "id": "2475a5f8-ae5e-4c4f-b5be-1c8ddd8efbd6",
+   "origen": "distinta"
+  },
+  {
+   "id": "242127dc-3e0b-49d7-ae10-ba32a57a9818",
+   "origen": "distinta"
+  },
+  {
+   "id": "5af08951-e351-4152-a918-e2ed5ce4680b",
+   "origen": "distinta"
+  },
+  {
+   "id": "b9812010-666b-4737-9266-45335ee7d287",
+   "origen": "distinta"
+  },
+  {
+   "id": "bbd90a62-7a5f-499d-8661-37d3f5d5eb96",
+   "origen": "distinta"
+  },
+  {
+   "id": "a7ab44bb-4f10-4d75-93e5-ce4e3ef6d7fd",
+   "origen": "distinta"
+  },
+  {
+   "id": "32abae45-83a5-4e2d-a33b-e46ade04231d",
+   "origen": "distinta"
+  },
+  {
+   "id": "17490136-5eb1-4756-98c3-928b10d31115",
+   "origen": "distinta"
+  },
+  {
+   "id": "acaf1f77-035d-4d17-91ba-c95d8aa89028",
+   "origen": "distinta"
+  },
+  {
+   "id": "6a78e47e-6d31-412f-8f63-0ff5d79203a1",
+   "origen": "distinta"
+  },
+  {
+   "id": "725c76f8-262c-4215-8531-c246b99cc962",
+   "origen": "distinta"
+  },
+  {
+   "id": "ae3716e7-1979-42fd-9ba0-13f17c41e92c",
+   "origen": "distinta"
+  },
+  {
+   "id": "54ffb7fb-c7b7-42e3-8636-e01ae8174c78",
+   "origen": "distinta"
+  },
+  {
+   "id": "9baf2d14-7fe7-4d2a-99b4-eaa307e8236b",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "4fd8ef1c-4b2f-4a6c-87cb-8f3b2515ea07",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "f08c9cba-7313-4c4e-af49-6a328ebe43eb",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "7ded41eb-e1ca-4b5b-995e-b712d417cc46",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "7e27058f-f4a3-4fb8-9ad7-a0ce16f32870",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "165c706c-2359-4b20-98c7-e87709646157",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "0d5258a7-1c24-4190-95c5-1455fc2f3b92",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "8faa8197-97af-4b23-80eb-251219480b40",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "745d5846-258b-46f4-9e99-ef1915b40ed5",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "17ed5105-1ab5-42f6-8cce-fdacc7246b72",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "44bed5e3-fdb7-4f83-b5aa-2e3a2dcd408c",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "13191eac-f7b7-47d5-9074-9d7a0416c880",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "3a819745-e12c-4a1a-ae50-3202288f983e",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "bfc1b520-ae96-482f-b87f-6737e375f897",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "af66428b-d0b1-45ba-8f24-8b6684335927",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "9cfe8033-f257-4017-b1a4-646ebab6717c",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "180262d4-6aa9-48f0-be61-08ec92224dac",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "7f922fdc-c6b8-4f2e-8b4d-cd4fc1ceacfa",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "6688515d-eedd-420b-a41e-4b18164584e1",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "6fd2d903-fb49-4dd0-8f50-e6a184fd4344",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "381ccb0e-b24d-4943-86ef-3b6a59e6fb3a",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "b0dbe080-b9a8-430d-8482-2d03350d2409",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "462a2834-3ed0-4fb7-bc7d-5da775f42880",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "b0420600-e511-4fd4-a2f2-71c9c6f55f95",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "8960aa1c-57b3-4b55-af89-a90e064c49f4",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "8cc74b2a-2c4a-4cdf-b6e4-d4b154ce3132",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "e852208d-3167-4f1f-af88-2405d76db9b2",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "dfa67d8e-6eb4-4309-b3c8-1b136e505e00",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "9dfd35a9-7432-4ab4-ba7e-ad14958d29c4",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "148e311d-08e2-4bec-80c7-645df938a2b1",
+   "origen": "sin_sugerencia"
+  },
+  {
+   "id": "79caf414-94e4-4a45-b04d-254478162f1d",
+   "origen": "usada"
+  },
+  {
+   "id": "f29260ba-c4ca-4c10-ae2b-56e04e9bbf37",
+   "origen": "usada"
+  },
+  {
+   "id": "5d773922-e387-4955-bcc1-db276d6ac97e",
+   "origen": "usada"
+  },
+  {
+   "id": "1f000b9e-f3c8-4d21-a8e1-c0104669b54b",
+   "origen": "usada"
+  },
+  {
+   "id": "8b412345-b68f-465f-b8c1-e7144b2faf21",
+   "origen": "usada"
+  },
+  {
+   "id": "5e69d17f-afd2-4a2e-8c52-c107d0618612",
+   "origen": "usada"
+  },
+  {
+   "id": "ab5b2342-e54f-4a1b-8455-e461a37bdfc9",
+   "origen": "usada"
+  },
+  {
+   "id": "beb78ac3-52bb-4531-9c9d-e259275ef478",
+   "origen": "usada"
+  },
+  {
+   "id": "e3ea8fa4-2576-4c14-9fdf-4afb12f1d3ca",
+   "origen": "usada"
+  },
+  {
+   "id": "af37b58e-033e-430a-9174-27446df26158",
+   "origen": "usada"
+  },
+  {
+   "id": "05e00c14-f71e-4747-9bf6-73a9c13ad56a",
+   "origen": "usada"
+  },
+  {
+   "id": "c7ea883e-ffdb-497c-9ca4-5db4e527d51f",
+   "origen": "usada"
+  },
+  {
+   "id": "204beb95-055e-4f43-8249-7f6b76c4cbcc",
+   "origen": "usada"
+  },
+  {
+   "id": "73dec6e8-4253-45fc-b745-712b140fdd43",
+   "origen": "usada"
+  },
+  {
+   "id": "15b0920e-501c-4f48-80fe-54aad087df34",
+   "origen": "usada"
+  },
+  {
+   "id": "d010d590-c0c3-451f-a361-b8d1ca95b8a5",
+   "origen": "usada"
+  },
+  {
+   "id": "8fc29759-a935-4f44-807a-a20878308410",
+   "origen": "usada"
+  },
+  {
+   "id": "fb3b86a5-283b-482b-98c0-44d4a5570b07",
+   "origen": "usada"
+  },
+  {
+   "id": "0825e1e2-338d-403d-a0d5-ba31d1e8b96d",
+   "origen": "usada"
+  },
+  {
+   "id": "f87c90f2-9ca3-4019-be32-3f6242d40110",
+   "origen": "usada"
+  },
+  {
+   "id": "56ae5bc9-3f14-40d8-a6ad-fb8bfaca7131",
+   "origen": "usada"
+  },
+  {
+   "id": "0b1cdc37-dca1-4771-a97b-a68cd4b06f2d",
+   "origen": "usada"
+  },
+  {
+   "id": "08a02ad2-4b93-4c0b-a22d-ee5b749570f7",
+   "origen": "usada"
+  },
+  {
+   "id": "227641f9-bbc6-4f0d-aa62-8ad1a2902d18",
+   "origen": "usada"
+  },
+  {
+   "id": "4cb61116-ae2c-4116-8bd7-3b4a911f8c2d",
+   "origen": "usada"
+  },
+  {
+   "id": "d6f3962b-630e-444f-bfc9-1d1e9617d27d",
+   "origen": "usada"
+  },
+  {
+   "id": "ab85730b-19e0-4a57-a9fe-e9f53d18ea07",
+   "origen": "usada"
+  },
+  {
+   "id": "a8d52d13-fc30-4b70-8c92-8e061fdb2e99",
+   "origen": "usada"
+  },
+  {
+   "id": "62426f48-9538-41b3-9439-f69bbb4c51b2",
+   "origen": "usada"
+  },
+  {
+   "id": "b07b8e0e-c602-466d-a49b-1a7c34e3ed36",
+   "origen": "usada"
+  }
+ ]
+}

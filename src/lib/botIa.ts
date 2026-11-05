@@ -96,6 +96,11 @@ export interface OpcionesClasificador {
   // Se llama si la API de Anthropic responde con error (sin saldo, clave
   // inválida, caída…), para que el webhook pueda avisarlo en el CRM.
   onErrorApi?: (status: number, cuerpo: string) => void
+  // Para probar otros modelos (la prueba del bot): pensamiento, esfuerzo y tope
+  // de tokens. Sin esto, el pedido es el de siempre.
+  ajustesModelo?: { thinking?: Record<string, unknown>; effort?: string; maxTokens?: number }
+  // Recibe la respuesta cruda (modelo, tokens usados, por qué terminó).
+  onRespuesta?: (data: { model?: string; usage?: Record<string, number>; stop_reason?: string }) => void
 }
 
 export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<ClasificacionIA | null> {
@@ -126,9 +131,13 @@ export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<Cla
     },
     body: JSON.stringify({
       model: o.modelo,
-      max_tokens: 1024,
+      max_tokens: o.ajustesModelo?.maxTokens ?? 1024,
       system: SYSTEM_CLASIFICADOR,
-      output_config: { format: { type: 'json_schema', schema: CLASIFICACION_SCHEMA } },
+      ...(o.ajustesModelo?.thinking ? { thinking: o.ajustesModelo.thinking } : {}),
+      output_config: {
+        ...(o.ajustesModelo?.effort ? { effort: o.ajustesModelo.effort } : {}),
+        format: { type: 'json_schema', schema: CLASIFICACION_SCHEMA },
+      },
       messages: [{
         role: 'user',
         content: `Conversación reciente (de la más vieja a la más nueva):\n${o.contexto || '(sin mensajes previos)'}\n\nLo que ya sabemos que busca: ${guardada}\n${bloqueAprendizajes}\n${bloqueTexto}Último mensaje del cliente, el que hay que clasificar:\n${o.text}`,
@@ -142,7 +151,8 @@ export async function llamarClasificadorIA(o: OpcionesClasificador): Promise<Cla
     o.onErrorApi?.(res.status, cuerpo)
     return null
   }
-  const data = await res.json() as { stop_reason?: string; content?: { type: string; text?: string }[] }
+  const data = await res.json() as { model?: string; usage?: Record<string, number>; stop_reason?: string; content?: { type: string; text?: string }[] }
+  o.onRespuesta?.(data)
   if (data.stop_reason === 'refusal' || data.stop_reason === 'max_tokens') {
     console.error('classifyWithAI: respuesta incompleta de Anthropic, stop_reason =', data.stop_reason)
     return null

@@ -6,3 +6,6 @@ dist
 .vercel
 .env.vapid
 pdfs/
+
+# Prueba del bot: trae mensajes reales de clientes
+.claude/hillclimb/

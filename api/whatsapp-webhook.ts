@@ -20,6 +20,7 @@ import {
   hablaDeLaFoto,
   tipoDeCategoria,
 } from '../src/lib/crmBusqueda'
+import { armarContexto, bloqueConAdjuntos, bloqueDeTextoDelCliente, mensajesConTexto, type FilaMensaje } from '../src/lib/botEntrada'
 import { llamarClasificadorIA, rankearAprendizajes, type FilaAprendizaje } from '../src/lib/botIa'
 import { humanizar } from '../src/lib/crmTexto'
 import { variantesWaId } from '../src/lib/crmWaId'
@@ -400,11 +401,8 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
       sbFetch('modelos?select=marca,modelo')
         .catch(err => { console.error('No se pudo leer el catálogo para detectar modelos:', err); return null }),
     ])
-    const filasMsgs = (await mensajesRes.json() as { id?: string; direccion: 'in' | 'out'; tipo?: string; contenido: string | null; transcripcion: string | null; imagen_descripcion?: string | null }[])
-      .reverse()
-    const recientes = filasMsgs
-      .map(m => ({ direccion: m.direccion, texto: (m.contenido || m.transcripcion || '').trim() }))
-      .filter(m => m.texto)
+    const filasMsgs = (await mensajesRes.json() as FilaMensaje[]).reverse()
+    const recientes = mensajesConTexto(filasMsgs)
     const estadoRow = estadoRes ? (await estadoRes.json() as Record<string, unknown>[])[0] ?? {} : {}
     const busquedaPrevia = busquedaVigente(estadoRow as Parameters<typeof busquedaVigente>[0])
     const catalogo = catalogoRes ? await catalogoRes.json() as { marca: string; modelo: string }[] : []
@@ -412,19 +410,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     const ultimoMensajeLocal = [...recientes].reverse().find(m => m.direccion === 'out')?.texto ?? null
     const textosCliente = recientes.filter(m => m.direccion === 'in').map(m => m.texto)
     // Para la IA, las fotos cuentan: aparecen como [foto del cliente: lo que muestra].
-    const contexto = filasMsgs
-      .map(m => {
-        const texto = (m.contenido || m.transcripcion || '').trim()
-        if (m.tipo === 'image') {
-          const marca = m.direccion === 'in'
-            ? `[foto del cliente: ${m.imagen_descripcion?.trim() || 'no se vio qué muestra'}]`
-            : '[foto que mandó el local]'
-          return `${m.direccion === 'in' ? 'Cliente' : 'Local'}: ${[texto, marca].filter(Boolean).join(' ')}`
-        }
-        return texto ? `${m.direccion === 'in' ? 'Cliente' : 'Local'}: ${texto}` : ''
-      })
-      .filter(Boolean)
-      .join('\n')
+    const contexto = armarContexto(filasMsgs)
 
     // 1) Reglas deterministas sobre el mensaje nuevo. 2) La IA con contexto,
     // validada: solo se le cree un talle que el cliente escribió y un tipo si
@@ -457,26 +443,15 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
 
     // Las respuestas aprobadas se buscan con lo último que escribió el cliente
     // (hasta 3 mensajes seguidos), igual que se guardan en "Aprendizaje".
-    const bloqueCliente: string[] = []
-    for (let i = recientes.length - 1; i >= 0 && recientes[i].direccion === 'in'; i--) bloqueCliente.unshift(recientes[i].texto)
+    const bloqueCliente = bloqueDeTextoDelCliente(filasMsgs)
     const aprendizajes = await buscarAprendizajes(bloqueCliente.slice(-3).join('\n') || text)
-    // El mismo bloque, pero con las fotos y audios (no tienen texto): la
-    // sugerencia contesta todo lo que mandó seguido, sobre todo lo último.
-    const bloqueConAdjuntos: string[] = []
-    for (let i = filasMsgs.length - 1; i >= 0 && filasMsgs[i].direccion === 'in'; i--) {
-      const m = filasMsgs[i]
-      const t = (m.contenido || m.transcripcion || '').trim()
-      const adj = m.tipo === 'image'
-        ? `[foto del cliente: ${m.imagen_descripcion?.trim() || 'no se vio qué muestra'}]`
-        : marcadorAdjunto(m.tipo ?? '')
-      bloqueConAdjuntos.unshift([t, adj].filter(Boolean).join(' '))
-    }
+    const bloqueAdj = bloqueConAdjuntos(filasMsgs)
     // Si la IA no responde (sin saldo, caída…) se anota para el aviso del CRM
     // y NO se inventa una sugerencia genérica (ver más abajo).
     let errorIa: string | null = null
     const ia = await llamarClasificadorIA({
       apiKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL, contexto, busquedaGuardada: busquedaPrevia, text, aprendizajes,
-      bloque: bloqueConAdjuntos.length > 1 ? bloqueConAdjuntos : undefined,
+      bloque: bloqueAdj.length > 1 ? bloqueAdj : undefined,
       onErrorApi: (status, cuerpo) => { errorIa = tipoErrorIa(status, cuerpo) },
     }).catch(err => {
       console.error('classifyWithAI: falló la llamada a Anthropic:', err)
