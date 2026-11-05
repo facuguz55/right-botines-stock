@@ -12,6 +12,14 @@ export const INTENCIONES = ['pedido_talle', 'consulta_precio', 'consulta_envio',
 
 export const MAX_MENSAJES_SUGERIDOS = 2
 
+// Modelo de las sugerencias (webhook y "Probar el bot" usan el mismo). Medido
+// el 05/11/2026 con la prueba de 150 casos reales (scripts/eval-bot): Haiku 5.5
+// con pensamiento en esfuerzo bajo acierta igual que Haiku 4.5 (47% vs 48%,
+// dentro del margen) y cuesta unas 7 veces menos. El tope de tokens es alto
+// porque el pensamiento también cuenta.
+export const MODELO_SUGERENCIAS = 'claude-haiku-5-5'
+export const AJUSTES_SUGERENCIAS = { effort: 'low', maxTokens: 4000 }
+
 export interface ClasificacionIA {
   categoria: string
   intencion: string

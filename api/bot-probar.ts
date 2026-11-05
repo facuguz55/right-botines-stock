@@ -1,4 +1,4 @@
-import { elegirAprendizajes, formatearAprendizaje, llamarClasificadorIA, type FilaAprendizaje } from '../src/lib/botIa'
+import { AJUSTES_SUGERENCIAS, MODELO_SUGERENCIAS, elegirAprendizajes, formatearAprendizaje, llamarClasificadorIA, type FilaAprendizaje } from '../src/lib/botIa'
 
 export const config = { runtime: 'edge' }
 
@@ -10,7 +10,6 @@ export const config = { runtime: 'edge' }
 const SB_URL = process.env.SUPABASE_URL ?? ''
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? ''
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? ''
-const ANTHROPIC_MODEL = 'claude-haiku-4-5'
 
 // Mismo criterio que api/whatsapp-send.ts: solo desde la propia app.
 const ALLOWED_ORIGINS = [
@@ -63,7 +62,7 @@ export default async function handler(req: Request): Promise<Response> {
     const ultimo = cliente[cliente.length - 1]
     const contexto = cliente.slice(0, -1).map(t => `Cliente: ${t}`).join('\n')
     const ia = await llamarClasificadorIA({
-      apiKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL, contexto,
+      apiKey: ANTHROPIC_API_KEY, modelo: MODELO_SUGERENCIAS, ajustesModelo: AJUSTES_SUGERENCIAS, contexto,
       busquedaGuardada: { talle: null, tipo: null, modelo: null },
       text: ultimo, bloque: cliente, aprendizajes,
     })

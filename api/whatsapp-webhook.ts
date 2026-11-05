@@ -21,7 +21,7 @@ import {
   tipoDeCategoria,
 } from '../src/lib/crmBusqueda'
 import { armarContexto, bloqueConAdjuntos, bloqueDeTextoDelCliente, mensajesConTexto, type FilaMensaje } from '../src/lib/botEntrada'
-import { llamarClasificadorIA, rankearAprendizajes, type FilaAprendizaje } from '../src/lib/botIa'
+import { AJUSTES_SUGERENCIAS, MODELO_SUGERENCIAS, llamarClasificadorIA, rankearAprendizajes, type FilaAprendizaje } from '../src/lib/botIa'
 import { humanizar } from '../src/lib/crmTexto'
 import { variantesWaId } from '../src/lib/crmWaId'
 import { decidirAutomatico } from '../src/lib/crmHorario'
@@ -450,7 +450,7 @@ async function classifyWithAI(text: string, conversacionId: string, messageId: s
     // y NO se inventa una sugerencia genérica (ver más abajo).
     let errorIa: string | null = null
     const ia = await llamarClasificadorIA({
-      apiKey: ANTHROPIC_API_KEY, modelo: ANTHROPIC_MODEL, contexto, busquedaGuardada: busquedaPrevia, text, aprendizajes,
+      apiKey: ANTHROPIC_API_KEY, modelo: MODELO_SUGERENCIAS, ajustesModelo: AJUSTES_SUGERENCIAS, contexto, busquedaGuardada: busquedaPrevia, text, aprendizajes,
       bloque: bloqueAdj.length > 1 ? bloqueAdj : undefined,
       onErrorApi: (status, cuerpo) => { errorIa = tipoErrorIa(status, cuerpo) },
     }).catch(err => {
