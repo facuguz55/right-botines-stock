@@ -4,6 +4,7 @@ import { fetchEnviosBA, marcarEnvioBA, avisarProblemaBA, subirRotulosBA, borrarR
 import { HabilitarDispositivoModal } from '../DispositivoBanner/HabilitarDispositivoModal'
 import { marcarDespachosVistos } from '../../hooks/useDespachosNuevos'
 import { estaAtrasado } from '../../lib/plazoDespacho'
+import { talleParaProveedora } from '../../lib/talleProveedora'
 import './LogisticaBA.css'
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -26,6 +27,19 @@ function horasDesde(iso: string) {
 function atraso(horas: number) {
   const dias = Math.floor(horas / 24)
   return dias === 1 ? '1 día' : `${dias} días`
+}
+
+// Talle del pedido (argentino, como en TiendaNube) y el que la proveedora
+// tiene que sacar de su planilla (europeo: uno más).
+function TalleBA({ talle, pares = 1 }: { talle: string; pares?: number }) {
+  const t = talleParaProveedora(talle)
+  const extra = pares > 1 ? ` · ${pares} pares` : ''
+  if (!t) return <p className="lba-prod-talle">Talle {talle}{extra}</p>
+  return (
+    <p className="lba-prod-talle">
+      Talle {t.arg} ARG → <span className="lba-talle-planilla">sacá el {t.planilla} de tu planilla</span>{extra}
+    </p>
+  )
 }
 
 const MOTIVOS = ['No tengo el talle', 'El par está fallado', 'Me falta el rótulo', 'Dirección incompleta o rara']
@@ -94,7 +108,7 @@ function ListaSeparar({ pendientes }: { pendientes: EnvioBA[] }) {
               {g.foto ? <img src={g.foto} alt="" loading="lazy" /> : <span className="lba-sinfoto" />}
               <div>
                 <p className="lba-prod-nombre">{g.nombre}</p>
-                <p className="lba-prod-talle">Talle {g.talle}</p>
+                <TalleBA talle={g.talle} />
                 <p className="lba-separar-pedidos">Pedidos {g.pedidos.map(n => `#${n}`).join(', ')}</p>
               </div>
               <span className="lba-separar-cant">×{g.pares}</span>
@@ -202,7 +216,7 @@ function Tarjeta({ e, onMarcar, onProblema, onImprimir, marcando }: { e: EnvioBA
             {p.foto ? <img src={p.foto} alt="" loading="lazy" /> : <span className="lba-sinfoto" />}
             <div>
               <p className="lba-prod-nombre">{p.nombre}</p>
-              <p className="lba-prod-talle">Talle {p.talle}{p.cantidad > 1 ? ` · ${p.cantidad} pares` : ''}</p>
+              <TalleBA talle={p.talle} pares={p.cantidad} />
             </div>
           </li>
         ))}

@@ -23,6 +23,7 @@
 .lba-productos img, .lba-sinfoto { width: 52px; height: 52px; border-radius: var(--radius-sm); object-fit: cover; background: var(--bg-surface-2, #1a2230); flex-shrink: 0; }
 .lba-prod-nombre { margin: 0; font-size: .875rem; font-weight: 700; color: var(--text-primary); }
 .lba-prod-talle { margin: 2px 0 0; font-size: .8125rem; color: #93c5fd; font-weight: 600; }
+.lba-talle-planilla { color: #fde68a; font-weight: 700; }
 
 .lba-alerta { display: flex; gap: .4rem; align-items: flex-start; margin: 0; padding: .5rem .625rem; border-radius: var(--radius-sm); background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.45); color: #fbbf24; font-size: .8125rem; }
 .lba-info { margin: 0; font-size: .75rem; color: var(--text-secondary); }
