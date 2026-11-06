@@ -96,13 +96,26 @@ export async function upsertModeloFromTNProduct(
     for (const vt of variantTalles) {
       seenTalleArgs.add(vt.talle_arg)
       const existingTalle = existing.modelo_talles.find(t => Number(t.talle_arg) === vt.talle_arg)
+      if (existingTalle) {
+        // El stock de un talle que ya existe NO se toca desde el navegador:
+        // lo llevan el webhook y el resync del servidor (con su protección
+        // de cola). Escribirlo acá contaba como un cambio hecho en la app y
+        // volvía a mandar a TiendaNube un número viejo (06/11: los pares
+        // duplicados en CABA terminaron otra vez en el Showroom).
+        const { error } = await supabase
+          .from('modelo_talles')
+          .update({ talle_us: vt.talle_us, tn_variant_id: vt.variantId })
+          .eq('id', existingTalle.id)
+        if (error) throw error
+        continue
+      }
+      // Talle nuevo en TiendaNube que la app todavía no tenía.
       await upsertTalle({
-        id: existingTalle?.id,
         modelo_id: existing.id,
         talle_us: vt.talle_us,
         talle_arg: vt.talle_arg,
         cantidad: vt.stock,
-        stock_minimo: existingTalle?.stock_minimo ?? 1,
+        stock_minimo: 1,
         tn_variant_id: vt.variantId,
       })
     }
