@@ -380,6 +380,25 @@ async function upsertClienteServerSide(c: TNRawCustomer): Promise<void> {
 // stock dos veces — la resolución de qué modelo/talle corresponde sigue
 // acá (es la parte que ya funcionaba bien), solo el paso final de
 // insertar-la-venta-y-descontar-stock se movió a la base.
+// Pedido cancelado, devuelto o anulado: no es una venta. Un pedido cancelado
+// puede seguir con payment_status "paid" (TiendaNube no lo cambia si no se
+// devuelve la plata), así que se mira también el estado del pedido.
+export function ordenAnulada(order: Pick<TNRawOrder, 'status' | 'payment_status'>): boolean {
+  return order.status === 'cancelled' || order.payment_status === 'refunded' || order.payment_status === 'voided'
+}
+
+// Saca del Dashboard las ventas de un pedido anulado. El stock NO se toca acá:
+// al cancelar, TiendaNube decide si repone el par (Cami elige), y ese cambio
+// llega por el webhook/resync de producto. Si la venta tiene una devolución o
+// cambio cargado, la base no deja borrarla y se deja como está.
+async function quitarVentasDeOrden(orderId: number): Promise<void> {
+  try {
+    await sbFetch(`ventas?tn_order_id=eq.${orderId}`, { method: 'DELETE' })
+  } catch (e) {
+    console.error('No se pudo quitar la venta del pedido anulado', orderId, e)
+  }
+}
+
 async function descontarStockPorOrden(order: TNRawOrder): Promise<void> {
   for (const item of order.products) {
     let talleRow: { id: string; cantidad: number; talle_arg: number } | undefined
@@ -506,7 +525,9 @@ export default async function handler(req: Request): Promise<Response> {
       const order = await fetchTNOrderServerSide(orderId)
       await upsertOrdenServerSide(order)
 
-      if (order.payment_status === 'paid' || order.payment_status === 'authorized') {
+      if (ordenAnulada(order)) {
+        await quitarVentasDeOrden(order.id)
+      } else if (order.payment_status === 'paid' || order.payment_status === 'authorized') {
         await descontarStockPorOrden(order)
       }
 
